@@ -9,45 +9,47 @@ import { LayoutGrid, List, Plus, Search, LogOut, Tags, X, Settings, Upload, Down
 import { useAuthStore } from '../store/authStore';
 
 export const Dashboard = () => {
-  // --- DATA STATE ---
+  // --- STATE ---
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
   const [allTags, setAllTags] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
 
-  // Load limit from local storage or default to 50
   const [limit, setLimit] = useState(() => {
     const saved = localStorage.getItem('bookmarks_limit');
     return saved ? parseInt(saved) : 50;
   });
 
-  // --- UI STATE ---
   const [search, setSearch] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-
-  // Tag Filter
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [isTagMenuOpen, setIsTagMenuOpen] = useState(false);
   const [tagSearch, setTagSearch] = useState('');
 
-  // Menus & Modals State
-  const [isSettingsMenuOpen, setIsSettingsMenuOpen] = useState(false); // Dropdown Menu
-  const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);   // Preferences Modal
+  const [isSettingsMenuOpen, setIsSettingsMenuOpen] = useState(false);
+  const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingBookmark, setEditingBookmark] = useState<Bookmark | null>(null);
 
-  // Refs
+  // --- REFS ---
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const tagInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const observerTarget = useRef<HTMLDivElement>(null); // Infinite Scroll Target
+  const observerTarget = useRef<HTMLDivElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const logout = useAuthStore(state => state.logout);
 
-  // -------------------------------------------
-  // 1. FETCH TAGS (ONCE ON MOUNT)
-  // -------------------------------------------
+  // --- FIX 2: CALLBACK REF FOR TAG INPUT ---
+  // This function runs automatically when the <input> mounts into the DOM.
+  const setTagInputFocus = useCallback((element: HTMLInputElement) => {
+    if (element) {
+      // Use a microtask to ensure the UI is fully painted
+      requestAnimationFrame(() => element.focus());
+    }
+  }, []);
+
+  // 1. Fetch Tags
   const fetchTags = async () => {
     try {
       const res = await api.get<string[]>('/tags');
@@ -56,61 +58,57 @@ export const Dashboard = () => {
   };
   useEffect(() => { fetchTags(); }, []);
 
-  // -------------------------------------------
-  // 2. FETCH BOOKMARKS (Server-Side Logic)
-  // -------------------------------------------
+  // 2. Fetch Bookmarks (with Abort)
   const fetchBookmarks = useCallback(async (pageNum: number, isRefresh = false) => {
-    if (loading) return;
+    if (isRefresh) {
+      if (abortControllerRef.current) abortControllerRef.current.abort();
+    } else {
+      if (loading) return;
+    }
+
     setLoading(true);
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
+    if (isRefresh) setBookmarks([]);
 
     try {
-      // Pass Search and Tag to Backend
       let url = `/bookmarks?page=${pageNum}&limit=${limit}`;
       if (selectedTag) url += `&tag=${encodeURIComponent(selectedTag)}`;
       if (search) url += `&search=${encodeURIComponent(search)}`;
 
-      const res = await api.get<Bookmark[]>(url);
+      const res = await api.get<Bookmark[]>(url, { signal: controller.signal });
       const newData = res.data;
 
-      if (isRefresh) {
-        setBookmarks(newData);
-      } else {
-        setBookmarks(prev => [...prev, ...newData]);
-      }
+      if (isRefresh) setBookmarks(newData);
+      else setBookmarks(prev => [...prev, ...newData]);
 
-      // If we got fewer items than limit, we reached the end
       setHasMore(newData.length >= limit);
-    } catch (err) {
-      console.error("Failed to load bookmarks");
+    } catch (err: any) {
+      if (err.name !== 'Canceled') console.error("Failed to load bookmarks");
     } finally {
-      setLoading(false);
+      if (abortControllerRef.current === controller) setLoading(false);
     }
-  }, [limit, selectedTag, search]); // Re-create if filters change
+  }, [limit, selectedTag, search, loading]);
 
-  // -------------------------------------------
-  // 3. TRIGGER RESET ON FILTER CHANGE
-  // -------------------------------------------
-  // Debounce Search to prevent API spam while typing
+  // 3. Reset Trigger
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       setPage(1);
       setHasMore(true);
-      fetchBookmarks(1, true); // Refresh
-    }, 300); // 300ms delay
-
+      fetchBookmarks(1, true);
+    }, 300);
     return () => clearTimeout(timeoutId);
-  }, [search, selectedTag, limit]); // Trigger on Search/Tag/Limit change
+  }, [search, selectedTag, limit]);
 
-  // -------------------------------------------
-  // 4. INFINITE SCROLL
-  // -------------------------------------------
+  // 4. Infinite Scroll
   useEffect(() => {
     const observer = new IntersectionObserver(
       entries => {
         if (entries[0].isIntersecting && hasMore && !loading) {
           setPage(prev => {
             const nextPage = prev + 1;
-            fetchBookmarks(nextPage, false); // Append
+            fetchBookmarks(nextPage, false);
             return nextPage;
           });
         }
@@ -121,69 +119,65 @@ export const Dashboard = () => {
     return () => observer.disconnect();
   }, [hasMore, loading, fetchBookmarks]);
 
-
-  // -------------------------------------------
-  // 5. HELPER LOGIC (Shortcuts, Handlers)
-  // -------------------------------------------
-  // Keyboard Shortcuts
+  // 5. Global Shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
       const isTyping = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA';
-      if (e.key === '/' && !isTyping) { e.preventDefault(); searchInputRef.current?.focus(); }
-      else if (e.key === 't' && !isTyping) { e.preventDefault(); setIsTagMenuOpen(prev => !prev); }
-      else if (e.key === 'Escape') {
-        if(isTagMenuOpen) setIsTagMenuOpen(false);
-        else if(isSettingsMenuOpen) setIsSettingsMenuOpen(false);
+
+      if (e.key === '/' && !isTyping) {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      } else if (e.key === 't' && !isTyping) {
+        e.preventDefault();
+        setIsTagMenuOpen(prev => !prev);
+      } else if (e.key === 'Escape') {
+        if (isTagMenuOpen) { e.preventDefault(); setIsTagMenuOpen(false); }
+        else if (isSettingsMenuOpen) { e.preventDefault(); setIsSettingsMenuOpen(false); }
+      } else if (e.key === 'Backspace' && !isTyping && selectedTag) {
+        e.preventDefault();
+        setSelectedTag(null);
       }
-      else if (e.key === 'Backspace' && !isTyping && selectedTag) { e.preventDefault(); setSelectedTag(null); }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [selectedTag, isTagMenuOpen, isSettingsMenuOpen]);
 
-  // Tag Search inside Dropdown (Client-side filtering of the FULL tag list)
+  // Reset tag search when menu opens
+  useEffect(() => {
+    if (isTagMenuOpen) setTagSearch('');
+  }, [isTagMenuOpen]);
+
+  // --- HANDLERS ---
+  const handleConfigSave = (newLimit: number) => { localStorage.setItem('bookmarks_limit', newLimit.toString()); setLimit(newLimit); };
+  const handleImportClick = () => { fileInputRef.current?.click(); setIsSettingsMenuOpen(false); };
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => { /* ... Keep Import Logic ... */
+      const file = e.target.files?.[0]; if (!file) return;
+      if (!confirm(`Import "${file.name}"?`)) { e.target.value = ''; return; }
+      const formData = new FormData(); formData.append('file', file);
+      try { setLoading(true); await api.post('/system/import', formData, { headers: { 'Content-Type': 'multipart/form-data' } }); alert('Import successful!'); fetchTags(); setPage(1); fetchBookmarks(1, true); } catch (error) { alert('Failed'); } finally { setLoading(false); e.target.value = ''; }
+  };
+  const handleExport = async () => { /* ... Keep Export Logic ... */
+      setIsSettingsMenuOpen(false);
+      try { const response = await api.get('/system/export', { responseType: 'blob' }); const url = window.URL.createObjectURL(new Blob([response.data])); const link = document.createElement('a'); link.href = url; link.setAttribute('download', 'bookmarks.html'); document.body.appendChild(link); link.click(); link.remove(); } catch (error) { alert("Failed"); }
+  };
+  const handleDelete = async (id: number) => {
+      if(!confirm("Are you sure?")) return;
+      try { await api.delete(`/bookmarks/${id}`); setBookmarks(prev => prev.filter(b => b.id !== id)); } catch (error) { alert("Failed"); }
+  };
+  const handleTagSelect = (tag: string) => { setSelectedTag(tag); setIsTagMenuOpen(false); setTagSearch(''); };
+  const handleTagInputKeyDown = (e: React.KeyboardEvent) => {
+    if ((e.key === 'Tab' || e.key === 'Enter') && visibleTags.length > 0) {
+      e.preventDefault(); handleTagSelect(visibleTags[0]);
+    }
+  };
+  const handleAddSuccess = (newBookmark: Bookmark) => { setBookmarks(prev => [newBookmark, ...prev]); fetchTags(); };
+  const handleEditSuccess = (updatedBookmark: Bookmark) => { setBookmarks(prev => prev.map(b => b.id === updatedBookmark.id ? updatedBookmark : b)); fetchTags(); };
+
   const visibleTags = useMemo(() => {
     if (!tagSearch) return allTags;
     return allTags.filter(t => t.toLowerCase().includes(tagSearch.toLowerCase()));
   }, [allTags, tagSearch]);
-
-
-  // Handlers
-  const handleConfigSave = (newLimit: number) => { localStorage.setItem('bookmarks_limit', newLimit.toString()); setLimit(newLimit); };
-  const handleImportClick = () => { fileInputRef.current?.click(); setIsSettingsMenuOpen(false); };
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]; if (!file) return;
-    if (!confirm(`Import "${file.name}"?`)) { e.target.value = ''; return; }
-    const formData = new FormData(); formData.append('file', file);
-    try {
-      setLoading(true); await api.post('/system/import', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
-      alert('Import successful!');
-      fetchTags(); // Refresh tags
-      setPage(1); fetchBookmarks(1, true); // Refresh list
-    } catch (error) { alert('Failed'); }
-    finally { setLoading(false); e.target.value = ''; }
-  };
-  const handleExport = async () => { /* ... keep existing export logic ... */ };
-  const handleDelete = async (id: number) => {
-    if(!confirm("Are you sure?")) return;
-    try { await api.delete(`/bookmarks/${id}`); setBookmarks(prev => prev.filter(b => b.id !== id)); }
-    catch (error) { alert("Failed"); }
-  };
-  const handleAddSuccess = (newBookmark: Bookmark) => {
-    setBookmarks(prev => [newBookmark, ...prev]);
-    fetchTags(); // Update tag list
-  };
-  const handleEditSuccess = (updatedBookmark: Bookmark) => {
-    setBookmarks(prev => prev.map(b => b.id === updatedBookmark.id ? updatedBookmark : b));
-    fetchTags(); // Update tag list
-  };
-
-  // Tag Selection Handlers
-  const handleTagSelect = (tag: string) => { setSelectedTag(tag); setIsTagMenuOpen(false); setTagSearch(''); };
-  const handleTagInputKeyDown = (e: React.KeyboardEvent) => {
-    if ((e.key === 'Tab' || e.key === 'Enter') && visibleTags.length > 0) { e.preventDefault(); handleTagSelect(visibleTags[0]); }
-  };
 
   return (
     <div className="min-h-screen p-6 md:p-10 w-full" onClick={() => { setIsTagMenuOpen(false); setIsSettingsMenuOpen(false); }}>
@@ -193,15 +187,13 @@ export const Dashboard = () => {
         <div>
           <h1 className="text-3xl font-bold">My Bookmarks</h1>
           <p className="text-gray-400 text-sm">
-            {/* Note: In server-side search, we don't know total count easily without an extra API call.
-                For now, we just show visible count or remove the count display. */}
             Showing {bookmarks.length} results
             {selectedTag && <span className="ml-2 text-primary">(Filtered by #{selectedTag})</span>}
           </p>
         </div>
 
         <div className="flex flex-col gap-3 md:flex-row md:items-center">
-          {/* SEARCH */}
+
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
             <input
@@ -211,10 +203,15 @@ export const Dashboard = () => {
               className="w-full rounded-md bg-surface py-2 pl-10 pr-4 text-text focus:outline-none focus:ring-2 focus:ring-primary md:w-64"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
+              // --- FIX 1: BLUR ON ESCAPE ---
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') {
+                  searchInputRef.current?.blur();
+                }
+              }}
             />
           </div>
 
-          {/* TAGS */}
           <div className="relative">
             <button
               onClick={(e) => { e.stopPropagation(); setIsTagMenuOpen(!isTagMenuOpen); setIsSettingsMenuOpen(false); }}
@@ -223,12 +220,21 @@ export const Dashboard = () => {
               <Tags size={18} /> {selectedTag || "Tags"}
               {selectedTag && <div onClick={(e) => { e.stopPropagation(); setSelectedTag(null); }} className="ml-1 rounded-full p-0.5 hover:bg-black/20"><X size={14} /></div>}
             </button>
+
             {isTagMenuOpen && (
               <div className="absolute right-0 top-full z-20 mt-2 max-h-80 w-56 overflow-hidden rounded-md border border-gray-600 bg-surface shadow-xl flex flex-col" onClick={(e) => e.stopPropagation()}>
                 <div className="border-b border-gray-700 p-2">
-                   {/* Auto-focus this input via Ref in useEffect */}
-                  <input ref={tagInputRef} type="text" placeholder="Find tag..." className="w-full rounded bg-background px-2 py-1 text-sm text-text focus:outline-none focus:ring-1 focus:ring-primary" value={tagSearch} onChange={(e) => setTagSearch(e.target.value)} onKeyDown={handleTagInputKeyDown} />
+                  <input
+                    ref={setTagInputFocus} // --- FIX 2: ATTACH CALLBACK REF ---
+                    type="text"
+                    placeholder="Find tag..."
+                    className="w-full rounded bg-background px-2 py-1 text-sm text-text focus:outline-none focus:ring-1 focus:ring-primary"
+                    value={tagSearch}
+                    onChange={(e) => setTagSearch(e.target.value)}
+                    onKeyDown={handleTagInputKeyDown}
+                  />
                 </div>
+                {/* ... Tag List ... */}
                 <div className="overflow-y-auto max-h-60">
                   {visibleTags.length === 0 ? <div className="p-3 text-center text-sm text-gray-500">No matching tags</div> :
                     visibleTags.map(tag => (
@@ -240,15 +246,11 @@ export const Dashboard = () => {
             )}
           </div>
 
-          {/* View Toggles, Settings... [Keep existing code] */}
-          {/* ... */}
-           {/* VIEW TOGGLES */}
           <div className="flex gap-2 rounded-md bg-surface p-1">
             <button onClick={() => setViewMode('grid')} className={`p-2 rounded ${viewMode === 'grid' ? 'bg-primary text-white' : 'text-gray-400'}`}><LayoutGrid size={20} /></button>
             <button onClick={() => setViewMode('list')} className={`p-2 rounded ${viewMode === 'list' ? 'bg-primary text-white' : 'text-gray-400'}`}><List size={20} /></button>
           </div>
 
-          {/* SETTINGS MENU */}
           <div className="relative">
             <button
               onClick={(e) => { e.stopPropagation(); setIsSettingsMenuOpen(!isSettingsMenuOpen); setIsTagMenuOpen(false); }}
@@ -258,48 +260,31 @@ export const Dashboard = () => {
             </button>
             {isSettingsMenuOpen && (
               <div className="absolute right-0 top-full z-20 mt-2 w-56 overflow-hidden rounded-md border border-gray-600 bg-surface shadow-xl">
-                <button onClick={() => { setIsConfigModalOpen(true); setIsSettingsMenuOpen(false); }} className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-gray-300 hover:bg-primary hover:text-white">
-                  <Sliders size={16} /> Preferences
-                </button>
+                <button onClick={() => { setIsConfigModalOpen(true); setIsSettingsMenuOpen(false); }} className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-gray-300 hover:bg-primary hover:text-white"><Sliders size={16} /> Preferences</button>
                 <div className="my-1 border-t border-gray-700"></div>
-                <button onClick={handleImportClick} className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-gray-300 hover:bg-primary hover:text-white">
-                  <Upload size={16} /> Import Bookmarks
-                </button>
-                <button onClick={handleExport} className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-gray-300 hover:bg-primary hover:text-white">
-                  <Download size={16} /> Export Bookmarks
-                </button>
+                <button onClick={handleImportClick} className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-gray-300 hover:bg-primary hover:text-white"><Upload size={16} /> Import Bookmarks</button>
+                <button onClick={handleExport} className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-gray-300 hover:bg-primary hover:text-white"><Download size={16} /> Export Bookmarks</button>
                 <div className="my-1 border-t border-gray-700"></div>
-                <button onClick={logout} className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-red-400 hover:bg-red-400/10">
-                  <LogOut size={16} /> Logout
-                </button>
+                <button onClick={logout} className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-red-400 hover:bg-red-400/10"><LogOut size={16} /> Logout</button>
               </div>
             )}
           </div>
-
         </div>
       </header>
 
-      {/* RENDER BOOKMARKS DIRECTLY (No Client Filtering) */}
+      {/* Grid ... */}
       <div className={viewMode === 'grid' ? "grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" : "flex flex-col"}>
         {bookmarks.length === 0 && !loading ? (
             <div className="col-span-full text-center text-gray-500 mt-20">
               {search || selectedTag ? "No matches found." : "No bookmarks yet. Add one!"}
             </div>
         ) : (
-            bookmarks.map(b => (
-              <BookmarkCard key={b.id} bookmark={b} viewMode={viewMode} onDelete={handleDelete} onEdit={setEditingBookmark} />
-            ))
+            bookmarks.map(b => <BookmarkCard key={b.id} bookmark={b} viewMode={viewMode} onDelete={handleDelete} onEdit={setEditingBookmark} />)
         )}
       </div>
 
-      <div ref={observerTarget} className="py-8 text-center">
-        {loading && <span className="text-primary">Loading...</span>}
-      </div>
-
-      <button onClick={() => setIsAddModalOpen(true)} className="fixed bottom-8 right-8 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-white shadow-lg hover:scale-110 transition-transform z-40">
-        <Plus size={28} />
-      </button>
-
+      <div ref={observerTarget} className="py-8 text-center">{loading && <span className="text-primary">Loading...</span>}</div>
+      <button onClick={() => setIsAddModalOpen(true)} className="fixed bottom-8 right-8 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-white shadow-lg hover:scale-110 transition-transform z-40"><Plus size={28} /></button>
       <AddBookmarkModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} onSuccess={handleAddSuccess} existingTags={allTags} />
       <EditBookmarkModal bookmark={editingBookmark} onClose={() => setEditingBookmark(null)} onSuccess={handleEditSuccess} existingTags={allTags} />
       <SettingsModal isOpen={isConfigModalOpen} onClose={() => setIsConfigModalOpen(false)} currentLimit={limit} onSave={handleConfigSave} />
