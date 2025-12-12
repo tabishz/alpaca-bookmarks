@@ -46,7 +46,16 @@ export const TagInput: React.FC<Props> = ({ selectedTags, onChange, availableTag
       e.preventDefault();
       addTag(inputValue);
     }
-    // 2. Remove last tag on Backspace if input is empty
+    // 2. Tab Key: Select first suggestion if available
+    else if (e.key === 'Tab') {
+      if (showSuggestions && suggestions.length > 0) {
+        e.preventDefault(); // Prevent moving focus to the next button
+        addTag(suggestions[0]); // Select the first match
+      }
+      // If no suggestions, we do nothing here, allowing the browser
+      // to move focus to the "Save" button naturally.
+    }
+    // 3. Remove last tag on Backspace if input is empty
     else if (e.key === 'Backspace' && inputValue === '' && selectedTags.length > 0) {
       removeTag(selectedTags[selectedTags.length - 1]);
     }
