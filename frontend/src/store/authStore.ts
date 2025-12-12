@@ -1,5 +1,4 @@
 import { create } from 'zustand';
-import api from '../api/client';
 
 interface AuthState {
   token: string | null;

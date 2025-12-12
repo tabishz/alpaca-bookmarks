@@ -39,13 +39,12 @@ func main() {
 
 	r := gin.Default()
 
-	// Global Health Check
-	r.GET("/ping", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"message": "pong"})
-	})
-
 	api := r.Group("/api/v1")
 	{
+		// Global Health Check
+		api.GET("/ping", func(c *gin.Context) {
+			c.JSON(http.StatusOK, gin.H{"message": "pong"})
+		})
 		// Auth Routes
         auth := api.Group("/auth")
 		{
