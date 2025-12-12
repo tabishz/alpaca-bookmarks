@@ -2,27 +2,39 @@ package main
 
 import (
 	"bookmarks-manager/internal/database"
+	"bookmarks-manager/internal/handlers"
+	"bookmarks-manager/internal/middleware" // Import middleware
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 )
 
 func main() {
-	// 1. Initialize Database
 	database.Connect()
 
-	// 2. Setup Router
 	r := gin.Default()
 
-	// 3. Define Basic Routes (Health Check)
-	r.GET("/ping", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{
-			"message": "pong",
-			"status":  "database connected",
-		})
-	})
+	// Public Routes
+	api := r.Group("/api/v1")
+	{
+		auth := api.Group("/auth")
+		{
+			auth.POST("/register", handlers.Register)
+			auth.POST("/login", handlers.Login)
+		}
 
-	// 4. Start Server
-	// Runs on port 8080 by default
+		// Protected Routes (Group)
+		// We will add bookmarks here in the next phase
+		protected := api.Group("/")
+		protected.Use(middleware.AuthMiddleware())
+		{
+			// Temporary test route to verify middleware works
+			protected.GET("/me", func(c *gin.Context) {
+				userID, _ := c.Get("userID")
+				c.JSON(http.StatusOK, gin.H{"user_id": userID, "message": "You are authorized!"})
+			})
+		}
+	}
+
 	r.Run(":8080")
 }
