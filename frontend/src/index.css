@@ -2,6 +2,15 @@
 @tailwind components;
 @tailwind utilities;
 
+/* 1. FORCE FULL DIMENSIONS */
+html, body, #root {
+  width: 100%;
+  min-height: 100vh; /* Ensure it's at least the height of the screen */
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden; /* Prevent accidental horizontal scrollbars */
+}
+
 /* Dracula Theme (Dark) */
 [data-theme='dracula'] {
   --bg-primary: #282a36;
@@ -37,7 +46,6 @@ body {
   margin: 0;
   display: flex;
   place-items: center;
-  min-width: 320px;
   min-height: 100vh;
 }
 
