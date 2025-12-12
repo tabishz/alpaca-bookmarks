@@ -27,6 +27,16 @@ export const Dashboard = () => {
     }
   };
 
+  // CALCULATE UNIQUE TAGS
+  // This flattens all tags from all bookmarks into a single unique array of strings
+  const allTags = useMemo(() => {
+    const tags = new Set<string>();
+    bookmarks.forEach(b => {
+      b.tags.forEach(t => tags.add(t.name));
+    });
+    return Array.from(tags).sort();
+  }, [bookmarks]);
+
   // Handler for when a new bookmark is created
   const handleAddSuccess = (newBookmark: Bookmark) => {
     // Optimistic update: Add to list immediately
@@ -159,6 +169,7 @@ export const Dashboard = () => {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onSuccess={handleAddSuccess}
+        existingTags={allTags}
       />
 
       {/* Floating Action Button (Placeholder for Add Modal) */}
