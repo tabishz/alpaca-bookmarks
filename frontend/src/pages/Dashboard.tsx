@@ -31,6 +31,7 @@ export const Dashboard = () => {
   const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingBookmark, setEditingBookmark] = useState<Bookmark | null>(null);
+  const [droppedData, setDroppedData] = useState<{ url: string; title?: string } | null>(null);
 
   // --- REFS ---
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -148,6 +149,27 @@ export const Dashboard = () => {
     if (isTagMenuOpen) setTagSearch('');
   }, [isTagMenuOpen]);
 
+  const handleDragOver = (e: React.DragEvent) => {
+    // Prevent default behavior (Prevent file from being opened)
+    e.preventDefault();
+    e.stopPropagation();
+    // Optional: Add visual cue (change border color etc.)
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    // Try to get URL from the dropped data
+    // Browsers usually provide 'text/uri-list' or 'text/plain'
+    const url = e.dataTransfer.getData('text/uri-list') || e.dataTransfer.getData('text/plain');
+
+    if (url && (url.startsWith('http://') || url.startsWith('https://'))) {
+      setDroppedData({ url });
+      setIsAddModalOpen(true);
+    }
+  };
+
   // --- HANDLERS ---
   const handleConfigSave = (newLimit: number) => { localStorage.setItem('bookmarks_limit', newLimit.toString()); setLimit(newLimit); };
   const handleImportClick = () => { fileInputRef.current?.click(); setIsSettingsMenuOpen(false); };
@@ -173,6 +195,10 @@ export const Dashboard = () => {
   };
   const handleAddSuccess = (newBookmark: Bookmark) => { setBookmarks(prev => [newBookmark, ...prev]); fetchTags(); };
   const handleEditSuccess = (updatedBookmark: Bookmark) => { setBookmarks(prev => prev.map(b => b.id === updatedBookmark.id ? updatedBookmark : b)); fetchTags(); };
+  const closeAddModal = () => {
+    setIsAddModalOpen(false);
+    setDroppedData(null);
+  };
 
   const visibleTags = useMemo(() => {
     if (!tagSearch) return allTags;
@@ -180,7 +206,7 @@ export const Dashboard = () => {
   }, [allTags, tagSearch]);
 
   return (
-    <div className="min-h-screen p-6 md:p-10 w-full" onClick={() => { setIsTagMenuOpen(false); setIsSettingsMenuOpen(false); }}>
+    <div className="min-h-screen p-6 md:p-10 w-full" onClick={() => { setIsTagMenuOpen(false); setIsSettingsMenuOpen(false); }} onDragOver={handleDragOver} onDrop={handleDrop}>
       <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".html" />
 
       <header className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between" onClick={e => e.stopPropagation()}>
@@ -294,7 +320,7 @@ export const Dashboard = () => {
 
       <div ref={observerTarget} className="py-8 text-center">{loading && <span className="text-primary">Loading...</span>}</div>
       <button onClick={() => setIsAddModalOpen(true)} className="fixed bottom-8 right-8 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-white shadow-lg hover:scale-110 transition-transform z-40"><Plus size={28} /></button>
-      <AddBookmarkModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} onSuccess={handleAddSuccess} existingTags={allTags} />
+      <AddBookmarkModal isOpen={isAddModalOpen} onClose={closeAddModal} onSuccess={handleAddSuccess} existingTags={allTags} initialData={droppedData} />
       <EditBookmarkModal bookmark={editingBookmark} onClose={() => setEditingBookmark(null)} onSuccess={handleEditSuccess} existingTags={allTags} />
       <SettingsModal isOpen={isConfigModalOpen} onClose={() => setIsConfigModalOpen(false)} currentLimit={limit} onSave={handleConfigSave} />
     </div>

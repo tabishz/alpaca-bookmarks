@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import api from '../api/client';
 import { Bookmark } from '../api/types';
@@ -8,19 +8,31 @@ interface Props {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: (newBookmark: Bookmark) => void;
-  existingTags: string[]; // NEW PROP: List of all known tags
+  existingTags: string[];
+  initialData?: { url: string; title?: string } | null;
 }
 
 // Update component signature to accept existingTags
-export const AddBookmarkModal: React.FC<Props> = ({ isOpen, onClose, onSuccess, existingTags }) => {
+export const AddBookmarkModal: React.FC<Props> = ({ isOpen, onClose, onSuccess, existingTags, initialData }) => {
   const [url, setUrl] = useState('');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-
-  // CHANGED: State is now an array of strings, not a single string
   const [tags, setTags] = useState<string[]>([]);
-
   const [loading, setLoading] = useState(false);
+
+  // LISTEN FOR INITIAL DATA changes
+  useEffect(() => {
+    if (isOpen && initialData) {
+      setUrl(initialData.url || '');
+      setTitle(initialData.title || '');
+    } else if (!isOpen) {
+      // Reset when closed
+      setUrl('');
+      setTitle('');
+      setDescription('');
+      setTags([]);
+    }
+  }, [isOpen, initialData]);
 
   if (!isOpen) return null;
 
@@ -29,16 +41,15 @@ export const AddBookmarkModal: React.FC<Props> = ({ isOpen, onClose, onSuccess, 
     setLoading(true);
 
     try {
-      // Tags are already an array, no need to split()
       const res = await api.post<Bookmark>('/bookmarks', {
         url,
         title,
         description,
-        tags // Pass the array directly
+        tags
       });
 
       onSuccess(res.data);
-      handleClose();
+      onClose();
     } catch (error) {
       alert("Failed to save bookmark");
     } finally {
@@ -46,18 +57,10 @@ export const AddBookmarkModal: React.FC<Props> = ({ isOpen, onClose, onSuccess, 
     }
   };
 
-  const handleClose = () => {
-    setUrl('');
-    setTitle('');
-    setDescription('');
-    setTags([]); // Reset to empty array
-    onClose();
-  };
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4 backdrop-blur-sm">
       <div className="w-full max-w-lg rounded-lg bg-surface p-6 shadow-xl relative animate-in fade-in zoom-in duration-200">
-        <button onClick={handleClose} className="absolute right-4 top-4 text-gray-400 hover:text-text">
+        <button onClick={onClose} className="absolute right-4 top-4 text-gray-400 hover:text-text">
           <X size={24} />
         </button>
 
@@ -73,6 +76,7 @@ export const AddBookmarkModal: React.FC<Props> = ({ isOpen, onClose, onSuccess, 
               placeholder="https://example.com"
               value={url}
               onChange={e => setUrl(e.target.value)}
+              autoFocus // Auto focus so you can hit Enter immediately if you want
             />
           </div>
 
@@ -108,7 +112,7 @@ export const AddBookmarkModal: React.FC<Props> = ({ isOpen, onClose, onSuccess, 
           </div>
 
           <div className="mt-6 flex justify-end gap-3">
-            <button type="button" onClick={handleClose} className="rounded px-4 py-2 text-gray-400 hover:bg-background hover:text-text">
+            <button type="button" onClick={onClose} className="rounded px-4 py-2 text-gray-400 hover:bg-background hover:text-text">
               Cancel
             </button>
             <button type="submit" disabled={loading} className="rounded bg-primary px-6 py-2 font-bold text-white hover:opacity-90 disabled:opacity-50">
