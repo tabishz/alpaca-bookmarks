@@ -38,19 +38,49 @@ export const Dashboard = () => {
 
   useEffect(() => { fetchBookmarks(); }, []);
 
-  // 2. Global Search Hotkey ('/')
+  // 2. Global Keyboard Shortcuts
   const searchInputRef = useRef<HTMLInputElement>(null);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key !== '/') return;
       const target = e.target as HTMLElement;
-      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
-      e.preventDefault();
-      searchInputRef.current?.focus();
+      // Check if user is typing in any input field
+      const isTyping = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA';
+
+      // Hotkey 1: '/' to Focus Search
+      if (e.key === '/' && !isTyping) {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+        return;
+      }
+
+      // Hotkey 2: 'Backspace' to Clear Tag Filter
+      if (e.key === 'Backspace' && !isTyping && selectedTag) {
+        e.preventDefault(); // Prevent browser "back" navigation (rare but possible in old browsers)
+        setSelectedTag(null);
+        return;
+      }
+
+      // Hotkey 3: 't' to Open Tags Menu
+      if (e.key === 't' && !isTyping) {
+        e.preventDefault();
+        setIsTagMenuOpen(prev => !prev); // Toggle the menu
+        return;
+      }
+
+      // Hotkey 4: 'Escape' to Close Tags Menu
+      // We allow this even if isTyping is true, so you can close the menu
+      // while typing in the tag search box.
+      if (e.key === 'Escape' && isTagMenuOpen) {
+        e.preventDefault();
+        setIsTagMenuOpen(false);
+        return;
+      }
     };
+
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [selectedTag, isTagMenuOpen]);
 
   // 3. Auto-focus Tag Input when menu opens
   useEffect(() => {
