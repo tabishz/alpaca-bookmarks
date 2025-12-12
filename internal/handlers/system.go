@@ -3,6 +3,7 @@ package handlers
 import (
 	"bookmarks-manager/internal/database"
 	"bookmarks-manager/internal/models"
+	"bookmarks-manager/internal/services"
 	"bookmarks-manager/internal/utils"
 	"net/http"
 
@@ -67,4 +68,17 @@ func ExportBookmarks(c *gin.Context) {
 	// 3. Serve File
 	c.Header("Content-Disposition", "attachment; filename=bookmarks.html")
 	c.Data(http.StatusOK, "text/html; charset=utf-8", []byte(htmlContent))
+}
+
+// POST /api/v1/system/backup
+func TriggerBackup(c *gin.Context) {
+	// Run in a goroutine so the API response isn't blocked by the upload speed
+	go func() {
+		if err := services.PerformBackup(); err != nil {
+			// In production, you might log this to a monitoring system
+			println("Backup failed:", err.Error())
+		}
+	}()
+
+	c.JSON(http.StatusOK, gin.H{"message": "Backup process started in background"})
 }
