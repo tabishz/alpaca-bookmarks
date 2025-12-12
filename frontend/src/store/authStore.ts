@@ -1,0 +1,25 @@
+import { create } from 'zustand';
+import api from '../api/client';
+
+interface AuthState {
+  token: string | null;
+  isAuthenticated: boolean;
+  login: (token: string) => void;
+  logout: () => void;
+}
+
+export const useAuthStore = create<AuthState>((set) => ({
+  // Initialize state from localStorage so login persists on refresh
+  token: localStorage.getItem('token'),
+  isAuthenticated: !!localStorage.getItem('token'),
+
+  login: (token: string) => {
+    localStorage.setItem('token', token);
+    set({ token, isAuthenticated: true });
+  },
+
+  logout: () => {
+    localStorage.removeItem('token');
+    set({ token: null, isAuthenticated: false });
+  },
+}));
