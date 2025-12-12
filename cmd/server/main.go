@@ -63,6 +63,7 @@ func main() {
 			// Bookmarks CRUD
 			protected.POST("/bookmarks", handlers.CreateBookmark)
 			protected.GET("/bookmarks", handlers.GetBookmarks)
+			protected.GET("/tags", handlers.GetAllTags)
 			protected.PUT("/bookmarks/:id", handlers.UpdateBookmark)
 			protected.DELETE("/bookmarks/:id", handlers.DeleteBookmark)
 
@@ -71,7 +72,9 @@ func main() {
 			{
 				system.POST("/import", handlers.ImportBookmarks)
 				system.GET("/export", handlers.ExportBookmarks)
-				system.POST("/backup", handlers.TriggerBackup) // New Endpoint
+				system.POST("/backup", handlers.TriggerBackup)
+				// Nuclear Route
+				system.DELETE("/purge", handlers.PurgeData)
 			}
 		}
 	}

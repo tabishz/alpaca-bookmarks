@@ -82,3 +82,37 @@ func TriggerBackup(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "Backup process started in background"})
 }
+
+// DELETE /api/v1/system/purge
+func PurgeData(c *gin.Context) {
+	userID := c.MustGet("userID").(uint)
+
+	// 1. Delete all bookmarks for this user
+	// (Cascading delete in SQLite should handle bookmark_tags,
+	// but GORM sometimes needs manual help depending on configuration.
+	// We will be explicit to be safe.)
+
+	tx := database.DB.Begin()
+
+	// Delete associations first
+	if err := tx.Exec("DELETE FROM bookmark_tags WHERE bookmark_id IN (SELECT id FROM bookmarks WHERE user_id = ?)", userID).Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to clear associations"})
+		return
+	}
+
+	// Delete bookmarks
+	if err := tx.Where("user_id = ?", userID).Delete(&models.Bookmark{}).Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete bookmarks"})
+		return
+	}
+
+	// Optional: Clean up unused tags (Tags that have no bookmarks)
+	// This keeps the DB clean
+	tx.Exec("DELETE FROM tags WHERE id NOT IN (SELECT tag_id FROM bookmark_tags)")
+
+	tx.Commit()
+
+	c.JSON(http.StatusOK, gin.H{"message": "Nuclear option executed. All bookmarks wiped."})
+}

@@ -4,6 +4,7 @@ import (
 	"bookmarks-manager/internal/database"
 	"bookmarks-manager/internal/models"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
@@ -20,18 +21,39 @@ type BookmarkInput struct {
 func GetBookmarks(c *gin.Context) {
 	userID := c.MustGet("userID").(uint)
 	tagFilter := c.Query("tag")
+	searchQuery := c.Query("search") // NEW param
+
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
+	if page < 1 { page = 1 }
+	if limit < 1 { limit = 50 }
+	if limit > 200 { limit = 200 }
+	offset := (page - 1) * limit
 
 	var bookmarks []models.Bookmark
+
+	// Start Query
 	query := database.DB.Preload("Tags").Where("user_id = ?", userID)
 
+	// Filter by Tag
 	if tagFilter != "" {
-		// Join with tags table to filter
 		query = query.Joins("JOIN bookmark_tags bt ON bt.bookmark_id = bookmarks.id").
 			Joins("JOIN tags t ON bt.tag_id = t.id").
 			Where("t.name = ?", tagFilter)
 	}
 
-	if err := query.Find(&bookmarks).Error; err != nil {
+	// Filter by Search (Title, URL, or Description)
+	// SQLite 'LIKE' is case-insensitive by default for ASCII, but we use UPPER() for safety
+	if searchQuery != "" {
+		likeQuery := "%" + searchQuery + "%"
+		query = query.Where(
+			"(url LIKE ? OR title LIKE ? OR description LIKE ?)",
+			likeQuery, likeQuery, likeQuery,
+		)
+	}
+
+	// Order & Pagination
+	if err := query.Order("created_at desc").Limit(limit).Offset(offset).Find(&bookmarks).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch bookmarks"})
 		return
 	}
