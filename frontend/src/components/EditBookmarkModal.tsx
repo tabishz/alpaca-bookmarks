@@ -1,0 +1,117 @@
+import React, { useState, useEffect } from 'react';
+import { X } from 'lucide-react';
+import api from '../api/client';
+import { Bookmark } from '../api/types';
+import { TagInput } from './TagInput';
+
+interface Props {
+  bookmark: Bookmark | null; // Null means closed
+  onClose: () => void;
+  onSuccess: (updatedBookmark: Bookmark) => void;
+  existingTags: string[];
+}
+
+export const EditBookmarkModal: React.FC<Props> = ({ bookmark, onClose, onSuccess, existingTags }) => {
+  const [url, setUrl] = useState('');
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [tags, setTags] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  // Pre-fill data when the bookmark prop changes
+  useEffect(() => {
+    if (bookmark) {
+      setUrl(bookmark.url);
+      setTitle(bookmark.title);
+      setDescription(bookmark.description);
+      // Map existing Tag objects {id, name} to string array ["name"]
+      setTags(bookmark.tags.map(t => t.name));
+    }
+  }, [bookmark]);
+
+  if (!bookmark) return null;
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      const res = await api.put<Bookmark>(`/bookmarks/${bookmark.id}`, {
+        url,
+        title,
+        description,
+        tags
+      });
+
+      onSuccess(res.data);
+      onClose();
+    } catch (error) {
+      alert("Failed to update bookmark");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4 backdrop-blur-sm">
+      <div className="w-full max-w-lg rounded-lg bg-surface p-6 shadow-xl relative animate-in fade-in zoom-in duration-200">
+        <button onClick={onClose} className="absolute right-4 top-4 text-gray-400 hover:text-text">
+          <X size={24} />
+        </button>
+
+        <h2 className="mb-6 text-2xl font-bold">Edit Bookmark</h2>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-400">URL</label>
+            <input
+              required
+              type="url"
+              className="w-full rounded border border-gray-600 bg-background p-2 text-text focus:border-primary focus:outline-none"
+              value={url}
+              onChange={e => setUrl(e.target.value)}
+            />
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-400">Title</label>
+            <input
+              type="text"
+              className="w-full rounded border border-gray-600 bg-background p-2 text-text focus:border-primary focus:outline-none"
+              value={title}
+              onChange={e => setTitle(e.target.value)}
+            />
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-400">Description</label>
+            <textarea
+              className="w-full rounded border border-gray-600 bg-background p-2 text-text focus:border-primary focus:outline-none"
+              rows={3}
+              value={description}
+              onChange={e => setDescription(e.target.value)}
+            />
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-400">Tags</label>
+            <TagInput
+              selectedTags={tags}
+              onChange={setTags}
+              availableTags={existingTags}
+            />
+          </div>
+
+          <div className="mt-6 flex justify-end gap-3">
+            <button type="button" onClick={onClose} className="rounded px-4 py-2 text-gray-400 hover:bg-background hover:text-text">
+              Cancel
+            </button>
+            <button type="submit" disabled={loading} className="rounded bg-primary px-6 py-2 font-bold text-white hover:opacity-90 disabled:opacity-50">
+              {loading ? 'Saving...' : 'Save Changes'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
