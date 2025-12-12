@@ -4,7 +4,7 @@ import { Bookmark } from '../api/types';
 import { BookmarkCard } from '../components/BookmarkCard';
 import { AddBookmarkModal } from '../components/AddBookmarkModal';
 import { EditBookmarkModal } from '../components/EditBookmarkModal';
-import { LayoutGrid, List, Plus, Search, LogOut, Tags, X } from 'lucide-react';
+import { LayoutGrid, List, Plus, Search, LogOut, Tags, X, Settings, Upload, Download } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 
 export const Dashboard = () => {
@@ -16,9 +16,15 @@ export const Dashboard = () => {
   // Tag Filter State
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [isTagMenuOpen, setIsTagMenuOpen] = useState(false);
-  const [tagSearch, setTagSearch] = useState(''); // NEW: Search text inside dropdown
-  const tagInputRef = useRef<HTMLInputElement>(null); // NEW: Focus ref
+  const [tagSearch, setTagSearch] = useState('');
 
+  // Refs
+  const searchInputRef = useRef<HTMLInputElement>(null); // Main Search Ref
+  const tagInputRef = useRef<HTMLInputElement>(null);    // Tag Dropdown Search Ref
+  const fileInputRef = useRef<HTMLInputElement>(null);   // Import Input Ref
+
+  // Settings State
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingBookmark, setEditingBookmark] = useState<Bookmark | null>(null);
 
@@ -39,58 +45,62 @@ export const Dashboard = () => {
   useEffect(() => { fetchBookmarks(); }, []);
 
   // 2. Global Keyboard Shortcuts
-  const searchInputRef = useRef<HTMLInputElement>(null);
-
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
-      // Check if user is typing in any input field
       const isTyping = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA';
 
-      // Hotkey 1: '/' to Focus Search
+      // Hotkey: '/' to Focus Main Search
       if (e.key === '/' && !isTyping) {
         e.preventDefault();
         searchInputRef.current?.focus();
         return;
       }
 
-      // Hotkey 2: 'Backspace' to Clear Tag Filter
-      if (e.key === 'Backspace' && !isTyping && selectedTag) {
-        e.preventDefault(); // Prevent browser "back" navigation (rare but possible in old browsers)
-        setSelectedTag(null);
-        return;
-      }
-
-      // Hotkey 3: 't' to Open Tags Menu
+      // Hotkey: 't' to Toggle Tags Menu
       if (e.key === 't' && !isTyping) {
         e.preventDefault();
-        setIsTagMenuOpen(prev => !prev); // Toggle the menu
+        setIsTagMenuOpen(prev => !prev);
         return;
       }
 
-      // Hotkey 4: 'Escape' to Close Tags Menu
-      // We allow this even if isTyping is true, so you can close the menu
-      // while typing in the tag search box.
-      if (e.key === 'Escape' && isTagMenuOpen) {
+      // Hotkey: 'Escape' to Close Menus
+      if (e.key === 'Escape') {
+        if (isTagMenuOpen) {
+            e.preventDefault();
+            setIsTagMenuOpen(false);
+        } else if (isSettingsOpen) {
+            e.preventDefault();
+            setIsSettingsOpen(false);
+        }
+        return;
+      }
+
+      // Hotkey: 'Backspace' to Clear Tag Filter
+      if (e.key === 'Backspace' && !isTyping && selectedTag) {
         e.preventDefault();
-        setIsTagMenuOpen(false);
+        setSelectedTag(null);
         return;
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedTag, isTagMenuOpen]);
+  }, [selectedTag, isTagMenuOpen, isSettingsOpen]); // Dependencies are critical here
 
-  // 3. Auto-focus Tag Input when menu opens
+  // 3. Auto-Focus Tag Input Logic
+  // We use a small timeout to allow the Dropdown DIV to render before trying to focus the input inside it.
   useEffect(() => {
     if (isTagMenuOpen) {
-      setTagSearch(''); // Reset search on open
-      setTimeout(() => tagInputRef.current?.focus(), 50); // Small delay for render
+      setTagSearch(''); // Clear search on open
+      // FIX: Ensure focus happens after render cycle
+      setTimeout(() => {
+        tagInputRef.current?.focus();
+      }, 50);
     }
   }, [isTagMenuOpen]);
 
-  // 4. Calculate All Unique Tags
+  // 4. Data Processing (Tags & Filters)
   const allTags = useMemo(() => {
     const tags = new Set<string>();
     bookmarks.forEach(b => {
@@ -99,28 +109,11 @@ export const Dashboard = () => {
     return Array.from(tags).sort();
   }, [bookmarks]);
 
-  // 5. Calculate "Visible" Tags in Dropdown (Filtered by Tag Search)
   const visibleTags = useMemo(() => {
     if (!tagSearch) return allTags;
     return allTags.filter(t => t.toLowerCase().includes(tagSearch.toLowerCase()));
   }, [allTags, tagSearch]);
 
-  // 6. Handle Tag Selection logic
-  const handleTagSelect = (tag: string) => {
-    setSelectedTag(tag);
-    setIsTagMenuOpen(false);
-    setTagSearch('');
-  };
-
-  // 7. Handle Tag Search Keydown (Tab/Enter support)
-  const handleTagInputKeyDown = (e: React.KeyboardEvent) => {
-    if ((e.key === 'Tab' || e.key === 'Enter') && visibleTags.length > 0) {
-      e.preventDefault();
-      handleTagSelect(visibleTags[0]); // Select first match
-    }
-  };
-
-  // 8. Main Bookmark Filtering
   const filteredBookmarks = useMemo(() => {
     let result = bookmarks;
     if (selectedTag) {
@@ -137,7 +130,68 @@ export const Dashboard = () => {
     return result;
   }, [search, bookmarks, selectedTag]);
 
-  // Handlers
+  // 5. Handlers (Import/Export/Tag Select)
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+    setIsSettingsOpen(false);
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!confirm(`Import bookmarks from "${file.name}"?`)) {
+      e.target.value = '';
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      setLoading(true);
+      await api.post('/system/import', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      alert('Import successful!');
+      fetchBookmarks();
+    } catch (error) {
+      alert('Failed to import file');
+    } finally {
+      setLoading(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleExport = async () => {
+    setIsSettingsOpen(false);
+    try {
+      const response = await api.get('/system/export', { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'bookmarks.html');
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (error) {
+      alert("Failed to export bookmarks");
+    }
+  };
+
+  const handleTagSelect = (tag: string) => {
+    setSelectedTag(tag);
+    setIsTagMenuOpen(false);
+    setTagSearch('');
+  };
+
+  const handleTagInputKeyDown = (e: React.KeyboardEvent) => {
+    if ((e.key === 'Tab' || e.key === 'Enter') && visibleTags.length > 0) {
+      e.preventDefault();
+      handleTagSelect(visibleTags[0]);
+    }
+  };
+
   const handleDelete = async (id: number) => {
     if(!confirm("Are you sure?")) return;
     try {
@@ -152,7 +206,10 @@ export const Dashboard = () => {
   const handleEditSuccess = (updatedBookmark: Bookmark) => setBookmarks(prev => prev.map(b => b.id === updatedBookmark.id ? updatedBookmark : b));
 
   return (
-    <div className="min-h-screen p-6 md:p-10 w-full" onClick={() => setIsTagMenuOpen(false)}>
+    <div className="min-h-screen p-6 md:p-10 w-full" onClick={() => { setIsTagMenuOpen(false); setIsSettingsOpen(false); }}>
+
+      <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".html" />
+
       <header className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between" onClick={e => e.stopPropagation()}>
         <div>
           <h1 className="text-3xl font-bold">My Bookmarks</h1>
@@ -164,6 +221,7 @@ export const Dashboard = () => {
 
         <div className="flex flex-col gap-3 md:flex-row md:items-center">
 
+          {/* SEARCH BAR - FIX: Added ref back */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
             <input
@@ -176,38 +234,29 @@ export const Dashboard = () => {
             />
           </div>
 
-          {/* TAGS FILTER BUTTON */}
+          {/* TAGS BUTTON */}
           <div className="relative">
             <button
-              onClick={(e) => { e.stopPropagation(); setIsTagMenuOpen(!isTagMenuOpen); }}
+              onClick={(e) => { e.stopPropagation(); setIsTagMenuOpen(!isTagMenuOpen); setIsSettingsOpen(false); }}
               className={`flex items-center gap-2 rounded-md border p-2 text-sm font-medium transition-colors ${
-                selectedTag
-                  ? 'border-primary bg-primary/20 text-primary'
-                  : 'border-transparent bg-surface text-gray-400 hover:text-white'
+                selectedTag ? 'border-primary bg-primary/20 text-primary' : 'border-transparent bg-surface text-gray-400 hover:text-white'
               }`}
             >
               <Tags size={18} />
               {selectedTag || "Tags"}
               {selectedTag && (
-                <div
-                  onClick={(e) => { e.stopPropagation(); setSelectedTag(null); }}
-                  className="ml-1 rounded-full p-0.5 hover:bg-black/20"
-                >
+                <div onClick={(e) => { e.stopPropagation(); setSelectedTag(null); }} className="ml-1 rounded-full p-0.5 hover:bg-black/20">
                   <X size={14} />
                 </div>
               )}
             </button>
 
-            {/* TAGS DROPDOWN MENU */}
+            {/* TAGS MENU */}
             {isTagMenuOpen && (
-              <div
-                className="absolute right-0 top-full z-20 mt-2 max-h-80 w-56 overflow-hidden rounded-md border border-gray-600 bg-surface shadow-xl animate-in fade-in zoom-in duration-100 flex flex-col"
-                onClick={(e) => e.stopPropagation()}
-              >
-                {/* Search Input Inside Dropdown */}
+              <div className="absolute right-0 top-full z-20 mt-2 max-h-80 w-56 overflow-hidden rounded-md border border-gray-600 bg-surface shadow-xl flex flex-col" onClick={(e) => e.stopPropagation()}>
                 <div className="border-b border-gray-700 p-2">
                   <input
-                    ref={tagInputRef}
+                    ref={tagInputRef} // FIX: Ensure this ref is attached
                     type="text"
                     placeholder="Find tag..."
                     className="w-full rounded bg-background px-2 py-1 text-sm text-text focus:outline-none focus:ring-1 focus:ring-primary"
@@ -216,8 +265,6 @@ export const Dashboard = () => {
                     onKeyDown={handleTagInputKeyDown}
                   />
                 </div>
-
-                {/* Scrollable Tag List */}
                 <div className="overflow-y-auto max-h-60">
                   {visibleTags.length === 0 ? (
                     <div className="p-3 text-center text-sm text-gray-500">No matching tags</div>
@@ -226,9 +273,7 @@ export const Dashboard = () => {
                       <button
                         key={tag}
                         onClick={() => handleTagSelect(tag)}
-                        className={`w-full text-left px-4 py-2 text-sm hover:bg-primary hover:text-white transition-colors ${
-                          selectedTag === tag ? 'bg-primary/20 text-primary' : 'text-text'
-                        }`}
+                        className={`w-full text-left px-4 py-2 text-sm hover:bg-primary hover:text-white transition-colors ${selectedTag === tag ? 'bg-primary/20 text-primary' : 'text-text'}`}
                       >
                         #{tag}
                       </button>
@@ -239,69 +284,64 @@ export const Dashboard = () => {
             )}
           </div>
 
-          {/* View Toggles & Logout */}
+          {/* VIEW TOGGLE */}
           <div className="flex gap-2 rounded-md bg-surface p-1">
-            <button
-              onClick={() => setViewMode('grid')}
-              className={`p-2 rounded ${viewMode === 'grid' ? 'bg-primary text-white' : 'text-gray-400'}`}>
+            <button onClick={() => setViewMode('grid')} className={`p-2 rounded ${viewMode === 'grid' ? 'bg-primary text-white' : 'text-gray-400'}`}>
               <LayoutGrid size={20} />
             </button>
-            <button
-              onClick={() => setViewMode('list')}
-              className={`p-2 rounded ${viewMode === 'list' ? 'bg-primary text-white' : 'text-gray-400'}`}>
+            <button onClick={() => setViewMode('list')} className={`p-2 rounded ${viewMode === 'list' ? 'bg-primary text-white' : 'text-gray-400'}`}>
               <List size={20} />
             </button>
           </div>
 
-          <button onClick={logout} className="p-2 text-gray-400 hover:text-red-400" title="Logout">
-            <LogOut size={20} />
-          </button>
+          {/* SETTINGS MENU */}
+          <div className="relative">
+            <button
+              onClick={(e) => { e.stopPropagation(); setIsSettingsOpen(!isSettingsOpen); setIsTagMenuOpen(false); }}
+              className={`p-2 rounded-md transition-colors ${isSettingsOpen ? 'bg-surface text-white' : 'text-gray-400 hover:text-white'}`}
+            >
+              <Settings size={20} />
+            </button>
+            {isSettingsOpen && (
+              <div className="absolute right-0 top-full z-20 mt-2 w-48 overflow-hidden rounded-md border border-gray-600 bg-surface shadow-xl">
+                <button onClick={handleImportClick} className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-gray-300 hover:bg-primary hover:text-white">
+                  <Upload size={16} /> Import Bookmarks
+                </button>
+                <button onClick={handleExport} className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-gray-300 hover:bg-primary hover:text-white">
+                  <Download size={16} /> Export Bookmarks
+                </button>
+                <div className="my-1 border-t border-gray-700"></div>
+                 <button onClick={logout} className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-red-400 hover:bg-red-400/10">
+                  <LogOut size={16} /> Logout
+                </button>
+              </div>
+            )}
+          </div>
+
         </div>
       </header>
 
+      {/* REST OF UI (Grid, Modals) */}
       {loading ? (
-        <div className="text-center text-gray-500 mt-20">Loading...</div>
+        <div className="text-center text-gray-500 mt-20">Loading your library...</div>
       ) : filteredBookmarks.length === 0 ? (
         <div className="text-center text-gray-500 mt-20">
-          {search || selectedTag ? "No matches found." : "No bookmarks yet."}
+          {search || selectedTag ? "No matches found." : "No bookmarks yet. Add one!"}
         </div>
       ) : (
-        <div className={viewMode === 'grid'
-          ? "grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
-          : "flex flex-col"
-        }>
+        <div className={viewMode === 'grid' ? "grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" : "flex flex-col"}>
           {filteredBookmarks.map(b => (
-            <BookmarkCard
-              key={b.id}
-              bookmark={b}
-              viewMode={viewMode}
-              onDelete={handleDelete}
-              onEdit={setEditingBookmark}
-            />
+            <BookmarkCard key={b.id} bookmark={b} viewMode={viewMode} onDelete={handleDelete} onEdit={setEditingBookmark} />
           ))}
         </div>
       )}
 
-      <button
-        onClick={() => setIsAddModalOpen(true)}
-        className="fixed bottom-8 right-8 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-white shadow-lg hover:scale-110 transition-transform z-40"
-      >
+      <button onClick={() => setIsAddModalOpen(true)} className="fixed bottom-8 right-8 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-white shadow-lg hover:scale-110 transition-transform z-40">
         <Plus size={28} />
       </button>
 
-      <AddBookmarkModal
-        isOpen={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
-        onSuccess={handleAddSuccess}
-        existingTags={allTags}
-      />
-
-      <EditBookmarkModal
-        bookmark={editingBookmark}
-        onClose={() => setEditingBookmark(null)}
-        onSuccess={handleEditSuccess}
-        existingTags={allTags}
-      />
+      <AddBookmarkModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} onSuccess={handleAddSuccess} existingTags={allTags} />
+      <EditBookmarkModal bookmark={editingBookmark} onClose={() => setEditingBookmark(null)} onSuccess={handleEditSuccess} existingTags={allTags} />
     </div>
   );
 };
