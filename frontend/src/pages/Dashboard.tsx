@@ -42,11 +42,24 @@ export const Dashboard = () => {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === '/' && document.activeElement !== searchInputRef.current) {
-        e.preventDefault();
-        searchInputRef.current?.focus();
+      // Only care about the '/' key
+      if (e.key !== '/') return;
+
+      // Get the element currently being typed into
+      const target = e.target as HTMLElement;
+
+      // SAFETY CHECK:
+      // If the user is already typing in an INPUT or TEXTAREA,
+      // do NOT hijack the key. Let them type.
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+        return;
       }
+
+      // Otherwise, prevent default (typing /) and focus the search bar
+      e.preventDefault();
+      searchInputRef.current?.focus();
     };
+
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
