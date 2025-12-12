@@ -14,10 +14,11 @@ mkdir -p $(pwd)/data
 
 docker run -d \
   --name bm-app \
+  --restart unless-stopped \
   -p 3000:80 \
   -v $(pwd)/data:/data \
   -e JWT_SECRET=mysecretkey \
-  bookmark-manager
+  bookmarks-manager
 ```
 
 ### Check
