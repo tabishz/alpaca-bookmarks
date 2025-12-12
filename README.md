@@ -23,6 +23,17 @@ docker run -d \
 docker run -d --rm --name bm-app -p 3000:80 -v $(pwd)/data:/data -e JWT_SECRET=$(openssl rand -hex 32) bookmarks-manager
 ```
 
+## Environment Variables
+```shell
+export AWS_ACCESS_KEY_ID=your_key_id
+export AWS_SECRET_ACCESS_KEY=your_secret_key
+export AWS_REGION=us-east-1
+export S3_BUCKET_NAME=your-unique-bucket-name
+# Run every day at midnight. Cron syntax: "0 0 * * *"
+export BACKUP_SCHEDULE="0 0 * * *"
+# If not provided then sets to @daily
+```
+
 ### Check
 API Check: Run `curl http://localhost:3000/api/v1/ping`. You should get `{"message":"pong"}`.
 

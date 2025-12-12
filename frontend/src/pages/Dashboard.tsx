@@ -279,7 +279,16 @@ export const Dashboard = () => {
               {search || selectedTag ? "No matches found." : "No bookmarks yet. Add one!"}
             </div>
         ) : (
-            bookmarks.map(b => <BookmarkCard key={b.id} bookmark={b} viewMode={viewMode} onDelete={handleDelete} onEdit={setEditingBookmark} />)
+            bookmarks.map(b => (
+              <BookmarkCard
+                key={b.id}
+                bookmark={b}
+                viewMode={viewMode}
+                onDelete={handleDelete}
+                onEdit={setEditingBookmark}
+                onTagClick={handleTagSelect} // <--- PASS THE HANDLER HERE
+              />
+            ))
         )}
       </div>
 
