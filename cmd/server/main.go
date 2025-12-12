@@ -31,6 +31,12 @@ func main() {
 				userID, _ := c.Get("userID")
 				c.JSON(http.StatusOK, gin.H{"user_id": userID})
 			})
+			// --- System Routes ---
+			system := protected.Group("/system")
+			{
+				system.POST("/import", handlers.ImportBookmarks)
+				system.GET("/export", handlers.ExportBookmarks)
+			}
 
 			// --- New Bookmark Routes ---
 			protected.GET("/bookmarks", handlers.GetBookmarks)
