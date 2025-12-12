@@ -3,7 +3,7 @@ package main
 import (
 	"bookmarks-manager/internal/database"
 	"bookmarks-manager/internal/handlers"
-	"bookmarks-manager/internal/middleware" // Import middleware
+	"bookmarks-manager/internal/middleware"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -14,25 +14,29 @@ func main() {
 
 	r := gin.Default()
 
-	// Public Routes
 	api := r.Group("/api/v1")
 	{
+		// Auth Routes
 		auth := api.Group("/auth")
 		{
 			auth.POST("/register", handlers.Register)
 			auth.POST("/login", handlers.Login)
 		}
 
-		// Protected Routes (Group)
-		// We will add bookmarks here in the next phase
+		// Protected Routes
 		protected := api.Group("/")
 		protected.Use(middleware.AuthMiddleware())
 		{
-			// Temporary test route to verify middleware works
 			protected.GET("/me", func(c *gin.Context) {
 				userID, _ := c.Get("userID")
-				c.JSON(http.StatusOK, gin.H{"user_id": userID, "message": "You are authorized!"})
+				c.JSON(http.StatusOK, gin.H{"user_id": userID})
 			})
+
+			// --- New Bookmark Routes ---
+			protected.GET("/bookmarks", handlers.GetBookmarks)
+			protected.POST("/bookmarks", handlers.CreateBookmark)
+			protected.PUT("/bookmarks/:id", handlers.UpdateBookmark)
+			protected.DELETE("/bookmarks/:id", handlers.DeleteBookmark)
 		}
 	}
 
