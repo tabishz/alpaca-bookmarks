@@ -1,0 +1,18 @@
+:80 {
+    # 1. Serve Static Frontend Assets
+    # We will copy the React build to /srv/dist in the Dockerfile
+    root * /srv/dist
+
+    # Enable Gzip compression
+    encode gzip
+
+    # Serve files, but if file doesn't exist, fallback to index.html (for React Router)
+    try_files {path} /index.html
+    file_server
+
+    # 2. Reverse Proxy API requests to the Go Backend
+    # The Go app runs on localhost:8080 inside the container
+    handle /api/* {
+        reverse_proxy localhost:8080
+    }
+}
