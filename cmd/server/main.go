@@ -39,6 +39,11 @@ func main() {
 
 	r := gin.Default()
 
+	// Global Health Check
+	r.GET("/ping", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"message": "pong"})
+	})
+
 	api := r.Group("/api/v1")
 	{
 		// Auth Routes
@@ -56,8 +61,9 @@ func main() {
 				userID, _ := c.Get("userID")
 				c.JSON(http.StatusOK, gin.H{"user_id": userID})
 			})
-			// --- System Routes ---
+			// Bookmarks CRUD
 			protected.POST("/bookmarks", handlers.CreateBookmark)
+			protected.GET("/bookmarks", handlers.GetBookmarks)
 			protected.PUT("/bookmarks/:id", handlers.UpdateBookmark)
 			protected.DELETE("/bookmarks/:id", handlers.DeleteBookmark)
 
@@ -68,12 +74,6 @@ func main() {
 				system.GET("/export", handlers.ExportBookmarks)
 				system.POST("/backup", handlers.TriggerBackup) // New Endpoint
 			}
-
-			// --- New Bookmark Routes ---
-			protected.GET("/bookmarks", handlers.GetBookmarks)
-			protected.POST("/bookmarks", handlers.CreateBookmark)
-			protected.PUT("/bookmarks/:id", handlers.UpdateBookmark)
-			protected.DELETE("/bookmarks/:id", handlers.DeleteBookmark)
 		}
 	}
 
