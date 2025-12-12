@@ -13,7 +13,7 @@ export const Dashboard = () => {
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
   const [allTags, setAllTags] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
-  const [page, setPage] = useState(1);
+  const [, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
 
   const [limit, setLimit] = useState(() => {
