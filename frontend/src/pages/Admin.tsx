@@ -62,7 +62,6 @@ export const Admin = () => {
     if (!password) return;
     try {
       await api.post('/admin/users', { username, password, role: 'user' });
-      alert("User created");
       fetchUsers();
     } catch (error) {
       alert("Failed to create user");
