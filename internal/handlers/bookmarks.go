@@ -4,7 +4,6 @@ import (
 	"bookmarks-manager/internal/database"
 	"bookmarks-manager/internal/models"
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
@@ -20,40 +19,48 @@ type BookmarkInput struct {
 // GET /api/v1/bookmarks
 func GetBookmarks(c *gin.Context) {
 	userID := c.MustGet("userID").(uint)
-	tagFilter := c.Query("tag")
-	searchQuery := c.Query("search") // NEW param
 
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
-	if page < 1 { page = 1 }
-	if limit < 1 { limit = 50 }
-	if limit > 200 { limit = 200 }
-	offset := (page - 1) * limit
+	// 1. DEFINE THE INPUT STRUCT (Add this part)
+	var input struct {
+		Page   int    `form:"page,default=1"`
+		Limit  int    `form:"limit,default=50"`
+		Search string `form:"search"`
+		Tag    string `form:"tag"`
+	}
+
+	// 2. BIND QUERY PARAMETERS (Add this part)
+	// This reads ?page=1&limit=50&tag=css into the 'input' variable
+	if err := c.ShouldBindQuery(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid query parameters"})
+		return
+	}
+
+	// Calculate offset for pagination
+	offset := (input.Page - 1) * input.Limit
 
 	var bookmarks []models.Bookmark
+	query := database.DB.Model(&models.Bookmark{}).Preload("Tags").Where("bookmarks.user_id = ?", userID)
 
-	// Start Query
-	query := database.DB.Preload("Tags").Where("user_id = ?", userID)
+	if input.Tag == "Untagged" {
+		// SPECIAL CASE: Filter for bookmarks that have NO tags
+		// We use a LEFT JOIN and check for NULL on the right side
+		query = query.Joins("LEFT JOIN bookmark_tags bt ON bt.bookmark_id = bookmarks.id").
+			Where("bt.tag_id IS NULL")
 
-	// Filter by Tag
-	if tagFilter != "" {
+	} else if input.Tag != "" {
+		// STANDARD CASE: Filter for a specific tag
 		query = query.Joins("JOIN bookmark_tags bt ON bt.bookmark_id = bookmarks.id").
 			Joins("JOIN tags t ON bt.tag_id = t.id").
-			Where("t.name = ?", tagFilter)
+			Where("t.name = ?", input.Tag)
 	}
 
-	// Filter by Search (Title, URL, or Description)
-	// SQLite 'LIKE' is case-insensitive by default for ASCII, but we use UPPER() for safety
-	if searchQuery != "" {
-		likeQuery := "%" + searchQuery + "%"
-		query = query.Where(
-			"(url LIKE ? OR title LIKE ? OR description LIKE ?)",
-			likeQuery, likeQuery, likeQuery,
-		)
+	if input.Search != "" {
+		search := "%" + input.Search + "%"
+		query = query.Where("(bookmarks.title LIKE ? OR bookmarks.url LIKE ?)", search, search)
 	}
 
-	// Order & Pagination
-	if err := query.Order("created_at desc").Limit(limit).Offset(offset).Find(&bookmarks).Error; err != nil {
+	// FIX: Use 'bookmarks.created_at' to avoid ambiguity
+	if err := query.Order("bookmarks.created_at desc").Limit(input.Limit).Offset(offset).Find(&bookmarks).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch bookmarks"})
 		return
 	}

@@ -13,15 +13,14 @@ interface Props {
 export const BookmarkCard: React.FC<Props> = ({ bookmark, viewMode, onDelete, onEdit, onTagClick }) => {
   const [imgError, setImgError] = useState(false);
 
-  // 1. Safe Hostname Extraction
-  // DuckDuckGo requires just the hostname (e.g. "google.com"), not the full URL.
+  // Safe Hostname Extraction
   const getFaviconUrl = (urlStr: string) => {
+    if (!urlStr) return ''; // Safety check for empty URL
     try {
       const url = new URL(urlStr);
-      // DuckDuckGo Favicon Service (Returns generic icons for private domains instead of 404s)
       return `https://icons.duckduckgo.com/ip3/${url.hostname}.ico`;
     } catch (e) {
-      return ''; // Invalid URL, will trigger onError
+      return '';
     }
   };
 
@@ -32,8 +31,10 @@ export const BookmarkCard: React.FC<Props> = ({ bookmark, viewMode, onDelete, on
     onTagClick(tagName);
   };
 
+  // Safe Tags Accessor (Prevents crash if tags is null)
+  const tags = bookmark.tags || [];
+
   const renderIcon = (className: string) => {
-    // If we have an error OR if the URL was invalid
     if (imgError || !faviconUrl) {
       return (
         <div className={`${className} flex items-center justify-center bg-gray-700 text-gray-400`}>
@@ -62,7 +63,8 @@ export const BookmarkCard: React.FC<Props> = ({ bookmark, viewMode, onDelete, on
               {bookmark.title || bookmark.url}
             </a>
             <div className="flex gap-2 text-xs text-gray-400">
-              {bookmark.tags.map(t => (
+              {/* SAFE MAP */}
+              {tags.map(t => (
                 <button key={t.id} onClick={(e) => handleTagClick(e, t.name)} className="hover:text-primary hover:underline cursor-pointer focus:outline-none">
                   #{t.name}
                 </button>
@@ -86,7 +88,7 @@ export const BookmarkCard: React.FC<Props> = ({ bookmark, viewMode, onDelete, on
         {renderIcon("h-10 w-10 rounded-md")}
 
         <div className="flex gap-2 opacity-0 transition-opacity group-hover:opacity-100">
-           <button onClick={() => onEdit(bookmark)} className="text-gray-500 hover:text-primary" title="Edit"><Pencil size={18} /></button>
+          <button onClick={() => onEdit(bookmark)} className="text-gray-500 hover:text-primary" title="Edit"><Pencil size={18} /></button>
           <button onClick={() => onDelete(bookmark.id)} className="text-gray-500 hover:text-red-400" title="Delete"><Trash2 size={18} /></button>
         </div>
       </div>
@@ -95,7 +97,8 @@ export const BookmarkCard: React.FC<Props> = ({ bookmark, viewMode, onDelete, on
       <p className="mb-4 flex-1 text-sm text-gray-400 line-clamp-2">{bookmark.description || bookmark.url}</p>
 
       <div className="mb-3 flex flex-wrap gap-2">
-        {bookmark.tags.map((tag) => (
+        {/* SAFE MAP */}
+        {tags.map((tag) => (
           <button key={tag.id} onClick={(e) => handleTagClick(e, tag.name)} className="flex items-center rounded bg-background px-2 py-1 text-xs text-primary hover:bg-primary hover:text-white transition-colors cursor-pointer">
             <TagIcon size={10} className="mr-1" /> {tag.name}
           </button>

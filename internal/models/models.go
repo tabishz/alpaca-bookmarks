@@ -21,9 +21,10 @@ type Bookmark struct {
 
 // Tag represents a category for bookmarks
 type Tag struct {
-	ID        uint       `gorm:"primaryKey" json:"id"`
-	Name      string     `gorm:"uniqueIndex" json:"name"`
-	Bookmarks []Bookmark `gorm:"many2many:bookmark_tags;" json:"-"`
+	gorm.Model
+	ID        uint       	`gorm:"primaryKey" json:"id"`
+	Name 			string 			`json:"name" gorm:"uniqueIndex"`
+	Bookmarks []Bookmark 	`json:"-" gorm:"many2many:bookmark_tags;"`
 }
 
 type User struct {

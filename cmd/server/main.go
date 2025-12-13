@@ -94,6 +94,7 @@ func main() {
 			protected.POST("/bookmarks", handlers.CreateBookmark)
 			protected.GET("/bookmarks", handlers.GetBookmarks)
 			protected.GET("/tags", handlers.GetAllTags)
+			protected.DELETE("/tags/:id", handlers.DeleteTag)
 			protected.PUT("/bookmarks/:id", handlers.UpdateBookmark)
 			protected.DELETE("/bookmarks/:id", handlers.DeleteBookmark)
 			protected.PATCH("/user/password", handlers.UpdatePassword)
@@ -112,11 +113,11 @@ func main() {
 			admin := protected.Group("/admin")
 			admin.Use(middleware.AdminOnly())
 			{
-					admin.GET("/users", handlers.GetAllUsers)
-					admin.POST("/users", handlers.CreateUser)
-					admin.DELETE("/users/:id", handlers.DeleteUser)
-					admin.PATCH("/users/:id/reset-password", handlers.ResetUserPassword)
-					admin.PATCH("/users/:id/role", handlers.UpdateUserRole)
+				admin.GET("/users", handlers.GetAllUsers)
+				admin.POST("/users", handlers.CreateUser)
+				admin.DELETE("/users/:id", handlers.DeleteUser)
+				admin.PATCH("/users/:id/reset-password", handlers.ResetUserPassword)
+				admin.PATCH("/users/:id/role", handlers.UpdateUserRole)
 			}
 		}
 	}

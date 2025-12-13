@@ -6,12 +6,11 @@ import { BookmarkCard } from '../components/BookmarkCard';
 import { AddBookmarkModal } from '../components/AddBookmarkModal';
 import { EditBookmarkModal } from '../components/EditBookmarkModal';
 import { SettingsModal } from '../components/SettingsModal';
-import { LayoutGrid, List, Plus, Search, LogOut, Tags, X, Settings, Upload, Download, Sliders, Shield } from 'lucide-react';
+import { LayoutGrid, List, Plus, Search, LogOut, Tags, Settings, Upload, Download, Sliders, Shield } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { useTheme, Theme } from '../hooks/useTheme';
 
 export const Dashboard = () => {
-  // --- STATE ---
   const { theme, setTheme } = useTheme();
   const { user } = useAuthStore();
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
@@ -19,15 +18,13 @@ export const Dashboard = () => {
   const [loading, setLoading] = useState(false);
   const [, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
-
   const [limit, setLimit] = useState(() => {
     const saved = localStorage.getItem('bookmarks_limit');
     return saved ? parseInt(saved) : 50;
   });
-
   const [search, setSearch] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [selectedTag, setSelectedTag] = useState<string | null>(null);
+  const [selectedTag, setSelectedTag] = useState<string>('');
   const [isTagMenuOpen, setIsTagMenuOpen] = useState(false);
   const [tagSearch, setTagSearch] = useState('');
 
@@ -69,7 +66,8 @@ export const Dashboard = () => {
   const fetchTags = async () => {
     try {
       const res = await api.get<string[]>('/tags');
-      setAllTags(res.data.sort());
+      const tagNames = res.data.map((t: any) => t.name);
+      setAllTags(tagNames);
     } catch (e) { console.error("Failed to load tags"); }
   };
   useEffect(() => { fetchTags(); }, []);
@@ -159,7 +157,7 @@ export const Dashboard = () => {
         else if (isSettingsMenuOpen) { e.preventDefault(); setIsSettingsMenuOpen(false); }
       } else if (e.key === 'Backspace' && !isTyping && selectedTag) {
         e.preventDefault();
-        setSelectedTag(null);
+        setSelectedTag('');
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -238,6 +236,34 @@ export const Dashboard = () => {
     return allTags.filter(t => t.toLowerCase().includes(tagSearch.toLowerCase()));
   }, [allTags, tagSearch]);
 
+  // FILTERING LOGIC
+  // const filteredBookmarks = useMemo(() => {
+  //   let result = bookmarks;
+
+  //   // Search Filter
+  //   if (search) {
+  //     const lower = search.toLowerCase();
+  //     result = result.filter(b =>
+  //       b.title.toLowerCase().includes(lower) ||
+  //       b.url.toLowerCase().includes(lower) ||
+  //       b.tags.some(t => t.name.toLowerCase().includes(lower))
+  //     );
+  //   }
+
+  //   // Tag Filter
+  //   if (selectedTag) {
+  //     if (selectedTag === 'Untagged') {
+  //       // SHOW TAGLESS
+  //       result = result.filter(b => (!b.tags || b.tags.length === 0));
+  //     } else {
+  //       // STANDARD FILTER
+  //       result = result.filter(b => b.tags.some(t => t.name === selectedTag));
+  //     }
+  //   }
+
+  //   return result;
+  // }, [bookmarks, search, selectedTag]);
+
   return (
     <div className="min-h-screen p-6 md:p-10 w-full" onClick={() => { setIsTagMenuOpen(false); setIsSettingsMenuOpen(false); }} onDragOver={handleDragOver} onDrop={handleDrop}>
       <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".html" />
@@ -276,15 +302,15 @@ export const Dashboard = () => {
               onClick={(e) => { e.stopPropagation(); setIsTagMenuOpen(!isTagMenuOpen); setIsSettingsMenuOpen(false); }}
               className={`flex items-center gap-2 rounded-md border p-2 text-sm font-medium transition-colors ${selectedTag ? 'border-primary bg-primary/20 text-primary' : 'border-transparent bg-surface text-gray-400 hover:text-white'}`}
             >
-              <Tags size={18} /> {selectedTag || "Tags"}
-              {selectedTag && <div onClick={(e) => { e.stopPropagation(); setSelectedTag(null); }} className="ml-1 rounded-full p-0.5 hover:bg-black/20"><X size={14} /></div>}
+              <Tags size={20} />
+              <span className="hidden md:inline">{selectedTag || 'All Tags'}</span>
             </button>
 
             {isTagMenuOpen && (
               <div className="absolute right-0 top-full z-20 mt-2 max-h-80 w-56 overflow-hidden rounded-md border border-gray-600 bg-surface shadow-xl flex flex-col" onClick={(e) => e.stopPropagation()}>
                 <div className="border-b border-gray-700 p-2">
                   <input
-                    ref={setTagInputFocus} // --- FIX 2: ATTACH CALLBACK REF ---
+                    ref={setTagInputFocus}
                     type="text"
                     placeholder="Find tag..."
                     className="w-full rounded bg-background px-2 py-1 text-sm text-text focus:outline-none focus:ring-1 focus:ring-primary"
@@ -293,11 +319,18 @@ export const Dashboard = () => {
                     onKeyDown={handleTagInputKeyDown}
                   />
                 </div>
+                {/* NEW: UNTAGGED OPTION */}
+                <button
+                  onClick={() => { setSelectedTag('Untagged'); setIsTagMenuOpen(false); }}
+                  className="block w-full text-left px-4 py-2 hover:bg-gray-700 text-yellow-400 italic border-b border-gray-700"
+                >
+                  Without Tags
+                </button>
                 {/* ... Tag List ... */}
                 <div className="overflow-y-auto max-h-60">
                   {visibleTags.length === 0 ? <div className="p-3 text-center text-sm text-gray-500">No matching tags</div> :
                     visibleTags.map(tag => (
-                      <button key={tag} onClick={() => handleTagSelect(tag)} className={`w-full text-left px-4 py-2 text-sm hover:bg-primary hover:text-white transition-colors ${selectedTag === tag ? 'bg-primary/20 text-primary' : 'text-text'}`}>#{tag}</button>
+                      <button key={tag} onClick={() => { setSelectedTag(tag); setIsTagMenuOpen(false); }} className={`w-full text-left px-4 py-2 text-sm hover:bg-primary hover:text-white transition-colors ${selectedTag === tag ? 'bg-primary/20 text-primary' : 'text-text'}`}>#{tag}</button>
                     ))
                   }
                 </div>
