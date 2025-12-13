@@ -94,3 +94,35 @@ func ResetUserPassword(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "Password reset successful"})
 }
+
+// PATCH /api/v1/admin/users/:id/role
+func UpdateUserRole(c *gin.Context) {
+	idStr := c.Param("id")
+
+	// Safety: Prevent admin from demoting themselves
+	currentUserID := c.MustGet("userID").(uint)
+	if idStr == fmt.Sprintf("%d", currentUserID) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "You cannot change your own role"})
+		return
+	}
+
+	var input struct {
+		Role string `json:"role" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Role is required"})
+		return
+	}
+
+	if input.Role != "admin" && input.Role != "user" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid role"})
+		return
+	}
+
+	if err := database.DB.Model(&models.User{}).Where("id = ?", idStr).Update("role", input.Role).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update role"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Role updated"})
+}

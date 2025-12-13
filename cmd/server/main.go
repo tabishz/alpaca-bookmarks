@@ -86,6 +86,7 @@ func main() {
 					admin.POST("/users", handlers.CreateUser)
 					admin.DELETE("/users/:id", handlers.DeleteUser)
 					admin.PATCH("/users/:id/reset-password", handlers.ResetUserPassword)
+					admin.PATCH("/users/:id/role", handlers.UpdateUserRole)
 			}
 		}
 	}
