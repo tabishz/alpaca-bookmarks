@@ -4,6 +4,7 @@ import (
 	"bookmarks-manager/internal/database"
 	"bookmarks-manager/internal/models"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
@@ -18,54 +19,57 @@ type BookmarkInput struct {
 
 // GET /api/v1/bookmarks
 func GetBookmarks(c *gin.Context) {
-	userID := c.MustGet("userID").(uint)
+    userID := c.MustGet("userID").(uint)
 
-	// 1. DEFINE THE INPUT STRUCT (Add this part)
-	var input struct {
-		Page   int    `form:"page,default=1"`
-		Limit  int    `form:"limit,default=50"`
-		Search string `form:"search"`
-		Tag    string `form:"tag"`
-	}
+    var input struct {
+        Page   int    `form:"page,default=1"`
+        Limit  int    `form:"limit,default=50"`
+        Search string `form:"search"`
+        Tag    string `form:"tag"`
+    }
 
-	// 2. BIND QUERY PARAMETERS (Add this part)
-	// This reads ?page=1&limit=50&tag=css into the 'input' variable
-	if err := c.ShouldBindQuery(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid query parameters"})
-		return
-	}
+    if err := c.ShouldBindQuery(&input); err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid query parameters"})
+        return
+    }
 
-	// Calculate offset for pagination
-	offset := (input.Page - 1) * input.Limit
+    offset := (input.Page - 1) * input.Limit
 
-	var bookmarks []models.Bookmark
-	query := database.DB.Model(&models.Bookmark{}).Preload("Tags").Where("bookmarks.user_id = ?", userID)
+    var bookmarks []models.Bookmark
+    // 1. Build the Base Query (Filters Only)
+    query := database.DB.Model(&models.Bookmark{}).Preload("Tags").Where("bookmarks.user_id = ?", userID)
 
-	if input.Tag == "Untagged" {
-		// SPECIAL CASE: Filter for bookmarks that have NO tags
-		// We use a LEFT JOIN and check for NULL on the right side
-		query = query.Joins("LEFT JOIN bookmark_tags bt ON bt.bookmark_id = bookmarks.id").
-			Where("bt.tag_id IS NULL")
+    // Tag Logic
+    if input.Tag == "Untagged" {
+        query = query.Joins("LEFT JOIN bookmark_tags bt ON bt.bookmark_id = bookmarks.id").Where("bt.tag_id IS NULL")
+    } else if input.Tag != "" {
+        query = query.Joins("JOIN bookmark_tags bt ON bt.bookmark_id = bookmarks.id").Joins("JOIN tags t ON bt.tag_id = t.id").Where("t.name = ?", input.Tag)
+    }
 
-	} else if input.Tag != "" {
-		// STANDARD CASE: Filter for a specific tag
-		query = query.Joins("JOIN bookmark_tags bt ON bt.bookmark_id = bookmarks.id").
-			Joins("JOIN tags t ON bt.tag_id = t.id").
-			Where("t.name = ?", input.Tag)
-	}
+    // Search Logic
+    if input.Search != "" {
+        search := "%" + input.Search + "%"
+        query = query.Where("(bookmarks.title LIKE ? OR bookmarks.url LIKE ?)", search, search)
+    }
 
-	if input.Search != "" {
-		search := "%" + input.Search + "%"
-		query = query.Where("(bookmarks.title LIKE ? OR bookmarks.url LIKE ?)", search, search)
-	}
+    // 2. COUNT TOTAL MATCHES (Before Pagination)
+    var count int64
+    // We clone the query to run a count without affecting the main query's SELECT fields
+    if err := query.Count(&count).Error; err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to count bookmarks"})
+        return
+    }
 
-	// FIX: Use 'bookmarks.created_at' to avoid ambiguity
-	if err := query.Order("bookmarks.created_at desc").Limit(input.Limit).Offset(offset).Find(&bookmarks).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch bookmarks"})
-		return
-	}
+    // 3. SET HEADER
+    c.Header("X-Total-Count", strconv.FormatInt(count, 10))
 
-	c.JSON(http.StatusOK, bookmarks)
+    // 4. Run Final Query with Pagination
+    if err := query.Order("bookmarks.created_at desc").Limit(input.Limit).Offset(offset).Find(&bookmarks).Error; err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch bookmarks"})
+        return
+    }
+
+    c.JSON(http.StatusOK, bookmarks)
 }
 
 // POST /api/v1/bookmarks

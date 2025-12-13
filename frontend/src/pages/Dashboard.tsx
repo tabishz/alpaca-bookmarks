@@ -37,6 +37,7 @@ export const Dashboard = () => {
     const saved = localStorage.getItem('tile_size');
     return saved ? parseInt(saved) : 280; // Default 280px
   });
+  const [totalCount, setTotalCount] = useState(0);
 
   // --- REFS ---
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -93,6 +94,8 @@ export const Dashboard = () => {
 
       const res = await api.get<Bookmark[]>(url, { signal: controller.signal });
       const newData = res.data;
+      const total = parseInt(res.headers['x-total-count'] || '0', 10);
+      setTotalCount(total);
 
       if (isRefresh) {
         setBookmarks(newData);
@@ -272,7 +275,7 @@ export const Dashboard = () => {
         <div>
           <h1 className="text-3xl font-bold">My Bookmarks</h1>
           <p className="text-gray-400 text-sm">
-            Showing {bookmarks.length} results
+            Showing {bookmarks.length} results out of {totalCount}
             {selectedTag && (
               <button
                 onClick={(e) => {
@@ -312,8 +315,8 @@ export const Dashboard = () => {
           <div className="relative">
             <div
               className={`flex items-center rounded-md border transition-colors ${selectedTag
-                  ? 'border-primary bg-primary/20 text-primary'
-                  : 'border-transparent bg-surface text-gray-400 hover:text-white'
+                ? 'border-primary bg-primary/20 text-primary'
+                : 'border-transparent bg-surface text-gray-400 hover:text-white'
                 }`}
             >
               {/* Button 1: The Main Label (Clicking this toggles the menu) */}
