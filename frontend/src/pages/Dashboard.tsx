@@ -6,7 +6,7 @@ import { BookmarkCard } from '../components/BookmarkCard';
 import { AddBookmarkModal } from '../components/AddBookmarkModal';
 import { EditBookmarkModal } from '../components/EditBookmarkModal';
 import { SettingsModal } from '../components/SettingsModal';
-import { LayoutGrid, List, Plus, Search, LogOut, Tags, Settings, Upload, Download, Sliders, Shield } from 'lucide-react';
+import { LayoutGrid, List, Plus, Search, LogOut, Tags, Settings, Upload, Download, Sliders, Shield, X } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { useTheme, Theme } from '../hooks/useTheme';
 
@@ -273,7 +273,19 @@ export const Dashboard = () => {
           <h1 className="text-3xl font-bold">My Bookmarks</h1>
           <p className="text-gray-400 text-sm">
             Showing {bookmarks.length} results
-            {selectedTag && <span className="ml-2 text-primary">(Filtered by #{selectedTag})</span>}
+            {selectedTag && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation(); // Stop click from bubbling to other handlers
+                  setSelectedTag('');  // Clear the tag
+                  setTagSearch('');    // Reset tag search input
+                }}
+                className="mr-2 rounded-full p-0.5 hover:bg-white/20 active:bg-white/30 transition-colors"
+                title="Clear tag filter"
+              >
+                <X size={20} />
+              </button>
+            )}
           </p>
         </div>
 
@@ -298,13 +310,40 @@ export const Dashboard = () => {
           </div>
 
           <div className="relative">
-            <button
-              onClick={(e) => { e.stopPropagation(); setIsTagMenuOpen(!isTagMenuOpen); setIsSettingsMenuOpen(false); }}
-              className={`flex items-center gap-2 rounded-md border p-2 text-sm font-medium transition-colors ${selectedTag ? 'border-primary bg-primary/20 text-primary' : 'border-transparent bg-surface text-gray-400 hover:text-white'}`}
+            <div
+              className={`flex items-center rounded-md border transition-colors ${selectedTag
+                  ? 'border-primary bg-primary/20 text-primary'
+                  : 'border-transparent bg-surface text-gray-400 hover:text-white'
+                }`}
             >
-              <Tags size={20} />
-              <span className="hidden md:inline">{selectedTag || 'All Tags'}</span>
-            </button>
+              {/* Button 1: The Main Label (Clicking this toggles the menu) */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsTagMenuOpen(!isTagMenuOpen);
+                  setIsSettingsMenuOpen(false);
+                }}
+                className="flex items-center gap-2 p-2 text-sm font-medium focus:outline-none"
+              >
+                <Tags size={20} />
+                <span className="hidden md:inline">{selectedTag || 'All Tags'}</span>
+              </button>
+
+              {/* Button 2: The X (Only visible when tag is selected) */}
+              {selectedTag && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation(); // Stop click from opening the menu
+                    setSelectedTag('');  // Clear the tag
+                    setTagSearch('');    // Reset tag search
+                  }}
+                  className="mr-2 rounded-full p-1 hover:bg-white/20 active:bg-white/30 transition-colors"
+                  title="Clear tag filter"
+                >
+                  <X size={14} /> {/* Ensure X is imported from lucide-react */}
+                </button>
+              )}
+            </div>
 
             {isTagMenuOpen && (
               <div className="absolute right-0 top-full z-20 mt-2 max-h-80 w-56 overflow-hidden rounded-md border border-gray-600 bg-surface shadow-xl flex flex-col" onClick={(e) => e.stopPropagation()}>
