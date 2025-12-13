@@ -8,13 +8,13 @@ export const Login = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const navigate = useNavigate();
-  const login = useAuthStore((state) => state.login);
+  const login = useAuthStore((state) => state.setToken);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       const res = await api.post('/auth/login', { username, password });
-      login(res.data.token);
+      login(res.data.token, res.data.user);
       navigate('/'); // Redirect to dashboard
     } catch (err: any) {
       setError('Invalid credentials');

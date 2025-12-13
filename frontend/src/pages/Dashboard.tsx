@@ -12,6 +12,7 @@ import { useTheme, Theme } from '../hooks/useTheme';
 export const Dashboard = () => {
   // --- STATE ---
   const { theme, setTheme } = useTheme();
+  const { user } = useAuthStore();
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
   const [allTags, setAllTags] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
@@ -42,6 +43,13 @@ export const Dashboard = () => {
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const logout = useAuthStore(state => state.logout);
+
+  useEffect(() => {
+    // If user has a saved theme in DB that differs from local, sync it
+    if (user && user.theme && user.theme !== theme) {
+      setTheme(user.theme as Theme);
+    }
+  }, [user, setTheme]);
 
   // --- FIX 2: CALLBACK REF FOR TAG INPUT ---
   // This function runs automatically when the <input> mounts into the DOM.
@@ -180,10 +188,16 @@ export const Dashboard = () => {
   };
 
   // --- HANDLERS ---
-  const handleConfigSave = (newLimit: number, newTheme: Theme) => {
+  const handleConfigSave = async (newLimit: number, newTheme: Theme) => {
     localStorage.setItem('bookmarks_limit', newLimit.toString());
     setLimit(newLimit);
     setTheme(newTheme);
+    try {
+      await api.patch('/user/preferences', { theme: newTheme });
+    } catch (error) {
+      console.error("Failed to save theme preference to server");
+      // Optional: Revert on failure? Usually not critical for themes.
+    }
   };
   const handleImportClick = () => { fileInputRef.current?.click(); setIsSettingsMenuOpen(false); };
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => { /* ... Keep Import Logic ... */

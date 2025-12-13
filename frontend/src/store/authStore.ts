@@ -1,9 +1,11 @@
 import { create } from 'zustand';
+import { User } from '../api/types';
 
 interface AuthState {
   token: string | null;
   isAuthenticated: boolean;
-  login: (token: string) => void;
+  user: User | null;
+  setToken: (token: string, user: User) => void;
   logout: () => void;
 }
 
@@ -11,10 +13,13 @@ export const useAuthStore = create<AuthState>((set) => ({
   // Initialize state from localStorage so login persists on refresh
   token: localStorage.getItem('token'),
   isAuthenticated: !!localStorage.getItem('token'),
+  user: localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user')!) : null,
 
-  login: (token: string) => {
+  setToken: (token: string, user: User) => {
     localStorage.setItem('token', token);
-    set({ token, isAuthenticated: true });
+    // Store user object so theme persists on reload
+    localStorage.setItem('user', JSON.stringify(user));
+    set({ token, isAuthenticated: true, user });
   },
 
   logout: () => {

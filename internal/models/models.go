@@ -6,15 +6,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// User represents a registered user
-type User struct {
-	ID           uint           `gorm:"primaryKey" json:"id"`
-	Username     string         `gorm:"uniqueIndex;not null" json:"username"`
-	PasswordHash string         `gorm:"not null" json:"-"` // "-" prevents returning password in JSON
-	CreatedAt    time.Time      `json:"created_at"`
-	Bookmarks    []Bookmark     `json:"bookmarks,omitempty"`
-}
-
 // Bookmark represents a saved link
 type Bookmark struct {
 	ID          uint           `gorm:"primaryKey" json:"id"`
@@ -33,4 +24,13 @@ type Tag struct {
 	ID        uint       `gorm:"primaryKey" json:"id"`
 	Name      string     `gorm:"uniqueIndex" json:"name"`
 	Bookmarks []Bookmark `gorm:"many2many:bookmark_tags;" json:"-"`
+}
+
+type User struct {
+	gorm.Model
+	Username string `gorm:"uniqueIndex;not null" json:"username"`
+	Password string `json:"-"`
+	PasswordHash string         `gorm:"not null" json:"-"` // "-" prevents returning password in JSON
+	CreatedAt    time.Time      `json:"created_at"`
+	Theme    string `json:"theme" gorm:"default:'dracula'"`
 }

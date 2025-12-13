@@ -60,6 +60,7 @@ func main() {
 				userID, _ := c.Get("userID")
 				c.JSON(http.StatusOK, gin.H{"user_id": userID})
 			})
+			protected.PATCH("/user/preferences", handlers.UpdatePreferences)
 			// Bookmarks CRUD
 			protected.POST("/bookmarks", handlers.CreateBookmark)
 			protected.GET("/bookmarks", handlers.GetBookmarks)

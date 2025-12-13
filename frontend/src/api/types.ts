@@ -11,3 +11,10 @@ export interface Bookmark {
   tags: Tag[];
   created_at: string;
 }
+
+export interface User {
+  id: number;
+  username: string;
+  theme?: string; // Add this optional field
+  created_at?: string;
+}

@@ -75,3 +75,25 @@ func Login(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"token": token})
 }
+
+// PATCH /api/v1/user/preferences
+func UpdatePreferences(c *gin.Context) {
+	userID := c.MustGet("userID").(uint)
+
+	var input struct {
+		Theme string `json:"theme"`
+	}
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
+		return
+	}
+
+	// Update the specific field
+	if err := database.DB.Model(&models.User{}).Where("id = ?", userID).Update("theme", input.Theme).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update preferences"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Preferences updated", "theme": input.Theme})
+}
