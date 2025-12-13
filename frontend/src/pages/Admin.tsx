@@ -109,12 +109,12 @@ export const Admin = () => {
       {/* ... (Header remains same) ... */}
       <div className="flex items-center justify-between mb-8">
         <div className="flex items-center gap-4">
-            <Link to="/" className="p-2 rounded-full hover:bg-gray-700 text-gray-400">
-                <ArrowLeft size={24} />
-            </Link>
-            <h1 className="text-3xl font-bold flex items-center gap-2">
+          <Link to="/" className="p-2 rounded-full hover:bg-gray-700 text-gray-400">
+            <ArrowLeft size={24} />
+          </Link>
+          <h1 className="text-3xl font-bold flex items-center gap-2">
             <Shield className="text-primary" /> Admin Console
-            </h1>
+          </h1>
         </div>
         <button
           onClick={handleCreateUser}
@@ -155,16 +155,15 @@ export const Admin = () => {
                       // 2. Disable click if it's the current user
                       disabled={isCurrentUser}
                       onClick={() => setOpenMenuId(openMenuId === u.ID ? null : u.ID)}
-                      className={`flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold uppercase border transition-all ${
-                        u.role === 'admin'
+                      className={`flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold uppercase border transition-all ${u.role === 'admin'
                           ? 'bg-red-500/10 text-red-400 border-red-500/30'
                           : 'bg-blue-500/10 text-blue-400 border-blue-500/30'
-                      } ${
+                        } ${
                         // 3. Styling changes for enabled vs disabled
                         !isCurrentUser
                           ? 'hover:bg-opacity-20 cursor-pointer'
                           : 'opacity-50 cursor-not-allowed'
-                      }`}
+                        }`}
                     >
                       {u.role}
                       {/* 4. Only show Chevron if actionable */}
