@@ -4,17 +4,46 @@ import (
 	"bookmarks-manager/internal/database"
 	"bookmarks-manager/internal/handlers"
 	"bookmarks-manager/internal/middleware"
+	"bookmarks-manager/internal/models"
 	"bookmarks-manager/internal/services"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
 
 	"github.com/gin-gonic/gin"
 	"github.com/robfig/cron/v3"
+	"golang.org/x/crypto/bcrypt"
 )
+
+func seedAdminUser() {
+	var count int64
+	database.DB.Model(&models.User{}).Count(&count)
+
+	if count == 0 {
+		// Database is empty, create the first user (Admin)
+		hashedPassword, _ := bcrypt.GenerateFromPassword([]byte("admin"), bcrypt.DefaultCost)
+
+		admin := models.User{
+			Username: "admin",
+			Password: string(hashedPassword),
+			Role:     "admin",
+			Theme:    "dracula",
+		}
+
+		if err := database.DB.Create(&admin).Error; err != nil {
+			log.Fatalf("Failed to seed admin user: %v", err)
+		}
+		fmt.Println("🚀 Fresh Install Detected: Created default user 'admin' (password: 'admin')")
+	} else {
+		// Users exist, do nothing.
+		fmt.Println("✅ Database initialized (Users already exist, skipping seed)")
+	}
+}
 
 func main() {
 	database.Connect()
+	seedAdminUser()
 
 	// --- 1. Setup Scheduler ---
 	c := cron.New()

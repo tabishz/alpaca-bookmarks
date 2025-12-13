@@ -25,7 +25,7 @@ func CreateUser(c *gin.Context) {
 	var input struct {
 		Username string `json:"username" binding:"required"`
 		Password string `json:"password" binding:"required"`
-		Role     string `json:"role"` // Optional, default to user
+		Role     string `json:"role" binding:"required"`
 	}
 
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -36,10 +36,6 @@ func CreateUser(c *gin.Context) {
 	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
 
 	role := "user"
-	if input.Role == "admin" {
-		role = "admin"
-	}
-
 	user := models.User{Username: input.Username, Password: string(hashedPassword), Role: role}
 	if err := database.DB.Create(&user).Error; err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Username already exists"})

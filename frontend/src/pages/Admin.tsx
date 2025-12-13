@@ -55,16 +55,13 @@ export const Admin = () => {
     }
   }, [user, navigate]);
 
-  // ... (keep handleCreateUser, handleDelete, handleResetPassword) ...
-
   const handleCreateUser = async () => {
     const username = prompt("Enter Username:");
     if (!username) return;
     const password = prompt("Enter Password:");
     if (!password) return;
-    const isAdmin = confirm("Should this user be an Admin?");
     try {
-      await api.post('/admin/users', { username, password, role: isAdmin ? 'admin' : 'user' });
+      await api.post('/admin/users', { username, password, role: 'user' });
       alert("User created");
       fetchUsers();
     } catch (error) {
@@ -196,8 +193,14 @@ export const Admin = () => {
                       </div>
                     )}
                   </td>
-
-                  {/* ... actions ... */}
+                  <td className="p-4 text-right flex justify-end gap-3">
+                    <button onClick={() => handleResetPassword(u.ID)} className="text-gray-400 hover:text-white" title="Reset Password">
+                      <Key size={18} />
+                    </button>
+                    <button onClick={() => handleDelete(u.ID)} className="text-gray-400 hover:text-red-500" title="Delete User">
+                      <Trash2 size={18} />
+                    </button>
+                  </td>
                 </tr>
               );
             })}
