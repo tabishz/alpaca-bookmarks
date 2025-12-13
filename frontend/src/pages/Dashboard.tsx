@@ -35,6 +35,10 @@ export const Dashboard = () => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingBookmark, setEditingBookmark] = useState<Bookmark | null>(null);
   const [droppedData, setDroppedData] = useState<{ url: string; title?: string } | null>(null);
+  const [tileSize, setTileSize] = useState(() => {
+    const saved = localStorage.getItem('tile_size');
+    return saved ? parseInt(saved) : 280; // Default 280px
+  });
 
   // --- REFS ---
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -188,10 +192,11 @@ export const Dashboard = () => {
   };
 
   // --- HANDLERS ---
-  const handleConfigSave = async (newLimit: number, newTheme: Theme) => {
+  const handleConfigSave = async (newLimit: number, newTheme: Theme, newTileSize: number) => {
     localStorage.setItem('bookmarks_limit', newLimit.toString());
     setLimit(newLimit);
     setTheme(newTheme);
+    setTileSize(newTileSize);
     try {
       await api.patch('/user/preferences', { theme: newTheme });
     } catch (error) {
@@ -326,7 +331,13 @@ export const Dashboard = () => {
       </header>
 
       {/* Grid ... */}
-      <div className={viewMode === 'grid' ? "grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" : "flex flex-col"}>
+      <div
+        className={viewMode === 'grid' ? "grid gap-6" : "flex flex-col"}
+        style={viewMode === 'grid' ? {
+          // CSS Grid Magic: Create columns that are AT LEAST 'tileSize' wide
+          gridTemplateColumns: `repeat(auto-fill, minmax(${tileSize}px, 1fr))`
+        } : {}}
+      >
         {bookmarks.length === 0 && !loading ? (
             <div className="col-span-full text-center text-gray-500 mt-20">
               {search || selectedTag ? "No matches found." : "No bookmarks yet. Add one!"}
@@ -353,7 +364,8 @@ export const Dashboard = () => {
         isOpen={isConfigModalOpen}
         onClose={() => setIsConfigModalOpen(false)}
         currentLimit={limit}
-        currentTheme={theme} // Pass current theme
+        currentTheme={theme}
+        currentTileSize={tileSize}
         onSave={handleConfigSave}
       />
     </div>

@@ -7,12 +7,14 @@ interface Props {
   onClose: () => void;
   currentLimit: number;
   currentTheme: Theme;
-  onSave: (newLimit: number, newTheme: Theme) => void;
+  currentTileSize: number;
+  onSave: (newLimit: number, newTheme: Theme, newTileSize: number) => void;
 }
 
 export const SettingsModal: React.FC<Props> = ({ isOpen, onClose, currentLimit, currentTheme, onSave }) => {
   const [limit, setLimit] = useState(50);
   const [selectedTheme, setSelectedTheme] = useState<Theme>('dracula');
+  const [tileSize, setTileSize] = useState(280);
 
   useEffect(() => {
     setLimit(currentLimit);
@@ -23,7 +25,7 @@ export const SettingsModal: React.FC<Props> = ({ isOpen, onClose, currentLimit, 
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSave(limit, selectedTheme);
+    onSave(limit, selectedTheme, tileSize);
     onClose();
   };
 
@@ -93,6 +95,24 @@ export const SettingsModal: React.FC<Props> = ({ isOpen, onClose, currentLimit, 
               step="10"
               value={limit}
               onChange={(e) => setLimit(parseInt(e.target.value))}
+              className="w-full h-2 cursor-pointer appearance-none rounded-lg bg-gray-700 accent-primary"
+            />
+          </div>
+
+          <div>
+            <div className="flex justify-between items-center mb-2">
+              <label className="block text-sm font-medium text-gray-400 uppercase tracking-wider">
+                Card Size
+              </label>
+              <span className="font-mono text-lg font-bold text-primary">
+                {tileSize}px
+              </span>
+            </div>
+            <input
+              type="range"
+              min="200" max="450" step="10"
+              value={tileSize}
+              onChange={(e) => setTileSize(parseInt(e.target.value))}
               className="w-full h-2 cursor-pointer appearance-none rounded-lg bg-gray-700 accent-primary"
             />
           </div>
