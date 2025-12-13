@@ -207,18 +207,18 @@ export const Dashboard = () => {
   };
   const handleImportClick = () => { fileInputRef.current?.click(); setIsSettingsMenuOpen(false); };
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => { /* ... Keep Import Logic ... */
-      const file = e.target.files?.[0]; if (!file) return;
-      if (!confirm(`Import "${file.name}"?`)) { e.target.value = ''; return; }
-      const formData = new FormData(); formData.append('file', file);
-      try { setLoading(true); await api.post('/system/import', formData, { headers: { 'Content-Type': 'multipart/form-data' } }); alert('Import successful!'); fetchTags(); setPage(1); fetchBookmarks(1, true); } catch (error) { alert('Failed'); } finally { setLoading(false); e.target.value = ''; }
+    const file = e.target.files?.[0]; if (!file) return;
+    if (!confirm(`Import "${file.name}"?`)) { e.target.value = ''; return; }
+    const formData = new FormData(); formData.append('file', file);
+    try { setLoading(true); await api.post('/system/import', formData, { headers: { 'Content-Type': 'multipart/form-data' } }); alert('Import successful!'); fetchTags(); setPage(1); fetchBookmarks(1, true); } catch (error) { alert('Failed'); } finally { setLoading(false); e.target.value = ''; }
   };
   const handleExport = async () => { /* ... Keep Export Logic ... */
-      setIsSettingsMenuOpen(false);
-      try { const response = await api.get('/system/export', { responseType: 'blob' }); const url = window.URL.createObjectURL(new Blob([response.data])); const link = document.createElement('a'); link.href = url; link.setAttribute('download', 'bookmarks.html'); document.body.appendChild(link); link.click(); link.remove(); } catch (error) { alert("Failed"); }
+    setIsSettingsMenuOpen(false);
+    try { const response = await api.get('/system/export', { responseType: 'blob' }); const url = window.URL.createObjectURL(new Blob([response.data])); const link = document.createElement('a'); link.href = url; link.setAttribute('download', 'bookmarks.html'); document.body.appendChild(link); link.click(); link.remove(); } catch (error) { alert("Failed"); }
   };
   const handleDelete = async (id: number) => {
-      if(!confirm("Are you sure?")) return;
-      try { await api.delete(`/bookmarks/${id}`); setBookmarks(prev => prev.filter(b => b.id !== id)); } catch (error) { alert("Failed"); }
+    if (!confirm("Are you sure?")) return;
+    try { await api.delete(`/bookmarks/${id}`); setBookmarks(prev => prev.filter(b => b.id !== id)); } catch (error) { alert("Failed"); }
   };
   const handleTagSelect = (tag: string) => { setSelectedTag(tag); setIsTagMenuOpen(false); setTagSearch(''); };
   const handleTagInputKeyDown = (e: React.KeyboardEvent) => {
@@ -348,20 +348,20 @@ export const Dashboard = () => {
         } : {}}
       >
         {bookmarks.length === 0 && !loading ? (
-            <div className="col-span-full text-center text-gray-500 mt-20">
-              {search || selectedTag ? "No matches found." : "No bookmarks yet. Add one!"}
-            </div>
+          <div className="col-span-full text-center text-gray-500 mt-20">
+            {search || selectedTag ? "No matches found." : "No bookmarks yet. Add one!"}
+          </div>
         ) : (
-            bookmarks.map(b => (
-              <BookmarkCard
-                key={b.id}
-                bookmark={b}
-                viewMode={viewMode}
-                onDelete={handleDelete}
-                onEdit={setEditingBookmark}
-                onTagClick={handleTagSelect} // <--- PASS THE HANDLER HERE
-              />
-            ))
+          bookmarks.map(b => (
+            <BookmarkCard
+              key={b.id}
+              bookmark={b}
+              viewMode={viewMode}
+              onDelete={handleDelete}
+              onEdit={setEditingBookmark}
+              onTagClick={handleTagSelect} // <--- PASS THE HANDLER HERE
+            />
+          ))
         )}
       </div>
 

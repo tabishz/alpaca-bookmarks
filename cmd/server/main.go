@@ -96,6 +96,7 @@ func main() {
 			protected.GET("/tags", handlers.GetAllTags)
 			protected.PUT("/bookmarks/:id", handlers.UpdateBookmark)
 			protected.DELETE("/bookmarks/:id", handlers.DeleteBookmark)
+			protected.PATCH("/user/password", handlers.UpdatePassword)
 
 			// System Routes
 			system := protected.Group("/system")
