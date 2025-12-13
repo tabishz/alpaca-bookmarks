@@ -13,6 +13,7 @@ import (
 type AuthInput struct {
 	Username string `json:"username" binding:"required"`
 	Password string `json:"password" binding:"required"`
+	Role     string `json:"role" gorm:"default:'user'"`
 }
 
 // POST /api/v1/auth/register
@@ -33,7 +34,8 @@ func Register(c *gin.Context) {
 	// 2. Create User
 	user := models.User{
 		Username:     input.Username,
-		PasswordHash: string(hashedPassword),
+		Password: string(hashedPassword),
+		Role: input.Role,
 	}
 
 	if result := database.DB.Create(&user); result.Error != nil {
@@ -61,7 +63,7 @@ func Login(c *gin.Context) {
 	}
 
 	// 2. Check Password
-	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(input.Password)); err != nil {
+	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(input.Password)); err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid username or password"})
 		return
 	}
@@ -73,7 +75,15 @@ func Login(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"token": token})
+	c.JSON(http.StatusOK, gin.H{
+		"token": token,
+		"user": gin.H{
+				"id":       user.ID,
+				"username": user.Username,
+				"theme":    user.Theme,
+				"role":     user.Role,
+		},
+})
 }
 
 // PATCH /api/v1/user/preferences

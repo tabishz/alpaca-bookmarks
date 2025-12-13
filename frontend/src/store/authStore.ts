@@ -17,8 +17,9 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   setToken: (token: string, user: User) => {
     localStorage.setItem('token', token);
-    // Store user object so theme persists on reload
-    localStorage.setItem('user', JSON.stringify(user));
+    if (user) {
+      localStorage.setItem('user', JSON.stringify(user));
+    }
     set({ token, isAuthenticated: true, user });
   },
 

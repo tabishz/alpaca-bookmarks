@@ -29,8 +29,8 @@ type Tag struct {
 type User struct {
 	gorm.Model
 	Username string `gorm:"uniqueIndex;not null" json:"username"`
+	Role     string `json:"role" gorm:"default:'user'"`
 	Password string `json:"-"`
-	PasswordHash string         `gorm:"not null" json:"-"` // "-" prevents returning password in JSON
 	CreatedAt    time.Time      `json:"created_at"`
 	Theme    string `json:"theme" gorm:"default:'dracula'"`
 }

@@ -15,6 +15,7 @@ export interface Bookmark {
 export interface User {
   id: number;
   username: string;
-  theme?: string; // Add this optional field
+  role?: string;
+  theme?: string;
   created_at?: string;
 }

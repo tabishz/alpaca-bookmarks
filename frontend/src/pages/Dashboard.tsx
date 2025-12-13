@@ -1,11 +1,12 @@
 import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import api from '../api/client';
 import { Bookmark } from '../api/types';
 import { BookmarkCard } from '../components/BookmarkCard';
 import { AddBookmarkModal } from '../components/AddBookmarkModal';
 import { EditBookmarkModal } from '../components/EditBookmarkModal';
 import { SettingsModal } from '../components/SettingsModal';
-import { LayoutGrid, List, Plus, Search, LogOut, Tags, X, Settings, Upload, Download, Sliders } from 'lucide-react';
+import { LayoutGrid, List, Plus, Search, LogOut, Tags, X, Settings, Upload, Download, Sliders, Shield } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { useTheme, Theme } from '../hooks/useTheme';
 
@@ -322,6 +323,14 @@ export const Dashboard = () => {
                 <div className="my-1 border-t border-gray-700"></div>
                 <button onClick={handleImportClick} className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-gray-300 hover:bg-primary hover:text-white"><Upload size={16} /> Import Bookmarks</button>
                 <button onClick={handleExport} className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-gray-300 hover:bg-primary hover:text-white"><Download size={16} /> Export Bookmarks</button>
+                {user?.role === 'admin' && (
+                  <Link
+                    to="/admin"
+                    className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-yellow-400 hover:bg-yellow-400/10"
+                  >
+                    <Shield size={16} /> Admin Console
+                  </Link>
+                )}
                 <div className="my-1 border-t border-gray-700"></div>
                 <button onClick={logout} className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-red-400 hover:bg-red-400/10"><LogOut size={16} /> Logout</button>
               </div>

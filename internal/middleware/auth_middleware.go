@@ -1,6 +1,8 @@
 package middleware
 
 import (
+	"bookmarks-manager/internal/database"
+	"bookmarks-manager/internal/models"
 	"bookmarks-manager/internal/utils"
 	"net/http"
 	"strings"
@@ -33,6 +35,29 @@ func AuthMiddleware() gin.HandlerFunc {
 
 		// 4. Set UserID in context for the handler to use
 		c.Set("userID", userID)
+		c.Next()
+	}
+}
+
+func AdminOnly() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID, exists := c.Get("userID")
+		if !exists {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+			return
+		}
+
+		var user models.User
+		if err := database.DB.First(&user, userID).Error; err != nil {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "User not found"})
+			return
+		}
+
+		if user.Role != "admin" {
+			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "Admin access required"})
+			return
+		}
+
 		c.Next()
 	}
 }

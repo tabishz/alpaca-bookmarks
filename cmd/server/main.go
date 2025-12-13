@@ -77,6 +77,16 @@ func main() {
 				// Nuclear Route
 				system.DELETE("/purge", handlers.PurgeData)
 			}
+
+			// Admin Group
+			admin := protected.Group("/admin")
+			admin.Use(middleware.AdminOnly())
+			{
+					admin.GET("/users", handlers.GetAllUsers)
+					admin.POST("/users", handlers.CreateUser)
+					admin.DELETE("/users/:id", handlers.DeleteUser)
+					admin.PATCH("/users/:id/reset-password", handlers.ResetUserPassword)
+			}
 		}
 	}
 
