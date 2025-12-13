@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Bookmark } from '../api/types';
 import { ExternalLink, Trash2, Tag as TagIcon, Pencil, Globe } from 'lucide-react';
 
@@ -11,20 +11,43 @@ interface Props {
 }
 
 export const BookmarkCard: React.FC<Props> = ({ bookmark, viewMode, onDelete, onEdit, onTagClick }) => {
-  const [imgError, setImgError] = useState(false);
 
-  // Safe Hostname Extraction
-  const getFaviconUrl = (urlStr: string) => {
-    if (!urlStr) return ''; // Safety check for empty URL
+  // 1. EXTRACT HOSTNAME SAFELY
+  const hostname = useMemo(() => {
     try {
-      const url = new URL(urlStr);
-      return `https://icons.duckduckgo.com/ip3/${url.hostname}.ico`;
+      return new URL(bookmark.url).hostname;
     } catch (e) {
       return '';
     }
-  };
+  }, [bookmark.url]);
 
-  const faviconUrl = getFaviconUrl(bookmark.url);
+  // 2. DEFINE PROVIDERS (Priority Order)
+  // Google is reliable and supports size (sz=64)
+  // DuckDuckGo is a good backup
+  const primaryUrl = `https://www.google.com/s2/favicons?domain=${hostname}&sz=64`;
+  const secondaryUrl = `https://icons.duckduckgo.com/ip3/${hostname}.ico`;
+
+  // 3. STATE FOR IMAGE SOURCE
+  // We start with primary. If it errors, we switch to secondary.
+  const [imgSrc, setImgSrc] = useState(primaryUrl);
+  const [hasError, setHasError] = useState(false);
+
+  // Reset state if the bookmark URL changes (e.g. recycling component)
+  React.useEffect(() => {
+    setImgSrc(primaryUrl);
+    setHasError(false);
+  }, [primaryUrl]);
+
+  // 4. SMART ERROR HANDLER
+  const handleImgError = () => {
+    if (imgSrc === primaryUrl) {
+      // If Google failed, try DuckDuckGo
+      setImgSrc(secondaryUrl);
+    } else {
+      // If DuckDuckGo also failed, show the Generic Globe
+      setHasError(true);
+    }
+  };
 
   const handleTagClick = (e: React.MouseEvent, tagName: string) => {
     e.preventDefault(); e.stopPropagation();
@@ -34,20 +57,24 @@ export const BookmarkCard: React.FC<Props> = ({ bookmark, viewMode, onDelete, on
   // Safe Tags Accessor (Prevents crash if tags is null)
   const tags = bookmark.tags || [];
 
+  // 5. RENDER ICON HELPER
   const renderIcon = (className: string) => {
-    if (imgError || !faviconUrl) {
+    // If hostname is empty or we ran out of providers, show Globe
+    if (!hostname || hasError) {
       return (
-        <div className={`${className} flex items-center justify-center bg-gray-700 text-gray-400`}>
+        <div className={`${className} flex items-center justify-center bg-gray-700 text-gray-400 shrink-0`}>
           <Globe size="60%" />
         </div>
       );
     }
+
     return (
       <img
-        src={faviconUrl}
+        src={imgSrc}
         alt="icon"
-        className={`${className} bg-white object-contain p-0.5`}
-        onError={() => setImgError(true)}
+        className={`${className} bg-white object-contain p-0.5 shrink-0`}
+        onError={handleImgError}
+        loading="lazy"
       />
     );
   };
