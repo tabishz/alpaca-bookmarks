@@ -7,9 +7,11 @@ import { EditBookmarkModal } from '../components/EditBookmarkModal';
 import { SettingsModal } from '../components/SettingsModal';
 import { LayoutGrid, List, Plus, Search, LogOut, Tags, X, Settings, Upload, Download, Sliders } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
+import { useTheme, Theme } from '../hooks/useTheme';
 
 export const Dashboard = () => {
   // --- STATE ---
+  const { theme, setTheme } = useTheme();
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
   const [allTags, setAllTags] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
@@ -81,8 +83,15 @@ export const Dashboard = () => {
       const res = await api.get<Bookmark[]>(url, { signal: controller.signal });
       const newData = res.data;
 
-      if (isRefresh) setBookmarks(newData);
-      else setBookmarks(prev => [...prev, ...newData]);
+      if (isRefresh) {
+        setBookmarks(newData);
+      } else {
+        setBookmarks(prev => {
+          const existingIds = new Set(prev.map(b => b.id));
+          const uniqueNewData = newData.filter(b => !existingIds.has(b.id));
+          return [...prev, ...uniqueNewData];
+        });
+      }
 
       setHasMore(newData.length >= limit);
     } catch (err: any) {
@@ -171,7 +180,11 @@ export const Dashboard = () => {
   };
 
   // --- HANDLERS ---
-  const handleConfigSave = (newLimit: number) => { localStorage.setItem('bookmarks_limit', newLimit.toString()); setLimit(newLimit); };
+  const handleConfigSave = (newLimit: number, newTheme: Theme) => {
+    localStorage.setItem('bookmarks_limit', newLimit.toString());
+    setLimit(newLimit);
+    setTheme(newTheme);
+  };
   const handleImportClick = () => { fileInputRef.current?.click(); setIsSettingsMenuOpen(false); };
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => { /* ... Keep Import Logic ... */
       const file = e.target.files?.[0]; if (!file) return;
@@ -322,7 +335,13 @@ export const Dashboard = () => {
       <button onClick={() => setIsAddModalOpen(true)} className="fixed bottom-8 right-8 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-white shadow-lg hover:scale-110 transition-transform z-40"><Plus size={28} /></button>
       <AddBookmarkModal isOpen={isAddModalOpen} onClose={closeAddModal} onSuccess={handleAddSuccess} existingTags={allTags} initialData={droppedData} />
       <EditBookmarkModal bookmark={editingBookmark} onClose={() => setEditingBookmark(null)} onSuccess={handleEditSuccess} existingTags={allTags} />
-      <SettingsModal isOpen={isConfigModalOpen} onClose={() => setIsConfigModalOpen(false)} currentLimit={limit} onSave={handleConfigSave} />
+      <SettingsModal
+        isOpen={isConfigModalOpen}
+        onClose={() => setIsConfigModalOpen(false)}
+        currentLimit={limit}
+        currentTheme={theme} // Pass current theme
+        onSave={handleConfigSave}
+      />
     </div>
   );
 };
