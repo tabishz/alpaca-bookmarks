@@ -55,7 +55,7 @@ Open your browser and navigate to:
 When the application starts for the first time, it creates a default administrator account:
 
 * **Username:** `admin`
-* **Password:** `admin123`
+* **Password:** `admin`
 * **Role:** Admin
 
 > **⚠️ Important:** Log in immediately and change your password via the settings or user management screen.
