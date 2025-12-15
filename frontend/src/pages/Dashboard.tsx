@@ -38,6 +38,7 @@ export const Dashboard = () => {
     return saved ? parseInt(saved) : 280; // Default 280px
   });
   const [totalCount, setTotalCount] = useState(0);
+  const [settingsStartView, setSettingsStartView] = useState<'settings' | 'tags'>('settings');
 
   // --- REFS ---
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -394,10 +395,20 @@ export const Dashboard = () => {
             </button>
             {isSettingsMenuOpen && (
               <div className="absolute right-0 top-full z-20 mt-2 w-56 overflow-hidden rounded-md border border-gray-600 bg-surface shadow-xl">
-                <button onClick={() => { setIsConfigModalOpen(true); setIsSettingsMenuOpen(false); }} className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-gray-300 hover:bg-primary hover:text-white"><Sliders size={16} /> Preferences</button>
+                <button onClick={() => { setSettingsStartView('settings'); setIsConfigModalOpen(true); setIsSettingsMenuOpen(false); }} className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-gray-300 hover:bg-primary hover:text-white"><Sliders size={16} /> Preferences</button>
                 <div className="my-1 border-t border-gray-700"></div>
                 <button onClick={handleImportClick} className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-gray-300 hover:bg-primary hover:text-white"><Upload size={16} /> Import Bookmarks</button>
                 <button onClick={handleExport} className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-gray-300 hover:bg-primary hover:text-white"><Download size={16} /> Export Bookmarks</button>
+                <button
+                  onClick={() => {
+                    setSettingsStartView('tags');
+                    setIsConfigModalOpen(true);
+                    setIsSettingsMenuOpen(false);
+                  }}
+                  className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-gray-300 hover:bg-primary hover:text-white"
+                >
+                  <Tags size={16} /> Organize Tags
+                </button>
                 {user?.role === 'admin' && (
                   <Link
                     to="/admin"
@@ -451,6 +462,8 @@ export const Dashboard = () => {
         currentTheme={theme}
         currentTileSize={tileSize}
         onSave={handleConfigSave}
+        onTagsUpdate={() => fetchBookmarks(1, true)} // Refresh bookmarks if tags change
+        initialView={settingsStartView} // <--- Pass the state here
       />
     </div>
   );

@@ -11,11 +11,12 @@ interface Props {
   currentTileSize: number;
   onSave: (newLimit: number, newTheme: Theme, newTileSize: number) => void;
   onTagsUpdate?: () => void;
+  initialView?: 'settings' | 'tags';
 }
 
 interface TagObj { id: number; name: string }
 
-export const SettingsModal: React.FC<Props> = ({ isOpen, onClose, currentLimit, currentTheme, currentTileSize, onSave, onTagsUpdate }) => {
+export const SettingsModal: React.FC<Props> = ({ isOpen, onClose, currentLimit, currentTheme, currentTileSize, onSave, onTagsUpdate, initialView = 'settings' }) => {
   const [limit, setLimit] = useState(50);
   const [selectedTheme, setSelectedTheme] = useState<Theme>('dracula');
   const [tileSize, setTileSize] = useState(280);
@@ -54,14 +55,14 @@ export const SettingsModal: React.FC<Props> = ({ isOpen, onClose, currentLimit, 
     setSelectedTheme(currentTheme);
     setTileSize(currentTileSize);
     if (isOpen) {
-      setView('settings'); // Reset to settings view on open
+      setView(initialView);
       setShowPasswordForm(false);
       setPassMessage(null);
       setCurrentPass('');
       setNewPass('');
       setConfirmPass('');
     }
-  }, [currentLimit, currentTheme, currentTileSize, isOpen]);
+  }, [currentLimit, currentTheme, currentTileSize, isOpen, initialView]);
 
   const handleMainSubmit = (e: React.FormEvent) => {
     e.preventDefault();
