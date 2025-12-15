@@ -16,12 +16,13 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-func seedAdminUser() {
+// Helper function to create initial admin
+func createDefaultAdmin() {
 	var count int64
 	database.DB.Model(&models.User{}).Count(&count)
 
 	if count == 0 {
-		// Database is empty, create the first user (Admin)
+		fmt.Println("No users found. Creating default admin...")
 		hashedPassword, _ := bcrypt.GenerateFromPassword([]byte("admin"), bcrypt.DefaultCost)
 
 		admin := models.User{
@@ -32,18 +33,15 @@ func seedAdminUser() {
 		}
 
 		if err := database.DB.Create(&admin).Error; err != nil {
-			log.Fatalf("Failed to seed admin user: %v", err)
+			log.Fatal("Failed to create default admin:", err)
 		}
-		fmt.Println("🚀 Fresh Install Detected: Created default user 'admin' (password: 'admin')")
-	} else {
-		// Users exist, do nothing.
-		fmt.Println("✅ Database initialized (Users already exist, skipping seed)")
+		fmt.Println("Default admin created: admin / admin123")
 	}
 }
 
 func main() {
 	database.Connect()
-	seedAdminUser()
+	createDefaultAdmin()
 
 	// --- 1. Setup Scheduler ---
 	c := cron.New()
@@ -75,7 +73,7 @@ func main() {
 			c.JSON(http.StatusOK, gin.H{"message": "pong"})
 		})
 		// Auth Routes
-        auth := api.Group("/auth")
+		auth := api.Group("/auth")
 		{
 			auth.POST("/register", handlers.Register)
 			auth.POST("/login", handlers.Login)
@@ -85,7 +83,7 @@ func main() {
 		protected := api.Group("/")
 		protected.Use(middleware.AuthMiddleware())
 		{
-      protected.GET("/me", func(c *gin.Context) {
+			protected.GET("/me", func(c *gin.Context) {
 				userID, _ := c.Get("userID")
 				c.JSON(http.StatusOK, gin.H{"user_id": userID})
 			})

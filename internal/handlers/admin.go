@@ -35,7 +35,12 @@ func CreateUser(c *gin.Context) {
 
 	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
 
-	role := "user"
+	// Validate Role (Prevent garbage roles)
+	role := input.Role
+	if role != "admin" && role != "user" {
+		role = "user" // Fallback to standard user
+	}
+
 	user := models.User{Username: input.Username, Password: string(hashedPassword), Role: role}
 	if err := database.DB.Create(&user).Error; err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Username already exists"})
@@ -49,25 +54,48 @@ func CreateUser(c *gin.Context) {
 func DeleteUser(c *gin.Context) {
 	idStr := c.Param("id")
 
-	// Get the ID of the admin currently performing the request
+	// 1. Safety Check: Prevent self-deletion
 	currentUserID := c.MustGet("userID").(uint)
-
-	// Convert param ID to uint to compare
-	// (We use Sprintf here as a lazy way to compare string vs uint without extra imports)
 	if idStr == fmt.Sprintf("%d", currentUserID) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "You cannot delete your own account"})
 		return
 	}
 
-	if err := database.DB.Delete(&models.User{}, idStr).Error; err != nil {
+	// 2. Start a Transaction to ensure clean deletion
+	tx := database.DB.Begin()
+
+	// A. Clean up the JOIN table (bookmark_tags)
+	// We must delete entries where the bookmark belongs to this user.
+	// SQL: DELETE FROM bookmark_tags WHERE bookmark_id IN (SELECT id FROM bookmarks WHERE user_id = ?)
+	if err := tx.Exec("DELETE FROM bookmark_tags WHERE bookmark_id IN (SELECT id FROM bookmarks WHERE user_id = ?)", idStr).Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to clean up bookmark tags"})
+		return
+	}
+
+	// B. Delete User's Bookmarks
+	if err := tx.Where("user_id = ?", idStr).Delete(&models.Bookmark{}).Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete bookmarks"})
+		return
+	}
+
+	// C. Delete User's Tags (Since tags are now user-scoped)
+	if err := tx.Where("user_id = ?", idStr).Delete(&models.Tag{}).Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete tags"})
+		return
+	}
+
+	// D. Finally, Delete the User
+	if err := tx.Delete(&models.User{}, idStr).Error; err != nil {
+		tx.Rollback()
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete user"})
 		return
 	}
 
-	// Also clean up their bookmarks
-	database.DB.Exec("DELETE FROM bookmarks WHERE user_id = ?", idStr)
-
-	c.JSON(http.StatusOK, gin.H{"message": "User deleted"})
+	tx.Commit()
+	c.JSON(http.StatusOK, gin.H{"message": "User and all associated data deleted"})
 }
 
 // PATCH /api/v1/admin/users/:id/reset-password

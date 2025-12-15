@@ -19,12 +19,19 @@ type Bookmark struct {
 	DeletedAt   gorm.DeletedAt `gorm:"index" json:"-"` // Soft delete support
 }
 
+type BookmarkInput struct {
+	URL         string   `json:"url" binding:"required"`
+	Title       string   `json:"title"`
+	Description string   `json:"description"`
+	Tags        []string `json:"tags"` // List of tag names (e.g. ["tech", "news"])
+}
+
 // Tag represents a category for bookmarks
 type Tag struct {
-	gorm.Model
-	ID        uint       	`gorm:"primaryKey" json:"id"`
-	Name 			string 			`json:"name" gorm:"uniqueIndex"`
-	Bookmarks []Bookmark 	`json:"-" gorm:"many2many:bookmark_tags;"`
+	ID        uint       `gorm:"primaryKey" json:"id"`
+	Name      string     `gorm:"index" json:"name"`
+	UserID    uint       `gorm:"index" json:"user_id"`
+	Bookmarks []Bookmark `gorm:"many2many:bookmark_tags;" json:"-"`
 }
 
 type User struct {
