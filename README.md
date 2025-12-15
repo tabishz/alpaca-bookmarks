@@ -1,17 +1,43 @@
 # Bookmarks Manager
 
 ## Introduction
-A Basic Bookmarks Manager based on React and Go-Lang.
+Bookmarks Manager is a self-hosted, multi-user bookmarking application built for speed and simplicity. It allows users to save, organize, and search their links with a clean, responsive interface.
 
-## Database (SQLite)
-Location: `./data/data.sqlite`
+The application is distributed as a single Docker container that includes:
+* **Frontend:** React (Vite) + Tailwind CSS
+* **Backend:** Go (Gin Framework) + GORM
+* **Database:** SQLite (Embedded, zero-config)
+* **Server:** Caddy (Reverse Proxy & Static File Server)
 
-## Docker run
+## Features
+* **Multi-User Support:**
+    * **Role-Based Access:** Admin and Standard User roles.
+    * **Data Isolation:** Each user has their own private bookmarks and tags.
+* **Organization:**
+    * **Tagging System:** Auto-complete tags when adding bookmarks.
+    * **Search:** Filter by title, URL, or tags instantly.
+* **Data Management:**
+    * **Import/Export:** Support for standard Netscape HTML bookmark files (compatible with Chrome, Firefox, etc.).
+    * **Automated Backups:** Scheduled database backups to AWS S3.
+* **Security:**
+    * JWT-based authentication.
+    * Password hashing (Bcrypt).
+    * Secure environment variable configuration.
 
-```shell
+---
+
+## 🚀 Getting Started (Docker)
+
+This is the recommended way to run the application.
+
+### 1. Run the Container
+You can start the application with a single command. This will persist your data to a local `data` folder.
+
+```bash
 # Create a local data folder if it doesn't exist
 mkdir -p $(pwd)/data
 
+# Run the container
 docker run -d \
   --name bm-app \
   --restart unless-stopped \
@@ -19,129 +45,91 @@ docker run -d \
   -v $(pwd)/data:/data \
   -e JWT_SECRET=$(openssl rand -hex 32) \
   bookmarks-manager
-# or for temporary one
-docker run -d --rm --name bm-app -p 3000:80 -v $(pwd)/data:/data -e JWT_SECRET=$(openssl rand -hex 32) bookmarks-manager
 ```
 
-## Environment Variables
-```shell
-export AWS_ACCESS_KEY_ID=your_key_id
-export AWS_SECRET_ACCESS_KEY=your_secret_key
-export AWS_REGION=us-east-1
-export S3_BUCKET_NAME=your-unique-bucket-name
-# Run every day at midnight. Cron syntax: "0 0 * * *"
-export BACKUP_SCHEDULE="0 0 * * *"
-# If not provided then sets to @daily
+### 2. Access the App
+Open your browser and navigate to:
+**http://localhost:3000**
+
+### 3. Default Login
+When the application starts for the first time, it creates a default administrator account:
+
+* **Username:** `admin`
+* **Password:** `admin123`
+* **Role:** Admin
+
+> **⚠️ Important:** Log in immediately and change your password via the settings or user management screen.
+
+---
+
+## ⚙️ Configuration
+
+The application is configured via environment variables. You can pass these to Docker using `-e VARIABLE=value`.
+
+### Core Configuration
+| Variable | Description | Required | Default |
+| :--- | :--- | :--- | :--- |
+| `JWT_SECRET` | A secure random string used to sign auth tokens. **Crucial for security.** | **YES** | *None (App will crash if missing)* |
+| `PORT` | Internal port the Go backend listens on. | No | `8080` |
+| `DB_PATH` | Location of the SQLite database file inside the container. | No | `/data/data.sqlite` |
+| `GIN_MODE` | Set to `debug` for logs or `release` for production. | No | `release` |
+
+### AWS S3 Backup Configuration (Optional)
+To enable automated nightly backups, provide the following credentials.
+
+| Variable | Description | Example |
+| :--- | :--- | :--- |
+| `AWS_ACCESS_KEY_ID` | AWS Access Key ID | `AKIAIOSFODNN7EXAMPLE` |
+| `AWS_SECRET_ACCESS_KEY` | AWS Secret Access Key | `wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY` |
+| `AWS_REGION` | AWS Region where the bucket exists | `us-east-1` |
+| `S3_BUCKET_NAME` | The name of your S3 bucket | `my-bookmarks-backup` |
+| `BACKUP_SCHEDULE` | Cron syntax for backup frequency | `0 0 * * *` (Midnight daily) |
+
+---
+
+## 🛠️ Development & Building
+
+### Build from Source
+If you want to build the Docker image yourself (for example, if you have modified the source code):
+
+```bash
+# Build the image
+docker build -t bookmarks-manager .
+
+# Run your custom image
+docker run -d -p 3000:80 -v $(pwd)/data:/data -e JWT_SECRET="mysecret" bookmarks-manager
 ```
 
-### Check
-API Check: Run `curl http://localhost:3000/api/v1/ping`. You should get `{"message":"pong"}`.
+### Local Development (Non-Docker)
+If you are developing features, you can run the frontend and backend separately.
 
+**1. Backend (Go)**
+```bash
+# Create a .env file
+echo "JWT_SECRET=dev-secret" > .env
+echo "PORT=8080" >> .env
 
-## Dockerfile
-This Dockerfile with custom certs
-
-```Dockerfile
-# ==========================================
-# Stage 1: Build the React Frontend
-# ==========================================
-FROM node:20-alpine AS frontend-builder
-
-WORKDIR /app
-
-# 0. Custom Certs
-COPY ca-certs.crt /usr/local/share/ca-certificates/ca-certs.crt
-# Manually append the custom cert to the system bundle.
-# We do this manually because the 'ca-certificates' utility isn't installed yet!
-RUN cat /usr/local/share/ca-certificates/ca-certs.crt >> /etc/ssl/certs/ca-certificates.crt && \
-    apk update && \
-    apk add --no-cache caddy ca-certificates curl && \
-    # Now that the package is installed, run the official utility to ensure everything is clean
-    update-ca-certificates
-
-# Copy frontend dependency files
-COPY frontend/package.json frontend/package-lock.json ./
-RUN npm ci
-
-# Copy frontend source code
-COPY frontend/ ./
-
-# Build static assets (Output goes to /app/dist)
-RUN npm run build
-
-# ==========================================
-# Stage 2: Build the Go Backend
-# ==========================================
-FROM golang:1.25-alpine AS backend-builder
-
-# 0. Custom Certs
-COPY ca-certs.crt /usr/local/share/ca-certificates/ca-certs.crt
-# Manually append the custom cert to the system bundle.
-# We do this manually because the 'ca-certificates' utility isn't installed yet!
-RUN cat /usr/local/share/ca-certificates/ca-certs.crt >> /etc/ssl/certs/ca-certificates.crt && \
-    apk update && \
-    apk add --no-cache caddy ca-certificates curl && \
-    # Now that the package is installed, run the official utility to ensure everything is clean
-    update-ca-certificates
-
-# Install GCC (Required for SQLite CGO support)
-RUN apk add --no-cache gcc musl-dev
-
-WORKDIR /app
-
-# Copy Go dependency files
-COPY go.mod go.sum ./
-RUN go mod download
-
-# Copy Go source code
-COPY . .
-
-# Build the binary (CGO enabled for SQLite)
-RUN CGO_ENABLED=1 GOOS=linux go build -o bookmarks-manager cmd/server/main.go
-
-# ==========================================
-# Stage 3: Final Production Image
-# ==========================================
-FROM alpine:latest
-
-# 0. Custom Certs
-COPY ca-certs.crt /usr/local/share/ca-certificates/ca-certs.crt
-# Manually append the custom cert to the system bundle.
-# We do this manually because the 'ca-certificates' utility isn't installed yet!
-RUN cat /usr/local/share/ca-certificates/ca-certs.crt >> /etc/ssl/certs/ca-certificates.crt && \
-    apk update && \
-    apk add --no-cache caddy ca-certificates curl && \
-    # Now that the package is installed, run the official utility to ensure everything is clean
-    update-ca-certificates
-
-# 1. Install Caddy (Web Server) & Certs
-RUN apk add --no-cache caddy ca-certificates curl
-
-# 2. Setup Directories
-WORKDIR /srv
-
-# 3. Copy Go Binary from Stage 2
-COPY --from=backend-builder /app/bookmarks-manager /usr/local/bin/bookmarks-manager
-
-# 4. Copy React Build from Stage 1 (Real Frontend!)
-# We copy it to /srv/dist, which matches the Caddyfile "root" config
-COPY --from=frontend-builder /app/dist /srv/dist
-
-# 5. Copy Configuration Files
-COPY Caddyfile /etc/caddy/Caddyfile
-COPY start.sh /usr/local/bin/start.sh
-
-# 6. Set Permissions & Environment
-RUN chmod +x /usr/local/bin/start.sh
-
-ENV GIN_MODE=release
-ENV DB_PATH=/data/data.sqlite
-ENV PORT=8080
-
-# 7. Expose Ports & Define Volume
-EXPOSE 80
-VOLUME ["/data"]
-
-# 8. Start the Application
-CMD ["/usr/local/bin/start.sh"]
+# Run the server
+go run cmd/server/main.go
 ```
+
+**2. Frontend (React)**
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+---
+
+## 🔍 API Health Check
+To verify the backend is running correctly within the container:
+
+```bash
+curl http://localhost:3000/api/v1/ping
+# Response: {"message":"pong"}
+```
+
+## Data Location
+* **Database:** `./data/data.sqlite`
+* **Backups:** Local backups are stored in `./data/backups/` before being uploaded to S3.

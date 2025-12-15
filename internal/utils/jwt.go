@@ -3,13 +3,25 @@ package utils
 import (
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 )
 
-var JwtSecret = []byte(os.Getenv("JWT_SECRET"))
+// Read from Environment Variable
+var JwtSecret = []byte(getSecret())
+
+func getSecret() string {
+	secret := os.Getenv("JWT_SECRET")
+	if secret == "" {
+		// CRITICAL: Stop the server if the secret is missing.
+		// This prevents the app from ever running in an insecure state.
+		log.Fatal("FATAL: JWT_SECRET environment variable is not set. Application cannot start.")
+	}
+	return secret
+}
 
 // Define a custom error for invalid tokens
 var ErrInvalidToken = errors.New("invalid token")
