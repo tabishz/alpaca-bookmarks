@@ -43,7 +43,7 @@ func main() {
 	database.Connect()
 	createDefaultAdmin()
 
-	// --- 1. Setup Scheduler ---
+	// Backup Scheduling
 	c := cron.New()
 	// Run every day at midnight. Cron syntax: "0 0 * * *"
 	// For testing, you can use "@every 1m" to see it work immediately
