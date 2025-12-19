@@ -274,7 +274,10 @@ export const Dashboard = () => {
 
       <header className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between" onClick={e => e.stopPropagation()}>
         <div>
-          <h1 className="text-3xl font-bold">Alpaca Bookmarks</h1>
+          <h1 className="text-3xl font-bold flex items-center">
+            <img src="/alpaca-bookmarks.png" alt="Alpaca Bookmarks" className="inline-block h-8 w-8 mr-2" />
+            Alpaca Bookmarks
+          </h1>
           <p className="text-gray-400 text-sm">
             Showing {bookmarks.length} results out of {totalCount}
             {selectedTag && (
