@@ -12,7 +12,7 @@ import { useTheme, Theme } from '../hooks/useTheme';
 
 export const Dashboard = () => {
   const { theme, setTheme } = useTheme();
-  const { user } = useAuthStore();
+  const { user, updateUser } = useAuthStore();
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
   const [allTags, setAllTags] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
@@ -202,6 +202,10 @@ export const Dashboard = () => {
     setTileSize(newTileSize);
     try {
       await api.patch('/user/preferences', { theme: newTheme });
+      if (user) {
+        const updatedUser = { ...user, theme: newTheme };
+        updateUser(updatedUser);
+      }
     } catch (error) {
       console.error("Failed to save theme preference to server");
       // Optional: Revert on failure? Usually not critical for themes.
@@ -401,17 +405,17 @@ export const Dashboard = () => {
             </button>
             {isSettingsMenuOpen && (
               <div className="absolute right-0 top-full z-20 mt-2 w-56 overflow-hidden rounded-md border border-gray-600 bg-surface shadow-xl">
-                <button onClick={() => { setSettingsStartView('settings'); setIsConfigModalOpen(true); setIsSettingsMenuOpen(false); }} className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-gray-300 hover:bg-primary hover:text-white"><Sliders size={16} /> Preferences</button>
+                <button onClick={() => { setSettingsStartView('settings'); setIsConfigModalOpen(true); setIsSettingsMenuOpen(false); }} className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-muted hover:bg-primary hover:text-white"><Sliders size={16} /> Preferences</button>
                 <div className="my-1 border-t border-gray-700"></div>
-                <button onClick={handleImportClick} className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-gray-300 hover:bg-primary hover:text-white"><Upload size={16} /> Import Bookmarks</button>
-                <button onClick={handleExport} className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-gray-300 hover:bg-primary hover:text-white"><Download size={16} /> Export Bookmarks</button>
+                <button onClick={handleImportClick} className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-muted hover:bg-primary hover:text-white"><Upload size={16} /> Import Bookmarks</button>
+                <button onClick={handleExport} className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-muted hover:bg-primary hover:text-white"><Download size={16} /> Export Bookmarks</button>
                 <button
                   onClick={() => {
                     setSettingsStartView('tags');
                     setIsConfigModalOpen(true);
                     setIsSettingsMenuOpen(false);
                   }}
-                  className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-gray-300 hover:bg-primary hover:text-white"
+                  className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-muted hover:bg-primary hover:text-white"
                 >
                   <Tags size={16} /> Organize Tags
                 </button>

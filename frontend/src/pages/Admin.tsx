@@ -146,7 +146,7 @@ export const Admin = () => {
                     <UserIcon size={16} className="text-gray-500" />
                     {u.username}
                     {/* Optional: Add a visual indicator */}
-                    {isCurrentUser && <span className="text-[10px] bg-gray-700 text-gray-300 px-1.5 rounded ml-2">YOU</span>}
+                    {isCurrentUser && <span className="text-[10px] bg-gray-700 text-muted px-1.5 rounded ml-2">YOU</span>}
                   </td>
 
                   {/* UPDATED ROLE COLUMN */}
@@ -177,14 +177,14 @@ export const Admin = () => {
 
                         <button
                           onClick={() => handleSetRole(u.ID, 'user')}
-                          className={`flex w-full items-center justify-between rounded px-2 py-2 text-sm text-left hover:bg-white/10 ${u.role === 'user' ? 'text-blue-400' : 'text-gray-300'}`}
+                          className={`flex w-full items-center justify-between rounded px-2 py-2 text-sm text-left hover:bg-white/10 ${u.role === 'user' ? 'text-blue-400' : 'text-muted'}`}
                         >
                           User {u.role === 'user' && <Check size={14} />}
                         </button>
 
                         <button
                           onClick={() => handleSetRole(u.ID, 'admin')}
-                          className={`flex w-full items-center justify-between rounded px-2 py-2 text-sm text-left hover:bg-white/10 ${u.role === 'admin' ? 'text-red-400' : 'text-gray-300'}`}
+                          className={`flex w-full items-center justify-between rounded px-2 py-2 text-sm text-left hover:bg-white/10 ${u.role === 'admin' ? 'text-red-400' : 'text-muted'}`}
                         >
                           Admin {u.role === 'admin' && <Check size={14} />}
                         </button>

@@ -187,7 +187,7 @@ export const SettingsModal: React.FC<Props> = ({ isOpen, onClose, currentLimit, 
               className="w-full flex items-center justify-between bg-gray-700/30 hover:bg-gray-700/50 p-3 rounded-lg text-left transition-colors mb-4 group"
             >
               <span className="flex items-center gap-2 font-medium"><Tags size={18} className="text-blue-400" /> Organize Tags</span>
-              <span className="text-xs text-gray-500 group-hover:text-gray-300">Manage & Delete</span>
+              <span className="text-xs text-gray-500 group-hover:text-muted">Manage & Delete</span>
             </button>
 
             {/* Password Section */}
