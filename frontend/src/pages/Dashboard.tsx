@@ -299,12 +299,15 @@ export const Dashboard = () => {
         <div className="flex flex-col gap-3 md:flex-row md:items-center">
 
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
+            <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center">
+              <Search className="text-gray-500" size={18} />
+              <img src="/alpaca-bookmarks.png" alt="Alpaca Icon" className="ml-2 h-5 w-5" />
+            </div>
             <input
               ref={searchInputRef}
               type="text"
               placeholder="Search..."
-              className="w-full rounded-md bg-surface py-2 pl-10 pr-4 text-text focus:outline-none focus:ring-2 focus:ring-primary md:w-64"
+              className="w-full rounded-md bg-surface py-2 pl-16 pr-4 text-text focus:outline-none focus:ring-2 focus:ring-primary md:w-64"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               // --- FIX 1: BLUR ON ESCAPE ---
