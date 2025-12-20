@@ -424,7 +424,7 @@ export const Dashboard = () => {
 
       <footer className="mt-10 py-4 text-center text-gray-500 text-sm">
         <p>
-          Alpaca Bookmarks is open source. Contribute on {' '}
+          Alpaca Bookmarks v{__APP_VERSION__} is open source. Contribute on {' '}
           <a
             href="https://github.com/tabishz/alpaca-bookmarks.git"
             target="_blank"
