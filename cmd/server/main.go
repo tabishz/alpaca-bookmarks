@@ -16,6 +16,8 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+const Version = "0.1.0-alpha"
+
 // Helper function to create initial admin
 func createDefaultAdmin() {
 	var count int64
@@ -40,6 +42,7 @@ func createDefaultAdmin() {
 }
 
 func main() {
+	log.Printf("Starting Bookmarks Manager %s\n", Version)
 	database.Connect()
 	createDefaultAdmin()
 
@@ -70,7 +73,10 @@ func main() {
 	{
 		// Global Health Check
 		api.GET("/ping", func(c *gin.Context) {
-			c.JSON(http.StatusOK, gin.H{"message": "pong"})
+			c.JSON(http.StatusOK, gin.H{
+				"message": "pong",
+				"version": Version,
+			})
 		})
 		// Auth Routes
 		auth := api.Group("/auth")
