@@ -234,7 +234,7 @@ export const Dashboard = () => {
   }, [allTags, tagSearch]);
 
   return (
-    <div className="min-h-screen p-6 md:p-10 w-full" onClick={() => { setIsTagMenuOpen(false); setIsSettingsMenuOpen(false); }} onDragOver={handleDragOver} onDrop={handleDrop}>
+    <div className="min-h-screen p-6 md:p-10 w-full flex flex-col" onClick={() => { setIsTagMenuOpen(false); setIsSettingsMenuOpen(false); }} onDragOver={handleDragOver} onDrop={handleDrop}>
       <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".html" />
 
       <header className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between" onClick={e => e.stopPropagation()}>
@@ -275,7 +275,6 @@ export const Dashboard = () => {
               className="w-full rounded-md bg-surface py-2 pl-16 pr-4 text-text focus:outline-none focus:ring-2 focus:ring-primary md:w-64"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              // --- FIX 1: BLUR ON ESCAPE ---
               onKeyDown={(e) => {
                 if (e.key === 'Escape') {
                   searchInputRef.current?.blur();
@@ -331,7 +330,7 @@ export const Dashboard = () => {
                     onKeyDown={handleTagInputKeyDown}
                   />
                 </div>
-                {/* NEW: UNTAGGED OPTION */}
+                {/* UNTAGGED OPTION */}
                 <button
                   onClick={() => { setSelectedTag('Untagged'); setIsTagMenuOpen(false); }}
                   className="block w-full text-left px-4 py-2 hover:bg-gray-700 text-yellow-400 italic border-b border-gray-700"
@@ -394,9 +393,9 @@ export const Dashboard = () => {
         </div>
       </header>
 
-      {/* Grid ... */}
+      {/* Grid */}
       <div
-        className={viewMode === 'grid' ? "grid gap-6" : "flex flex-col"}
+        className={`${viewMode === 'grid' ? "grid gap-6" : "flex flex-col"} flex-1`}
         style={viewMode === 'grid' ? {
           gridTemplateColumns: `repeat(auto-fill, minmax(${tileSize}px, 1fr))`
         } : {}}
@@ -420,6 +419,22 @@ export const Dashboard = () => {
       </div>
 
       <div ref={observerTarget} className="py-8 text-center">{loading && <span className="text-primary">Loading...</span>}</div>
+
+      <footer className="mt-10 py-4 text-center text-gray-500 text-sm">
+        <p>
+          Alpaca Bookmarks is open source. Contribute on {' '}
+          <a
+            href="https://github.com/tabishz/alpaca-bookmarks.git"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-400 hover:underline"
+          >
+            GitHub
+          </a>
+          .
+        </p>
+      </footer>
+
       <button onClick={() => setIsAddModalOpen(true)} className="fixed bottom-8 right-8 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-white shadow-lg hover:scale-110 transition-transform z-40"><Plus size={28} /></button>
       <AddBookmarkModal isOpen={isAddModalOpen} onClose={closeAddModal} onSuccess={handleAddSuccess} existingTags={allTags} initialData={droppedData} />
       <EditBookmarkModal bookmark={editingBookmark} onClose={() => setEditingBookmark(null)} onSuccess={handleEditSuccess} existingTags={allTags} />

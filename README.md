@@ -61,12 +61,12 @@ mkdir -p $(pwd)/data
 
 # Run the container
 docker run -d \
-  --name bm-app \
+  --name alpaca \
   --restart unless-stopped \
   -p 3000:80 \
   -v $(pwd)/data:/data \
   -e JWT_SECRET=$(openssl rand -hex 32) \
-  bookmarks-manager
+  tabishz/alpaca-bookmarks:latest
 ```
 
 ### 2. Access the App
