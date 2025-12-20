@@ -3,6 +3,7 @@ import api from '../api/client';
 import { Trash2, Key, UserPlus, Shield, User as UserIcon, ArrowLeft, ChevronDown, Check } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
+import { AddUserModal } from '../components/AddUserModal';
 
 interface UserData {
   ID: number;
@@ -14,6 +15,7 @@ interface UserData {
 export const Admin = () => {
   const [users, setUsers] = useState<UserData[]>([]);
   const [, setLoading] = useState(true);
+  const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false);
 
   const [openMenuId, setOpenMenuId] = useState<number | null>(null);
 
@@ -52,17 +54,12 @@ export const Admin = () => {
     }
   }, [user, navigate]);
 
-  const handleCreateUser = async () => {
-    const username = prompt("Enter Username:");
-    if (!username) return;
-    const password = prompt("Enter Password:");
-    if (!password) return;
-    try {
-      await api.post('/admin/users', { username, password, role: 'user' });
-      fetchUsers();
-    } catch (error) {
-      alert("Failed to create user");
-    }
+  const handleCreateUser = () => {
+    setIsAddUserModalOpen(true);
+  };
+
+  const handleUserAdded = () => {
+    fetchUsers();
   };
 
   const handleDelete = async (id: number) => {
@@ -132,7 +129,6 @@ export const Admin = () => {
           </thead>
           <tbody className="divide-y divide-gray-700">
             {users.map(u => {
-              // Check if this row is the current admin
               const isCurrentUser = user?.id === u.ID;
 
               return (
@@ -146,7 +142,6 @@ export const Admin = () => {
 
                   <td className="p-4 relative">
                     <button
-                      // Disable click if it's the current user
                       disabled={isCurrentUser}
                       onClick={() => setOpenMenuId(openMenuId === u.ID ? null : u.ID)}
                       className={`flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold uppercase border transition-all ${u.role === 'admin'
@@ -162,7 +157,6 @@ export const Admin = () => {
                       {!isCurrentUser && <ChevronDown size={12} />}
                     </button>
 
-                    // Popup Menu (Only renders if openMenuId matches)
                     {openMenuId === u.ID && !isCurrentUser && (
                       <div ref={menuRef} className="absolute left-4 top-12 z-50 w-32 rounded-lg border border-gray-600 bg-surface p-1 shadow-xl">
                         <div className="text-[10px] uppercase text-gray-500 px-2 py-1 font-bold tracking-wider">Set Role</div>
@@ -197,6 +191,12 @@ export const Admin = () => {
           </tbody>
         </table>
       </div>
+      
+      <AddUserModal 
+        isOpen={isAddUserModalOpen} 
+        onClose={() => setIsAddUserModalOpen(false)} 
+        onSuccess={handleUserAdded} 
+      />
     </div>
   );
 };
