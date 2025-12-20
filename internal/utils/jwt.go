@@ -26,12 +26,6 @@ func getSecret() string {
 // Define a custom error for invalid tokens
 var ErrInvalidToken = errors.New("invalid token")
 
-func init() {
-	if len(JwtSecret) == 0 {
-		JwtSecret = []byte("super_secret_dev_key") // Fallback for local dev
-	}
-}
-
 // GenerateToken creates a JWT valid for 24 hours
 func GenerateToken(userID uint) (string, error) {
 	claims := jwt.MapClaims{
