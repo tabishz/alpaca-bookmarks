@@ -39,13 +39,29 @@ export const Dashboard = () => {
   });
   const [totalCount, setTotalCount] = useState(0);
   const [settingsStartView, setSettingsStartView] = useState<'settings' | 'tags'>('settings');
+  const [highlightedTagIndex, setHighlightedTagIndex] = useState(0);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const observerTarget = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const highlightedTagRef = useRef<HTMLButtonElement>(null);
 
   const logout = useAuthStore(state => state.logout);
+
+  useEffect(() => {
+    // Scroll highlighted tag into view
+    if (highlightedTagRef.current) {
+      highlightedTagRef.current.scrollIntoView({ block: 'nearest' });
+    }
+  }, [highlightedTagIndex]);
+
+  useEffect(() => {
+    // Reset highlighted index when menu opens or search changes
+    if (isTagMenuOpen) {
+      setHighlightedTagIndex(0);
+    }
+  }, [isTagMenuOpen, tagSearch]);
 
   useEffect(() => {
     // If user has a saved theme in DB that differs from local, sync it
@@ -217,8 +233,21 @@ export const Dashboard = () => {
   };
   const handleTagSelect = (tag: string) => { setSelectedTag(tag); setIsTagMenuOpen(false); setTagSearch(''); };
   const handleTagInputKeyDown = (e: React.KeyboardEvent) => {
-    if ((e.key === 'Tab' || e.key === 'Enter') && visibleTags.length > 0) {
-      e.preventDefault(); handleTagSelect(visibleTags[0]);
+    const totalOptions = visibleTags.length + 1; // +1 for "Without Tags"
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setHighlightedTagIndex(prev => (prev + 1) % totalOptions);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setHighlightedTagIndex(prev => (prev - 1 + totalOptions) % totalOptions);
+    } else if ((e.key === 'Tab' || e.key === 'Enter')) {
+      e.preventDefault();
+      if (highlightedTagIndex === 0) {
+        handleTagSelect('Untagged');
+      } else if (visibleTags.length > 0) {
+        handleTagSelect(visibleTags[highlightedTagIndex - 1]);
+      }
     }
   };
   const handleAddSuccess = (newBookmark: Bookmark) => { setBookmarks(prev => [newBookmark, ...prev]); fetchTags(); };
@@ -332,16 +361,24 @@ export const Dashboard = () => {
                 </div>
                 {/* UNTAGGED OPTION */}
                 <button
+                  ref={highlightedTagIndex === 0 ? highlightedTagRef : null}
                   onClick={() => { setSelectedTag('Untagged'); setIsTagMenuOpen(false); }}
-                  className="block w-full text-left px-4 py-2 hover:bg-gray-700 text-yellow-400 italic border-b border-gray-700"
+                  className={`block w-full text-left px-4 py-2 italic border-b border-gray-700 transition-colors ${highlightedTagIndex === 0 ? 'bg-primary text-white' : 'text-yellow-400 hover:bg-gray-700'}`}
                 >
                   Without Tags
                 </button>
                 {/* ... Tag List ... */}
                 <div className="overflow-y-auto max-h-60">
                   {visibleTags.length === 0 ? <div className="p-3 text-center text-sm text-gray-500">No matching tags</div> :
-                    visibleTags.map(tag => (
-                      <button key={tag} onClick={() => { setSelectedTag(tag); setIsTagMenuOpen(false); }} className={`w-full text-left px-4 py-2 text-sm hover:bg-primary hover:text-white transition-colors ${selectedTag === tag ? 'bg-primary/20 text-primary' : 'text-text'}`}>#{tag}</button>
+                    visibleTags.map((tag, index) => (
+                      <button
+                        key={tag}
+                        ref={highlightedTagIndex === index + 1 ? highlightedTagRef : null}
+                        onClick={() => { setSelectedTag(tag); setIsTagMenuOpen(false); }}
+                        className={`w-full text-left px-4 py-2 text-sm transition-colors ${selectedTag === tag ? 'bg-primary/20 text-primary' : 'text-text'} ${highlightedTagIndex === index + 1 ? 'bg-primary text-white' : 'hover:bg-primary hover:text-white'}`}
+                      >
+                        #{tag}
+                      </button>
                     ))
                   }
                 </div>
