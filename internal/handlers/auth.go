@@ -33,9 +33,9 @@ func Register(c *gin.Context) {
 
 	// Create User
 	user := models.User{
-		Username:     input.Username,
+		Username: input.Username,
 		Password: string(hashedPassword),
-		Role: input.Role,
+		Role:     "user",
 	}
 
 	if result := database.DB.Create(&user); result.Error != nil {
