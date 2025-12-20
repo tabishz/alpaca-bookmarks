@@ -108,7 +108,6 @@ func main() {
 			{
 				system.POST("/import", handlers.ImportBookmarks)
 				system.GET("/export", handlers.ExportBookmarks)
-				system.POST("/backup", handlers.TriggerBackup)
 				// Nuclear Route
 				system.DELETE("/purge", handlers.PurgeData)
 			}
@@ -117,6 +116,7 @@ func main() {
 			admin := protected.Group("/admin")
 			admin.Use(middleware.AdminOnly())
 			{
+				admin.POST("/backup", handlers.TriggerBackup)
 				admin.GET("/users", handlers.GetAllUsers)
 				admin.POST("/users", handlers.CreateUser)
 				admin.DELETE("/users/:id", handlers.DeleteUser)
