@@ -16,7 +16,7 @@ var JwtSecret = []byte(getSecret())
 func getSecret() string {
 	secret := os.Getenv("JWT_SECRET")
 	if secret == "" {
-		// CRITICAL: Stop the server if the secret is missing.
+		// Stop the server if the secret is missing.
 		// This prevents the app from ever running in an insecure state.
 		log.Fatal("FATAL: JWT_SECRET environment variable is not set. Application cannot start.")
 	}

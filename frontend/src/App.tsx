@@ -1,7 +1,7 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Login } from './pages/Login';
-import { Dashboard } from './pages/Dashboard'; // Import the Dashboard
+import { Dashboard } from './pages/Dashboard';
 import { useAuthStore } from './store/authStore';
 import { Admin } from './pages/Admin';
 

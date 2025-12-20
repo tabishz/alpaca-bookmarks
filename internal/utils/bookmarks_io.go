@@ -8,7 +8,7 @@ import (
 	"golang.org/x/net/html"
 )
 
-// ParseBookmarksHTML parses a Netscape bookmark file using context-passing recursion
+// ParseBookmarksHTML parses a bookmark file using context-passing recursion
 func ParseBookmarksHTML(r io.Reader, userID uint) ([]models.Bookmark, error) {
 	doc, err := html.Parse(r)
 	if err != nil {
@@ -21,7 +21,7 @@ func ParseBookmarksHTML(r io.Reader, userID uint) ([]models.Bookmark, error) {
 	var traverse func(n *html.Node, inheritedTags []string)
 	traverse = func(n *html.Node, inheritedTags []string) {
 
-		// 1. Handle Link (A) - Save it with current tags
+		// Handle Link (A) - Save it with current tags
 		if n.Type == html.ElementNode && n.Data == "a" {
 			var url string
 			for _, attr := range n.Attr {
@@ -54,12 +54,11 @@ func ParseBookmarksHTML(r io.Reader, userID uint) ([]models.Bookmark, error) {
 			return
 		}
 
-		// 2. Handle Folder Structure (DL / DT / H3)
-		// In Netscape format, a folder is usually:
+		// Handle Folder Structure (DL / DT / H3)
+		// In HTML bookmark export format, a folder is usually:
 		// <DT> <H3>FolderName</H3> <DL> ...items... </DL> </DT>
-
-		// We look for the <DL> tag, which represents a "Container of items".
-		// We need to find the <H3> immediately preceding it to know the name.
+		// looking for the <DL> tag, which represents a "Container of items".
+		// need to find the <H3> immediately preceding it to know the name.
 		if n.Type == html.ElementNode && n.Data == "dl" {
 			// Find the folder name by looking backward at previous siblings
 			folderName := ""
@@ -78,7 +77,7 @@ func ParseBookmarksHTML(r io.Reader, userID uint) ([]models.Bookmark, error) {
 			// Create new context: Add this folder name to inherited tags
 			newTags := inheritedTags
 			if folderName != "" {
-				// Make a copy of the slice to avoid polluting other branches
+				// Make a copy of the slice to avoid mixup
 				newTags = make([]string, len(inheritedTags))
 				copy(newTags, inheritedTags)
 				newTags = append(newTags, folderName)
@@ -91,7 +90,7 @@ func ParseBookmarksHTML(r io.Reader, userID uint) ([]models.Bookmark, error) {
 			return
 		}
 
-		// 3. Default Traversal
+		// Default Traversal
 		// If it's not a Link or a DL, just keep going deeper with current tags
 		for c := n.FirstChild; c != nil; c = c.NextSibling {
 			traverse(c, inheritedTags)
@@ -103,8 +102,7 @@ func ParseBookmarksHTML(r io.Reader, userID uint) ([]models.Bookmark, error) {
 	return bookmarks, nil
 }
 
-// GenerateBookmarksHTML creates a Netscape bookmark file string
-// (Kept consistent with previous version)
+// GenerateBookmarksHTML creates a HTML bookmark file string
 func GenerateBookmarksHTML(bookmarks []models.Bookmark) string {
 	var builder strings.Builder
 	builder.WriteString(`<!DOCTYPE NETSCAPE-Bookmark-file-1>

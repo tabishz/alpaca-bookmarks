@@ -85,7 +85,7 @@ func CreateBookmark(c *gin.Context) {
     return
   }
 
-  // 1. Process Tags (Use explicit UserID check)
+  // Process Tags (Use explicit UserID check)
   var tags []models.Tag
   for _, tagName := range input.Tags {
     var tag models.Tag
@@ -100,7 +100,7 @@ func CreateBookmark(c *gin.Context) {
     tags = append(tags, tag)
   }
 
-  // 2. Create Bookmark
+  // Create Bookmark
   bookmark := models.Bookmark{
     UserID:      userID,
     URL:         input.URL,
@@ -140,9 +140,6 @@ func UpdateBookmark(c *gin.Context) {
   bookmark.Title = input.Title
   bookmark.Description = input.Description
 
-  // --- FIX STARTS HERE ---
-  // Update Tags (Replace existing association)
-  // We must use the same logic as CreateBookmark to ensure we don't grab another user's tags
   var tags []models.Tag
   for _, tagName := range input.Tags {
     var tag models.Tag
@@ -160,7 +157,6 @@ func UpdateBookmark(c *gin.Context) {
     }
     tags = append(tags, tag)
   }
-  // --- FIX ENDS HERE ---
 
   // Use GORM association mode to replace tags
   if err := database.DB.Model(&bookmark).Association("Tags").Replace(tags); err != nil {

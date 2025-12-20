@@ -64,7 +64,7 @@ func DeleteUser(c *gin.Context) {
 	// 2. Start a Transaction to ensure clean deletion
 	tx := database.DB.Begin()
 
-	// A. Clean up the JOIN table (bookmark_tags)
+	// Clean up the JOIN table (bookmark_tags)
 	// We must delete entries where the bookmark belongs to this user.
 	// SQL: DELETE FROM bookmark_tags WHERE bookmark_id IN (SELECT id FROM bookmarks WHERE user_id = ?)
 	if err := tx.Exec("DELETE FROM bookmark_tags WHERE bookmark_id IN (SELECT id FROM bookmarks WHERE user_id = ?)", idStr).Error; err != nil {
@@ -73,14 +73,14 @@ func DeleteUser(c *gin.Context) {
 		return
 	}
 
-	// B. Delete User's Bookmarks
+	// Delete User's Bookmarks
 	if err := tx.Where("user_id = ?", idStr).Delete(&models.Bookmark{}).Error; err != nil {
 		tx.Rollback()
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete bookmarks"})
 		return
 	}
 
-	// C. Delete User's Tags (Since tags are now user-scoped)
+	// Delete User's Tags (Since tags are now user-scoped)
 	if err := tx.Where("user_id = ?", idStr).Delete(&models.Tag{}).Error; err != nil {
 		tx.Rollback()
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete tags"})

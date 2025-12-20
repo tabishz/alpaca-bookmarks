@@ -10,7 +10,7 @@ import (
 
 	"bookmarks-manager/internal/database"
 	"bookmarks-manager/internal/models"
-	"bookmarks-manager/internal/utils" // Ensure this path is correct
+	"bookmarks-manager/internal/utils"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
@@ -50,8 +50,6 @@ func AuthMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		// ROBUST ID EXTRACTION
-		// This handles the most common cause of "UserID = 0"
 		var userID uint
 		switch v := claims["user_id"].(type) {
 		case float64:
@@ -60,8 +58,6 @@ func AuthMiddleware() gin.HandlerFunc {
 			id, _ := v.Int64()
 			userID = uint(id)
 		case string:
-			// Some setups might encode as string
-			// userID = parseString(v)
 			fmt.Println("Warning: user_id is a string")
 		default:
 			fmt.Printf("Error: user_id is of unexpected type: %T\n", v)
@@ -72,7 +68,6 @@ func AuthMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		// Success!
 		c.Set("userID", userID)
 		c.Next()
 	}
@@ -81,21 +76,21 @@ func AuthMiddleware() gin.HandlerFunc {
 // AdminOnly ensures the user has the "admin" role
 func AdminOnly() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// 1. Get UserID from context (set by AuthMiddleware)
+		// Get UserID from context (set by AuthMiddleware)
 		userID, exists := c.Get("userID")
 		if !exists {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 			return
 		}
 
-		// 2. Fetch User from DB to check Role
+		// Fetch User from DB to check Role
 		var user models.User
 		if err := database.DB.First(&user, userID).Error; err != nil {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "User not found"})
 			return
 		}
 
-		// 3. Check Role
+		// Check Role
 		if user.Role != "admin" {
 			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "Admin access required"})
 			return

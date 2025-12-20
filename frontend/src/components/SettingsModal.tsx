@@ -239,7 +239,6 @@ export const SettingsModal: React.FC<Props> = ({ isOpen, onClose, currentLimit, 
           </div>
         )}
 
-        {/* --- VIEW: TAGS MANAGER --- */}
         {view === 'tags' && (
           <div className="overflow-y-auto pr-2 flex-1">
             {isLoadingTags ? (

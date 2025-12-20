@@ -2,8 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import api from '../api/client';
 import { Bookmark } from '../api/types';
-import { TagInput } from './TagInput'; // Import the new component
-
+import { TagInput } from './TagInput';
 interface Props {
   isOpen: boolean;
   onClose: () => void;
@@ -20,7 +19,7 @@ export const AddBookmarkModal: React.FC<Props> = ({ isOpen, onClose, onSuccess, 
   const [tags, setTags] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // LISTEN FOR INITIAL DATA changes
+  // Listen for initial data changes
   useEffect(() => {
     if (isOpen && initialData) {
       setUrl(initialData.url || '');
@@ -76,7 +75,7 @@ export const AddBookmarkModal: React.FC<Props> = ({ isOpen, onClose, onSuccess, 
               placeholder="https://example.com"
               value={url}
               onChange={e => setUrl(e.target.value)}
-              autoFocus // Auto focus so you can hit Enter immediately if you want
+              autoFocus
             />
           </div>
 

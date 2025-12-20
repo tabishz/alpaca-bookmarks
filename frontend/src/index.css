@@ -2,7 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-/* 1. FORCE FULL DIMENSIONS & RESET */
 html, body, #root {
   width: 100%;
   min-height: 100vh;
@@ -11,7 +10,6 @@ html, body, #root {
   overflow-x: hidden;
 }
 
-/* 2. GLOBAL THEME DEFINITIONS */
 :root {
   /* Default to Dracula if nothing is set */
   --bg-primary: #282a36;
@@ -20,7 +18,6 @@ html, body, #root {
   --text-muted: #d1d5db;
   --accent-primary: #bd93f9;
 
-  /* Base typography */
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
@@ -71,7 +68,6 @@ html, body, #root {
   --accent-primary: #287bde; /* Blue */
 }
 
-/* 3. APPLY VARIABLES */
 body {
   background-color: var(--bg-primary);
   color: var(--text-primary);
@@ -82,7 +78,6 @@ body {
   color: var(--text-muted);
 }
 
-/* Optional: Better scrollbar for dark themes */
 ::-webkit-scrollbar {
   width: 8px;
 }

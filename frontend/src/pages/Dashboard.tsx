@@ -35,12 +35,11 @@ export const Dashboard = () => {
   const [droppedData, setDroppedData] = useState<{ url: string; title?: string } | null>(null);
   const [tileSize, setTileSize] = useState(() => {
     const saved = localStorage.getItem('tile_size');
-    return saved ? parseInt(saved) : 280; // Default 280px
+    return saved ? parseInt(saved) : 280;
   });
   const [totalCount, setTotalCount] = useState(0);
   const [settingsStartView, setSettingsStartView] = useState<'settings' | 'tags'>('settings');
 
-  // --- REFS ---
   const searchInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const observerTarget = useRef<HTMLDivElement>(null);
@@ -55,16 +54,14 @@ export const Dashboard = () => {
     }
   }, [user, setTheme]);
 
-  // --- FIX 2: CALLBACK REF FOR TAG INPUT ---
-  // This function runs automatically when the <input> mounts into the DOM.
   const setTagInputFocus = useCallback((element: HTMLInputElement) => {
     if (element) {
-      // Use a microtask to ensure the UI is fully painted
+      // Ensure the UI is fully loaded
       requestAnimationFrame(() => element.focus());
     }
   }, []);
 
-  // 1. Fetch Tags
+  // Fetch Tags
   const fetchTags = async () => {
     try {
       const res = await api.get<string[]>('/tags');
@@ -74,7 +71,7 @@ export const Dashboard = () => {
   };
   useEffect(() => { fetchTags(); }, []);
 
-  // 2. Fetch Bookmarks (with Abort)
+  // Fetch Bookmarks (with Abort)
   const fetchBookmarks = useCallback(async (pageNum: number, isRefresh = false) => {
     if (isRefresh) {
       if (abortControllerRef.current) abortControllerRef.current.abort();
@@ -116,7 +113,7 @@ export const Dashboard = () => {
     }
   }, [limit, selectedTag, search, loading]);
 
-  // 3. Reset Trigger
+  // Reset Trigger
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       setPage(1);
@@ -126,7 +123,7 @@ export const Dashboard = () => {
     return () => clearTimeout(timeoutId);
   }, [search, selectedTag, limit]);
 
-  // 4. Infinite Scroll
+  // Infinite Scroll
   useEffect(() => {
     const observer = new IntersectionObserver(
       entries => {
@@ -144,7 +141,6 @@ export const Dashboard = () => {
     return () => observer.disconnect();
   }, [hasMore, loading, fetchBookmarks]);
 
-  // 5. Global Shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
@@ -174,18 +170,13 @@ export const Dashboard = () => {
   }, [isTagMenuOpen]);
 
   const handleDragOver = (e: React.DragEvent) => {
-    // Prevent default behavior (Prevent file from being opened)
     e.preventDefault();
     e.stopPropagation();
-    // Optional: Add visual cue (change border color etc.)
   };
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-
-    // Try to get URL from the dropped data
-    // Browsers usually provide 'text/uri-list' or 'text/plain'
     const url = e.dataTransfer.getData('text/uri-list') || e.dataTransfer.getData('text/plain');
 
     if (url && (url.startsWith('http://') || url.startsWith('https://'))) {
@@ -194,7 +185,6 @@ export const Dashboard = () => {
     }
   };
 
-  // --- HANDLERS ---
   const handleConfigSave = async (newLimit: number, newTheme: Theme, newTileSize: number) => {
     localStorage.setItem('bookmarks_limit', newLimit.toString());
     setLimit(newLimit);
@@ -208,17 +198,16 @@ export const Dashboard = () => {
       }
     } catch (error) {
       console.error("Failed to save theme preference to server");
-      // Optional: Revert on failure? Usually not critical for themes.
     }
   };
   const handleImportClick = () => { fileInputRef.current?.click(); setIsSettingsMenuOpen(false); };
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => { /* ... Keep Import Logic ... */
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]; if (!file) return;
     if (!confirm(`Import "${file.name}"?`)) { e.target.value = ''; return; }
     const formData = new FormData(); formData.append('file', file);
     try { setLoading(true); await api.post('/system/import', formData, { headers: { 'Content-Type': 'multipart/form-data' } }); alert('Import successful!'); fetchTags(); setPage(1); fetchBookmarks(1, true); } catch (error) { alert('Failed'); } finally { setLoading(false); e.target.value = ''; }
   };
-  const handleExport = async () => { /* ... Keep Export Logic ... */
+  const handleExport = async () => {
     setIsSettingsMenuOpen(false);
     try { const response = await api.get('/system/export', { responseType: 'blob' }); const url = window.URL.createObjectURL(new Blob([response.data])); const link = document.createElement('a'); link.href = url; link.setAttribute('download', 'bookmarks.html'); document.body.appendChild(link); link.click(); link.remove(); } catch (error) { alert("Failed"); }
   };
@@ -244,34 +233,6 @@ export const Dashboard = () => {
     return allTags.filter(t => t.toLowerCase().includes(tagSearch.toLowerCase()));
   }, [allTags, tagSearch]);
 
-  // FILTERING LOGIC
-  // const filteredBookmarks = useMemo(() => {
-  //   let result = bookmarks;
-
-  //   // Search Filter
-  //   if (search) {
-  //     const lower = search.toLowerCase();
-  //     result = result.filter(b =>
-  //       b.title.toLowerCase().includes(lower) ||
-  //       b.url.toLowerCase().includes(lower) ||
-  //       b.tags.some(t => t.name.toLowerCase().includes(lower))
-  //     );
-  //   }
-
-  //   // Tag Filter
-  //   if (selectedTag) {
-  //     if (selectedTag === 'Untagged') {
-  //       // SHOW TAGLESS
-  //       result = result.filter(b => (!b.tags || b.tags.length === 0));
-  //     } else {
-  //       // STANDARD FILTER
-  //       result = result.filter(b => b.tags.some(t => t.name === selectedTag));
-  //     }
-  //   }
-
-  //   return result;
-  // }, [bookmarks, search, selectedTag]);
-
   return (
     <div className="min-h-screen p-6 md:p-10 w-full" onClick={() => { setIsTagMenuOpen(false); setIsSettingsMenuOpen(false); }} onDragOver={handleDragOver} onDrop={handleDrop}>
       <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".html" />
@@ -287,9 +248,9 @@ export const Dashboard = () => {
             {selectedTag && (
               <button
                 onClick={(e) => {
-                  e.stopPropagation(); // Stop click from bubbling to other handlers
-                  setSelectedTag('');  // Clear the tag
-                  setTagSearch('');    // Reset tag search input
+                  e.stopPropagation();
+                  setSelectedTag('');
+                  setTagSearch('');
                 }}
                 className="mr-2 rounded-full p-0.5 hover:bg-white/20 active:bg-white/30 transition-colors"
                 title="Clear tag filter"
@@ -330,7 +291,6 @@ export const Dashboard = () => {
                 : 'border-transparent bg-surface text-gray-400 hover:text-white'
                 }`}
             >
-              {/* Button 1: The Main Label (Clicking this toggles the menu) */}
               <button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -343,18 +303,17 @@ export const Dashboard = () => {
                 <span className="hidden md:inline">{selectedTag || 'All Tags'}</span>
               </button>
 
-              {/* Button 2: The X (Only visible when tag is selected) */}
               {selectedTag && (
                 <button
                   onClick={(e) => {
-                    e.stopPropagation(); // Stop click from opening the menu
+                    e.stopPropagation(); // Prevent opening menu when clicked
                     setSelectedTag('');  // Clear the tag
                     setTagSearch('');    // Reset tag search
                   }}
                   className="mr-2 rounded-full p-1 hover:bg-white/20 active:bg-white/30 transition-colors"
                   title="Clear tag filter"
                 >
-                  <X size={14} /> {/* Ensure X is imported from lucide-react */}
+                  <X size={14} />
                 </button>
               )}
             </div>
@@ -439,7 +398,6 @@ export const Dashboard = () => {
       <div
         className={viewMode === 'grid' ? "grid gap-6" : "flex flex-col"}
         style={viewMode === 'grid' ? {
-          // CSS Grid Magic: Create columns that are AT LEAST 'tileSize' wide
           gridTemplateColumns: `repeat(auto-fill, minmax(${tileSize}px, 1fr))`
         } : {}}
       >
@@ -455,7 +413,7 @@ export const Dashboard = () => {
               viewMode={viewMode}
               onDelete={handleDelete}
               onEdit={setEditingBookmark}
-              onTagClick={handleTagSelect} // <--- PASS THE HANDLER HERE
+              onTagClick={handleTagSelect}
             />
           ))
         )}
@@ -473,7 +431,7 @@ export const Dashboard = () => {
         currentTileSize={tileSize}
         onSave={handleConfigSave}
         onTagsUpdate={() => fetchBookmarks(1, true)} // Refresh bookmarks if tags change
-        initialView={settingsStartView} // <--- Pass the state here
+        initialView={settingsStartView}
       />
     </div>
   );

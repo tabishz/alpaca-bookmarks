@@ -5,7 +5,7 @@ import { Bookmark } from '../api/types';
 import { TagInput } from './TagInput';
 
 interface Props {
-  bookmark: Bookmark | null; // Null means closed
+  bookmark: Bookmark | null;
   onClose: () => void;
   onSuccess: (updatedBookmark: Bookmark) => void;
   existingTags: string[];
@@ -18,13 +18,11 @@ export const EditBookmarkModal: React.FC<Props> = ({ bookmark, onClose, onSucces
   const [tags, setTags] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // Pre-fill data when the bookmark prop changes
   useEffect(() => {
     if (bookmark) {
       setUrl(bookmark.url);
       setTitle(bookmark.title);
       setDescription(bookmark.description);
-      // Map existing Tag objects {id, name} to string array ["name"]
       setTags(bookmark.tags.map(t => t.name));
     }
   }, [bookmark]);

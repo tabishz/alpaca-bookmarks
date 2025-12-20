@@ -7,7 +7,6 @@ export default {
   theme: {
     extend: {
       colors: {
-        // We use CSS variables for theming
         background: "var(--bg-primary)",
         surface: "var(--bg-secondary)",
         text: "var(--text-primary)",

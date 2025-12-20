@@ -15,7 +15,6 @@ export const Admin = () => {
   const [users, setUsers] = useState<UserData[]>([]);
   const [, setLoading] = useState(true);
 
-  // NEW: Track which user's dropdown is open
   const [openMenuId, setOpenMenuId] = useState<number | null>(null);
 
   const { user } = useAuthStore();
@@ -33,8 +32,6 @@ export const Admin = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // ... (keep fetchUsers and useEffect) ...
-
   const fetchUsers = async () => {
     try {
       const res = await api.get<UserData[]>('/admin/users');
@@ -48,7 +45,7 @@ export const Admin = () => {
 
   useEffect(() => { fetchUsers(); }, []);
   useEffect(() => {
-    // If user is not logged in OR not an admin, kick them out
+    // Check if user is not logged in OR not an admin
     if (user && user.role !== 'admin') {
       alert("Access Denied: Admins only.");
       navigate('/');
@@ -89,7 +86,7 @@ export const Admin = () => {
     }
   };
 
-  // NEW: Update Role Logic
+  // Update Role Logic
   const handleSetRole = async (id: number, newRole: string) => {
     try {
       await api.patch(`/admin/users/${id}/role`, { role: newRole });
@@ -106,7 +103,6 @@ export const Admin = () => {
 
   return (
     <div className="min-h-screen p-6 md:p-10 w-full max-w-5xl mx-auto">
-      {/* ... (Header remains same) ... */}
       <div className="flex items-center justify-between mb-8">
         <div className="flex items-center gap-4">
           <Link to="/" className="p-2 rounded-full hover:bg-gray-700 text-gray-400">
@@ -136,7 +132,7 @@ export const Admin = () => {
           </thead>
           <tbody className="divide-y divide-gray-700">
             {users.map(u => {
-              // 1. Check if this row is the current admin
+              // Check if this row is the current admin
               const isCurrentUser = user?.id === u.ID;
 
               return (
@@ -145,32 +141,28 @@ export const Admin = () => {
                   <td className="p-4 font-bold flex items-center gap-2">
                     <UserIcon size={16} className="text-gray-500" />
                     {u.username}
-                    {/* Optional: Add a visual indicator */}
                     {isCurrentUser && <span className="text-[10px] bg-gray-700 text-muted px-1.5 rounded ml-2">YOU</span>}
                   </td>
 
-                  {/* UPDATED ROLE COLUMN */}
                   <td className="p-4 relative">
                     <button
-                      // 2. Disable click if it's the current user
+                      // Disable click if it's the current user
                       disabled={isCurrentUser}
                       onClick={() => setOpenMenuId(openMenuId === u.ID ? null : u.ID)}
                       className={`flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold uppercase border transition-all ${u.role === 'admin'
                           ? 'bg-red-500/10 text-red-400 border-red-500/30'
                           : 'bg-blue-500/10 text-blue-400 border-blue-500/30'
                         } ${
-                        // 3. Styling changes for enabled vs disabled
                         !isCurrentUser
                           ? 'hover:bg-opacity-20 cursor-pointer'
                           : 'opacity-50 cursor-not-allowed'
                         }`}
                     >
                       {u.role}
-                      {/* 4. Only show Chevron if actionable */}
                       {!isCurrentUser && <ChevronDown size={12} />}
                     </button>
 
-                    {/* POPUP MENU (Only renders if openMenuId matches) */}
+                    // Popup Menu (Only renders if openMenuId matches)
                     {openMenuId === u.ID && !isCurrentUser && (
                       <div ref={menuRef} className="absolute left-4 top-12 z-50 w-32 rounded-lg border border-gray-600 bg-surface p-1 shadow-xl">
                         <div className="text-[10px] uppercase text-gray-500 px-2 py-1 font-bold tracking-wider">Set Role</div>

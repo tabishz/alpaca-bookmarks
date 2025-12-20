@@ -13,7 +13,7 @@ import (
 var DB *gorm.DB
 
 func Connect() {
-	// 1. Ensure the data directory exists
+	// Ensure the data directory exists
 	// In production (Docker), this path will be /data
 	dbPath := os.Getenv("DB_PATH")
 	if dbPath == "" {
@@ -25,14 +25,14 @@ func Connect() {
 		log.Fatal("Failed to create database directory:", err)
 	}
 
-	// 2. Connect to SQLite
+	// Connect to SQLite
 	var err error
 	DB, err = gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
 	if err != nil {
 		log.Fatal("Failed to connect to database:", err)
 	}
 
-	// 3. Auto-Migrate (Create tables based on structs)
+	// Auto-Migrate (Create tables based on structs)
 	log.Println("Migrating database schema...")
 	err = DB.AutoMigrate(&models.User{}, &models.Bookmark{}, &models.Tag{})
 	if err != nil {

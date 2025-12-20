@@ -24,14 +24,14 @@ func Register(c *gin.Context) {
 		return
 	}
 
-	// 1. Hash Password
+	// Hash Password
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to hash password"})
 		return
 	}
 
-	// 2. Create User
+	// Create User
 	user := models.User{
 		Username:     input.Username,
 		Password: string(hashedPassword),
@@ -55,20 +55,20 @@ func Login(c *gin.Context) {
 		return
 	}
 
-	// 1. Find User
+	// Find User
 	var user models.User
 	if err := database.DB.Where("username = ?", input.Username).First(&user).Error; err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid username or password"})
 		return
 	}
 
-	// 2. Check Password
+	// Check Password
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(input.Password)); err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid username or password"})
 		return
 	}
 
-	// 3. Generate Token
+	// Generate Token
 	token, err := utils.GenerateToken(user.ID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})

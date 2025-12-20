@@ -14,7 +14,7 @@ import (
 func ImportBookmarks(c *gin.Context) {
 	userID := c.MustGet("userID").(uint)
 
-	// 1. Get File
+	// Get File
 	file, _, err := c.Request.FormFile("file")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "File is required"})
@@ -22,7 +22,6 @@ func ImportBookmarks(c *gin.Context) {
 	}
 	defer file.Close()
 
-	// 2. Parse HTML
 	// Ensure your utils.ParseBookmarksHTML accepts userID and sets it on the bookmarks
 	bookmarks, err := utils.ParseBookmarksHTML(file, userID)
 	if err != nil {
@@ -30,13 +29,12 @@ func ImportBookmarks(c *gin.Context) {
 		return
 	}
 
-	// 3. Save to Database
+	// Save to Database
 	count := 0
 	for _, b := range bookmarks {
 		// Ensure the bookmark itself is owned by the user
 		b.UserID = userID
 
-		// --- FIX STARTS HERE ---
 		// Process Tags with User Scope
 		var finalTags []models.Tag
 		for _, t := range b.Tags {
@@ -46,17 +44,15 @@ func ImportBookmarks(c *gin.Context) {
 			err := database.DB.Where("name = ? AND user_id = ?", t.Name, userID).First(&tag).Error
 
 			if err != nil {
-				// Tag doesn't exist for this user, create it properly
 				tag = models.Tag{
 					Name:   t.Name,
-					UserID: userID, // <--- Crucial: Set the Owner
+					UserID: userID,
 				}
 				database.DB.Create(&tag)
 			}
 			finalTags = append(finalTags, tag)
 		}
 		b.Tags = finalTags
-		// --- FIX ENDS HERE ---
 
 		// Create Bookmark
 		if err := database.DB.Create(&b).Error; err == nil {
@@ -102,24 +98,22 @@ func PurgeData(c *gin.Context) {
 
 	tx := database.DB.Begin()
 
-	// 1. Delete Associations (Bookmark <-> Tags) for this user's bookmarks
+	// Delete Associations (Bookmark <-> Tags) for this user's bookmarks
 	if err := tx.Exec("DELETE FROM bookmark_tags WHERE bookmark_id IN (SELECT id FROM bookmarks WHERE user_id = ?)", userID).Error; err != nil {
 		tx.Rollback()
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to clear associations"})
 		return
 	}
 
-	// 2. Delete Bookmarks
+	// Delete Bookmarks
 	if err := tx.Where("user_id = ?", userID).Delete(&models.Bookmark{}).Error; err != nil {
 		tx.Rollback()
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete bookmarks"})
 		return
 	}
 
-	// 3. Delete THIS USER'S unused tags
-	// (Only delete tags that belong to the user AND have no remaining bookmarks)
+	// Delete THIS USER'S unused tags
 	if err := tx.Where("user_id = ? AND id NOT IN (SELECT tag_id FROM bookmark_tags)", userID).Delete(&models.Tag{}).Error; err != nil {
-		// Log warning but don't fail transaction for this
 		println("Warning: Failed to cleanup unused tags")
 	}
 

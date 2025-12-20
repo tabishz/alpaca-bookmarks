@@ -41,21 +41,18 @@ export const TagInput: React.FC<Props> = ({ selectedTags, onChange, availableTag
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    // 1. Add Tag on Enter or Comma
+    // Add Tag on Enter or Comma
     if (e.key === 'Enter' || e.key === ',') {
       e.preventDefault();
       addTag(inputValue);
     }
-    // 2. Tab Key: Select first suggestion if available
+    // Tab Key: Select first suggestion if available
     else if (e.key === 'Tab') {
       if (showSuggestions && suggestions.length > 0) {
         e.preventDefault(); // Prevent moving focus to the next button
         addTag(suggestions[0]); // Select the first match
       }
-      // If no suggestions, we do nothing here, allowing the browser
-      // to move focus to the "Save" button naturally.
     }
-    // 3. Remove last tag on Backspace if input is empty
     else if (e.key === 'Backspace' && inputValue === '' && selectedTags.length > 0) {
       removeTag(selectedTags[selectedTags.length - 1]);
     }
@@ -67,7 +64,6 @@ export const TagInput: React.FC<Props> = ({ selectedTags, onChange, availableTag
         className="flex flex-wrap items-center gap-2 rounded border border-gray-600 bg-background p-2 focus-within:border-primary transition-colors"
         onClick={() => inputRef.current?.focus()}
       >
-        {/* Render Selected Tags (Pills) */}
         {selectedTags.map(tag => (
           <span key={tag} className="flex items-center gap-1 rounded bg-primary px-2 py-1 text-xs font-bold text-white animate-in zoom-in duration-100">
             {tag}
@@ -81,7 +77,6 @@ export const TagInput: React.FC<Props> = ({ selectedTags, onChange, availableTag
           </span>
         ))}
 
-        {/* Input Field */}
         <input
           ref={inputRef}
           type="text"
@@ -95,7 +90,6 @@ export const TagInput: React.FC<Props> = ({ selectedTags, onChange, availableTag
         />
       </div>
 
-      {/* Autocomplete Dropdown */}
       {showSuggestions && (
         <ul className="absolute z-10 mt-1 max-h-40 w-full overflow-y-auto rounded border border-gray-600 bg-surface shadow-lg">
           {suggestions.map(suggestion => (

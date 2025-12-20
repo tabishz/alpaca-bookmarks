@@ -12,7 +12,6 @@ interface Props {
 
 export const BookmarkCard: React.FC<Props> = ({ bookmark, viewMode, onDelete, onEdit, onTagClick }) => {
 
-  // 1. EXTRACT HOSTNAME SAFELY
   const hostname = useMemo(() => {
     try {
       return new URL(bookmark.url).hostname;
@@ -21,30 +20,23 @@ export const BookmarkCard: React.FC<Props> = ({ bookmark, viewMode, onDelete, on
     }
   }, [bookmark.url]);
 
-  // 2. DEFINE PROVIDERS (Priority Order)
-  // Google is reliable and supports size (sz=64)
-  // DuckDuckGo is a good backup
   const primaryUrl = `https://www.google.com/s2/favicons?domain=${hostname}&sz=64`;
   const secondaryUrl = `https://icons.duckduckgo.com/ip3/${hostname}.ico`;
 
-  // 3. STATE FOR IMAGE SOURCE
-  // We start with primary. If it errors, we switch to secondary.
   const [imgSrc, setImgSrc] = useState(primaryUrl);
   const [hasError, setHasError] = useState(false);
 
-  // Reset state if the bookmark URL changes (e.g. recycling component)
+  // Reset state if the bookmark URL changes
   React.useEffect(() => {
     setImgSrc(primaryUrl);
     setHasError(false);
   }, [primaryUrl]);
 
-  // 4. SMART ERROR HANDLER
   const handleImgError = () => {
     if (imgSrc === primaryUrl) {
       // If Google failed, try DuckDuckGo
       setImgSrc(secondaryUrl);
     } else {
-      // If DuckDuckGo also failed, show the Generic Globe
       setHasError(true);
     }
   };
@@ -54,12 +46,9 @@ export const BookmarkCard: React.FC<Props> = ({ bookmark, viewMode, onDelete, on
     onTagClick(tagName);
   };
 
-  // Safe Tags Accessor (Prevents crash if tags is null)
   const tags = bookmark.tags || [];
 
-  // 5. RENDER ICON HELPER
   const renderIcon = (className: string) => {
-    // If hostname is empty or we ran out of providers, show Globe
     if (!hostname || hasError) {
       return (
         <div className={`${className} flex items-center justify-center bg-gray-700 text-gray-400 shrink-0`}>

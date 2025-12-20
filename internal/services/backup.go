@@ -27,7 +27,7 @@ func PerformBackup() error {
 		return fmt.Errorf("S3_BUCKET_NAME is not set, skipping backup")
 	}
 
-	// 1. Create a "Hot" Backup of SQLite
+	// Create a "Hot" Backup of SQLite
 	// "VACUUM INTO" is the thread-safe way to backup SQLite while it's running
 	backupFile := fmt.Sprintf("backup_%d.sqlite", time.Now().Unix())
 	tempPath := "/tmp/" + backupFile // specific to Linux/Container env
@@ -39,21 +39,21 @@ func PerformBackup() error {
 	}
 	defer os.Remove(tempPath) // Cleanup temp file after upload
 
-	// 2. Initialize S3 Client
+	// Initialize S3 Client
 	cfg, err := config.LoadDefaultConfig(context.TODO())
 	if err != nil {
 		return fmt.Errorf("failed to load AWS config: %v", err)
 	}
 	client := s3.NewFromConfig(cfg)
 
-	// 3. Open the file
+	// Open the file
 	f, err := os.Open(tempPath)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
 
-	// 4. Upload to S3
+	// Upload to S3
 	objectKey := fmt.Sprintf("backups/%s", backupFile)
 	_, err = client.PutObject(context.TODO(), &s3.PutObjectInput{
 		Bucket: aws.String(bucket),
