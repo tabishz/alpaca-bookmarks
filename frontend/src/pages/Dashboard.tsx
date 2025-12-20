@@ -394,31 +394,33 @@ export const Dashboard = () => {
       </header>
 
       {/* Grid */}
-      <div
-        className={`${viewMode === 'grid' ? "grid gap-6" : "flex flex-col"} flex-1`}
-        style={viewMode === 'grid' ? {
-          gridTemplateColumns: `repeat(auto-fill, minmax(${tileSize}px, 1fr))`
-        } : {}}
-      >
-        {bookmarks.length === 0 && !loading ? (
-          <div className="col-span-full text-center text-gray-500 mt-20">
-            {search || selectedTag ? "No matches found." : "No bookmarks yet. Add one!"}
-          </div>
-        ) : (
-          bookmarks.map(b => (
-            <BookmarkCard
-              key={b.id}
-              bookmark={b}
-              viewMode={viewMode}
-              onDelete={handleDelete}
-              onEdit={setEditingBookmark}
-              onTagClick={handleTagSelect}
-            />
-          ))
-        )}
-      </div>
+      <div className="flex-1">
+        <div
+          className={viewMode === 'grid' ? "grid gap-6" : "flex flex-col"}
+          style={viewMode === 'grid' ? {
+            gridTemplateColumns: `repeat(auto-fill, minmax(${tileSize}px, 1fr))`
+          } : {}}
+        >
+          {bookmarks.length === 0 && !loading ? (
+            <div className="col-span-full text-center text-gray-500 mt-20">
+              {search || selectedTag ? "No matches found." : "No bookmarks yet. Add one!"}
+            </div>
+          ) : (
+            bookmarks.map(b => (
+              <BookmarkCard
+                key={b.id}
+                bookmark={b}
+                viewMode={viewMode}
+                onDelete={handleDelete}
+                onEdit={setEditingBookmark}
+                onTagClick={handleTagSelect}
+              />
+            ))
+          )}
+        </div>
 
-      <div ref={observerTarget} className="py-8 text-center">{loading && <span className="text-primary">Loading...</span>}</div>
+        <div ref={observerTarget} className="py-8 text-center">{loading && <span className="text-primary">Loading...</span>}</div>
+      </div>
 
       <footer className="mt-10 py-4 text-center text-gray-500 text-sm">
         <p>
