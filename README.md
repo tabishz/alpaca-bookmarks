@@ -24,6 +24,28 @@ The application is distributed as a single Docker container that includes:
     * Password hashing (Bcrypt).
     * Secure environment variable configuration.
 
+## ⌨️ Keyboard Shortcuts
+
+The application provides several keyboard shortcuts for quick navigation and actions:
+
+| Key(s) | Action |
+| :--- | :--- |
+| `/` | Focus the main search bar. |
+| `t` | Toggle the tags filter menu. |
+| `Esc` | Close any open menu (Tags, Settings) or unfocus the search bar. |
+| `Backspace` | When a tag is selected, this will clear the filter. |
+| `Tab` / `Enter` | When the tags menu is open, this selects the first visible tag. |
+
+### Tag Input
+
+When adding or editing a bookmark, the tag input field has its own shortcuts:
+
+| Key(s) | Action |
+| :--- | :--- |
+| `Enter` or `,` | Add the currently typed text as a new tag. |
+| `Tab` | Autocomplete the tag with the first available suggestion. |
+| `Backspace` | When the input is empty, delete the last added tag. |
+
 ---
 
 ## 🚀 Getting Started (Docker)
@@ -75,6 +97,7 @@ The application is configured via environment variables. You can pass these to D
 | `GIN_MODE` | Set to `debug` for logs or `release` for production. | No | `release` |
 
 ### AWS S3 Backup Configuration (Optional)
+This feature is experimental and has not been tested thoroughly.
 To enable automated nightly backups, provide the following credentials.
 
 | Variable | Description | Example |
