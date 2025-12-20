@@ -156,3 +156,7 @@ curl http://localhost:3000/api/v1/ping
 ## Data Location
 * **Database:** `./data/data.sqlite`
 * **Backups:** Local backups are stored in `./data/backups/` before being uploaded to S3.
+
+## 📜 License
+
+This project is licensed under the GNU AGPL v3.0 License - see the [LICENSE](LICENSE) file for details.

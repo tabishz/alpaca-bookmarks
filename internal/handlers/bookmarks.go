@@ -36,7 +36,7 @@ func GetBookmarks(c *gin.Context) {
   offset := (input.Page - 1) * input.Limit
 
   var bookmarks []models.Bookmark
-  // 1. Build the Base Query (Filters Only)
+  // Build the Base Query (Filters Only)
   query := database.DB.Model(&models.Bookmark{}).Preload("Tags").Where("bookmarks.user_id = ?", userID)
 
   // Tag Logic
@@ -56,17 +56,17 @@ func GetBookmarks(c *gin.Context) {
     query = query.Where("(bookmarks.title LIKE ? OR bookmarks.url LIKE ?)", search, search)
   }
 
-  // 2. COUNT TOTAL MATCHES (Before Pagination)
+  // COUNT TOTAL MATCHES (Before Pagination)
   var count int64
   if err := query.Count(&count).Error; err != nil {
     c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to count bookmarks"})
     return
   }
 
-  // 3. SET HEADER
+  // SET HEADER
   c.Header("X-Total-Count", strconv.FormatInt(count, 10))
 
-  // 4. Run Final Query with Pagination
+  // Run Final Query with Pagination
   // Ensure we sort by "bookmarks.created_at" to avoid ambiguity
   if err := query.Order("bookmarks.created_at desc").Limit(input.Limit).Offset(offset).Find(&bookmarks).Error; err != nil {
     c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch bookmarks"})

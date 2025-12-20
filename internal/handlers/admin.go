@@ -54,14 +54,14 @@ func CreateUser(c *gin.Context) {
 func DeleteUser(c *gin.Context) {
 	idStr := c.Param("id")
 
-	// 1. Safety Check: Prevent self-deletion
+	// Safety Check: Prevent self-deletion
 	currentUserID := c.MustGet("userID").(uint)
 	if idStr == fmt.Sprintf("%d", currentUserID) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "You cannot delete your own account"})
 		return
 	}
 
-	// 2. Start a Transaction to ensure clean deletion
+	// Start a Transaction to ensure clean deletion
 	tx := database.DB.Begin()
 
 	// Clean up the JOIN table (bookmark_tags)
@@ -87,7 +87,7 @@ func DeleteUser(c *gin.Context) {
 		return
 	}
 
-	// D. Finally, Delete the User
+	// Finally, Delete the User
 	if err := tx.Delete(&models.User{}, idStr).Error; err != nil {
 		tx.Rollback()
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete user"})
@@ -123,7 +123,7 @@ func ResetUserPassword(c *gin.Context) {
 func UpdateUserRole(c *gin.Context) {
 	idStr := c.Param("id")
 
-	// Safety: Prevent admin from demoting themselves
+	// Prevent admin from demoting themselves
 	currentUserID := c.MustGet("userID").(uint)
 	if idStr == fmt.Sprintf("%d", currentUserID) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "You cannot change your own role"})
