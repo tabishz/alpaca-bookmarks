@@ -51,7 +51,7 @@ export const Dashboard = () => {
   const [totalCount, setTotalCount] = useState(0);
   const [settingsStartView, setSettingsStartView] = useState<'settings' | 'tags'>('settings');
   const [highlightedTagIndex, setHighlightedTagIndex] = useState(0);
-  
+
   const [undoToasts, setUndoToasts] = useState<UndoToastData[]>([]);
   const undoTimersRef = useRef<{ [key: string]: number }>({});
 
@@ -230,6 +230,7 @@ export const Dashboard = () => {
 
   const handleConfigSave = async (newLimit: number, newTheme: Theme, newTileSize: number) => {
     localStorage.setItem('bookmarks_limit', newLimit.toString());
+    localStorage.setItem('tile_size', newTileSize.toString());
     setLimit(newLimit);
     setTheme(newTheme);
     setTileSize(newTileSize);
@@ -254,7 +255,7 @@ export const Dashboard = () => {
     setIsSettingsMenuOpen(false);
     try { const response = await api.get('/system/export', { responseType: 'blob' }); const url = window.URL.createObjectURL(new Blob([response.data])); const link = document.createElement('a'); link.href = url; link.setAttribute('download', 'bookmarks.html'); document.body.appendChild(link); link.click(); link.remove(); } catch (error) { alert("Failed"); }
   };
-  
+
   const removeToast = (toastId: string) => {
     setUndoToasts(currentToasts => currentToasts.filter(t => t.id !== toastId));
     if (undoTimersRef.current[toastId]) {
@@ -262,7 +263,7 @@ export const Dashboard = () => {
       delete undoTimersRef.current[toastId];
     }
   };
-  
+
   const handleUndoDelete = (toastId: string) => {
     const toast = undoToasts.find(t => t.id === toastId);
     if (toast) {
@@ -274,13 +275,13 @@ export const Dashboard = () => {
       removeToast(toastId);
     }
   };
-  
+
   const handleDelete = (bookmarkToDelete: Bookmark) => {
     const index = bookmarks.findIndex(b => b.id === bookmarkToDelete.id);
     if (index === -1) return;
-  
+
     setBookmarks(prev => prev.filter(b => b.id !== bookmarkToDelete.id));
-  
+
     const toastId = `undo-${Date.now()}`;
     const newToast: UndoToastData = {
       id: toastId,
@@ -289,17 +290,17 @@ export const Dashboard = () => {
       index: index,
     };
     setUndoToasts(prev => [...prev, newToast]);
-  
+
     const timer = window.setTimeout(() => {
       api.delete(`/bookmarks/${bookmarkToDelete.id}`).catch(error => {
         console.error("Failed to permanently delete bookmark", error);
         // Optionally, inform user and restore bookmark
-        handleUndoDelete(toastId); 
+        handleUndoDelete(toastId);
         alert("Error: Could not delete bookmark from server.");
       });
       removeToast(toastId);
     }, 10000);
-  
+
     undoTimersRef.current[toastId] = timer;
   };
 
@@ -620,7 +621,7 @@ export const Dashboard = () => {
         initialView={settingsStartView}
       />
       <KeyboardShortcutsModal isOpen={isInfoModalOpen} onClose={() => setIsInfoModalOpen(false)} />
-      
+
       {/* Undo Toasts Container */}
       <div className="fixed bottom-10 right-10 z-50 flex flex-col gap-3">
         {undoToasts.map(toast => (
