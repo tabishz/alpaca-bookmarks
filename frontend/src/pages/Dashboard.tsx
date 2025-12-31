@@ -203,6 +203,7 @@ export const Dashboard = () => {
 
   const handleConfigSave = async (newLimit: number, newTheme: Theme, newTileSize: number) => {
     localStorage.setItem('bookmarks_limit', newLimit.toString());
+    localStorage.setItem('tile_size', newTileSize.toString());
     setLimit(newLimit);
     setTheme(newTheme);
     setTileSize(newTileSize);
@@ -233,7 +234,8 @@ export const Dashboard = () => {
   };
   const handleTagSelect = (tag: string) => { setSelectedTag(tag); setIsTagMenuOpen(false); setTagSearch(''); };
   const handleTagInputKeyDown = (e: React.KeyboardEvent) => {
-    const totalOptions = visibleTags.length + 1; // +1 for "Without Tags"
+    const showUntagged = !tagSearch;
+    const totalOptions = visibleTags.length + (showUntagged ? 1 : 0);
 
     if (e.key === 'ArrowDown') {
       e.preventDefault();
@@ -243,10 +245,16 @@ export const Dashboard = () => {
       setHighlightedTagIndex(prev => (prev - 1 + totalOptions) % totalOptions);
     } else if ((e.key === 'Tab' || e.key === 'Enter')) {
       e.preventDefault();
-      if (highlightedTagIndex === 0) {
-        handleTagSelect('Untagged');
-      } else if (visibleTags.length > 0) {
-        handleTagSelect(visibleTags[highlightedTagIndex - 1]);
+      if (showUntagged) {
+        if (highlightedTagIndex === 0) {
+          handleTagSelect('Untagged');
+        } else if (visibleTags.length > 0) {
+          handleTagSelect(visibleTags[highlightedTagIndex - 1]);
+        }
+      } else {
+        if (visibleTags.length > 0) {
+          handleTagSelect(visibleTags[highlightedTagIndex]);
+        }
       }
     }
   };
@@ -360,26 +368,31 @@ export const Dashboard = () => {
                   />
                 </div>
                 {/* UNTAGGED OPTION */}
-                <button
-                  ref={highlightedTagIndex === 0 ? highlightedTagRef : null}
-                  onClick={() => { setSelectedTag('Untagged'); setIsTagMenuOpen(false); }}
-                  className={`block w-full text-left px-4 py-2 italic border-b border-gray-700 transition-colors ${highlightedTagIndex === 0 ? 'bg-primary text-white' : 'text-yellow-400 hover:bg-gray-700'}`}
-                >
-                  Without Tags
-                </button>
+                {!tagSearch && (
+                  <button
+                    ref={highlightedTagIndex === 0 ? highlightedTagRef : null}
+                    onClick={() => { setSelectedTag('Untagged'); setIsTagMenuOpen(false); }}
+                    className={`block w-full text-left px-4 py-2 italic border-b border-gray-700 transition-colors ${highlightedTagIndex === 0 ? 'bg-primary text-white' : 'text-yellow-400 hover:bg-gray-700'}`}
+                  >
+                    Without Tags
+                  </button>
+                )}
                 {/* ... Tag List ... */}
                 <div className="overflow-y-auto max-h-60">
                   {visibleTags.length === 0 ? <div className="p-3 text-center text-sm text-gray-500">No matching tags</div> :
-                    visibleTags.map((tag, index) => (
-                      <button
-                        key={tag}
-                        ref={highlightedTagIndex === index + 1 ? highlightedTagRef : null}
-                        onClick={() => { setSelectedTag(tag); setIsTagMenuOpen(false); }}
-                        className={`w-full text-left px-4 py-2 text-sm transition-colors ${selectedTag === tag ? 'bg-primary/20 text-primary' : 'text-text'} ${highlightedTagIndex === index + 1 ? 'bg-primary text-white' : 'hover:bg-primary hover:text-white'}`}
-                      >
-                        #{tag}
-                      </button>
-                    ))
+                    visibleTags.map((tag, index) => {
+                      const itemIndex = tagSearch ? index : index + 1;
+                      return (
+                        <button
+                          key={tag}
+                          ref={highlightedTagIndex === itemIndex ? highlightedTagRef : null}
+                          onClick={() => { setSelectedTag(tag); setIsTagMenuOpen(false); }}
+                          className={`w-full text-left px-4 py-2 text-sm transition-colors ${selectedTag === tag ? 'bg-primary/20 text-primary' : 'text-text'} ${highlightedTagIndex === itemIndex ? 'bg-primary text-white' : 'hover:bg-primary hover:text-white'}`}
+                        >
+                          #{tag}
+                        </button>
+                      );
+                    })
                   }
                 </div>
               </div>
