@@ -231,6 +231,7 @@ export const Dashboard = () => {
   const handleConfigSave = async (newLimit: number, newTheme: Theme, newTileSize: number) => {
     localStorage.setItem('bookmarks_limit', newLimit.toString());
     localStorage.setItem('tile_size', newTileSize.toString());
+    localStorage.setItem('tile_size', newTileSize.toString());
     setLimit(newLimit);
     setTheme(newTheme);
     setTileSize(newTileSize);
@@ -306,6 +307,8 @@ export const Dashboard = () => {
 
   const handleTagSelect = (tag: string) => { setSelectedTag(tag); setIsTagMenuOpen(false); setTagSearch(''); };
   const handleTagInputKeyDown = (e: React.KeyboardEvent) => {
+    const showUntagged = !tagSearch;
+    const totalOptions = visibleTags.length + (showUntagged ? 1 : 0);
     const hasUntaggedOption = !tagSearch;
     const totalOptions = visibleTags.length + (hasUntaggedOption ? 1 : 0);
 
