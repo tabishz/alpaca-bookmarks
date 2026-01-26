@@ -2,9 +2,11 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../api/client';
 import { Bookmark } from '../api/types';
-import { Responsive as ResponsiveGridLayout, type Layout, type Layouts, type LayoutItem } from 'react-grid-layout';
+import { Responsive as ResponsiveGridLayout, type Layout, type LayoutItem } from 'react-grid-layout';
 import { Home } from 'lucide-react';
 import { FavoriteBookmarkCard } from '../components/FavoriteBookmarkCard';
+
+type Layouts = Partial<Record<string, readonly LayoutItem[]>>;
 
 const getLayoutsFromLocalStorage = (): Layouts => {
   try {
@@ -63,7 +65,7 @@ export const FavoritesDashboard = () => {
 
   const generateLayouts = useCallback(() => {
     const savedLayouts = getLayoutsFromLocalStorage();
-    const lgLayout = favorites.map((fav, i) => {
+    const lgLayout: readonly LayoutItem[] = favorites.map((fav, i) => {
       const saved = savedLayouts.lg?.find((l: LayoutItem) => l.i === fav.id.toString());
       if (saved) return saved;
       return {
@@ -111,6 +113,7 @@ export const FavoritesDashboard = () => {
             cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
             rowHeight={120}
             width={gridWidth}
+            // @ts-ignore
             draggableHandle=".drag-handle"
             >
             {favorites.map(fav => {
