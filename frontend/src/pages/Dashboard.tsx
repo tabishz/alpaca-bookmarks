@@ -18,6 +18,7 @@ export const Dashboard = () => {
   const [loading, setLoading] = useState(false);
   const [, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [limit, setLimit] = useState(() => {
     const saved = localStorage.getItem('bookmarks_limit');
     return saved ? parseInt(saved) : 50;
@@ -96,6 +97,7 @@ export const Dashboard = () => {
     }
 
     setLoading(true);
+    setFetchError(null); // Reset error on new fetch
     const controller = new AbortController();
     abortControllerRef.current = controller;
 
@@ -123,7 +125,11 @@ export const Dashboard = () => {
 
       setHasMore(newData.length >= limit);
     } catch (err: any) {
-      if (err.name !== 'Canceled') console.error("Failed to load bookmarks");
+      if (err.name !== 'Canceled') {
+        console.error("Failed to load bookmarks", err);
+        setFetchError("Could not connect to the server. Please try again later.");
+        setHasMore(false); // Stop infinite scroll on error
+      }
     } finally {
       if (abortControllerRef.current === controller) setLoading(false);
     }
@@ -440,7 +446,9 @@ export const Dashboard = () => {
         >
           {bookmarks.length === 0 && !loading ? (
             <div className="col-span-full text-center text-gray-500 mt-20">
-              {search || selectedTag ? "No matches found." : "No bookmarks yet. Add one!"}
+              {fetchError ? <span className="text-red-400">{fetchError}</span> :
+               (search || selectedTag ? "No matches found." : "No bookmarks yet. Add one!")
+              }
             </div>
           ) : (
             bookmarks.map(b => (
