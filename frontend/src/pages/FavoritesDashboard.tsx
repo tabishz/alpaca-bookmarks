@@ -1,12 +1,12 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../api/client';
 import { Bookmark } from '../api/types';
-import { Responsive as ResponsiveGridLayout, type Layout } from 'react-grid-layout';
+import { Responsive as ResponsiveGridLayout, type Layout, type Layouts, type LayoutItem } from 'react-grid-layout';
 import { Home } from 'lucide-react';
 import { FavoriteBookmarkCard } from '../components/FavoriteBookmarkCard';
 
-const getLayoutsFromLocalStorage = (): { [key: string]: Layout[] } => {
+const getLayoutsFromLocalStorage = (): Layouts => {
   try {
     const saved = localStorage.getItem('favorites_layout');
     return saved ? JSON.parse(saved) : {};
@@ -15,7 +15,7 @@ const getLayoutsFromLocalStorage = (): { [key: string]: Layout[] } => {
   }
 };
 
-const saveLayoutsToLocalStorage = (layouts: { [key:string]: Layout[] }) => {
+const saveLayoutsToLocalStorage = (layouts: Layouts) => {
   localStorage.setItem('favorites_layout', JSON.stringify(layouts));
 };
 
@@ -23,7 +23,7 @@ const saveLayoutsToLocalStorage = (layouts: { [key:string]: Layout[] }) => {
 export const FavoritesDashboard = () => {
   const [favorites, setFavorites] = useState<Bookmark[]>([]);
   const [loading, setLoading] = useState(true);
-  const [layouts, setLayouts] = useState(getLayoutsFromLocalStorage());
+  const [layouts, setLayouts] = useState<Layouts>(getLayoutsFromLocalStorage());
   const gridRef = useRef<HTMLDivElement>(null);
   const [gridWidth, setGridWidth] = useState(1200);
 
@@ -64,7 +64,7 @@ export const FavoritesDashboard = () => {
   const generateLayouts = useCallback(() => {
     const savedLayouts = getLayoutsFromLocalStorage();
     const lgLayout = favorites.map((fav, i) => {
-      const saved = savedLayouts.lg?.find(l => l.i === fav.id.toString());
+      const saved = savedLayouts.lg?.find((l: LayoutItem) => l.i === fav.id.toString());
       if (saved) return saved;
       return {
         i: fav.id.toString(),
@@ -85,7 +85,7 @@ export const FavoritesDashboard = () => {
     }
   }, [favorites, generateLayouts]);
 
-  const onLayoutChange = (layout: Layout[], allLayouts: { [key:string]: Layout[] }) => {
+  const onLayoutChange = (_layout: Layout, allLayouts: Layouts) => {
     saveLayoutsToLocalStorage(allLayouts);
     setLayouts(allLayouts);
   };
@@ -114,7 +114,7 @@ export const FavoritesDashboard = () => {
             draggableHandle=".drag-handle"
             >
             {favorites.map(fav => {
-                const layoutItem = layouts.lg?.find(l => l.i === fav.id.toString());
+                const layoutItem = layouts.lg?.find((l: LayoutItem) => l.i === fav.id.toString());
                 return (
                 <div key={fav.id.toString()} className="drag-handle">
                     <FavoriteBookmarkCard
