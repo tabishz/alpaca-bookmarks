@@ -65,14 +65,14 @@ export const FavoriteBookmarkCard: React.FC<Props> = ({ bookmark, width, height 
       href={bookmark.url}
       target="_blank"
       rel="noopener noreferrer"
-      className="group relative w-full h-full bg-surface rounded-lg shadow-md hover:shadow-xl transition-shadow flex flex-col items-center justify-center p-2"
+      className="group relative w-full h-full bg-surface rounded-lg shadow-md hover:shadow-xl transition-shadow flex flex-col items-center justify-center p-2 flex-grow overflow-hidden"
     >
       {isSmall ? (
         renderIcon()
       ) : (
         <>
           {renderIcon()}
-          <h3 className="text-sm font-bold text-center text-text truncate w-full">{bookmark.title}</h3>
+          <h3 className="text-sm font-bold text-center text-text w-full break-words">{bookmark.title}</h3>
         </>
       )}
       <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">

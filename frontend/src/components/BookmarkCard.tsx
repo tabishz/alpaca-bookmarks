@@ -74,7 +74,7 @@ export const BookmarkCard: React.FC<Props> = ({ bookmark, viewMode, onDelete, on
           <Icon bookmark={bookmark} className="h-6 w-6 rounded-sm shrink-0" />
 
           <div className="min-w-0">
-            <a href={bookmark.url} target="_blank" rel="noopener noreferrer" className="block truncate font-medium text-primary hover:underline">
+            <a href={bookmark.url} target="_blank" rel="noopener noreferrer" className="block font-medium text-primary hover:underline break-words">
               {bookmark.title || bookmark.url}
             </a>
             <div className="flex gap-2 text-xs text-gray-400">
@@ -101,7 +101,7 @@ export const BookmarkCard: React.FC<Props> = ({ bookmark, viewMode, onDelete, on
 
   // Grid Mode
   return (
-    <div className="group relative flex flex-col rounded-lg bg-surface p-5 shadow-md transition-all hover:-translate-y-1 hover:shadow-xl">
+    <div className="group relative flex flex-col rounded-lg bg-surface p-5 shadow-md transition-all hover:shadow-xl">
       <div className="mb-4 flex items-start justify-between">
         <Icon bookmark={bookmark} className="h-10 w-10 rounded-md" />
 
@@ -114,8 +114,8 @@ export const BookmarkCard: React.FC<Props> = ({ bookmark, viewMode, onDelete, on
         </div>
       </div>
 
-      <h3 className="mb-2 truncate text-lg font-bold text-text" title={bookmark.title}>{bookmark.title || 'Untitled'}</h3>
-      <p className="mb-4 flex-1 text-sm text-gray-400 line-clamp-2">{bookmark.description || bookmark.url}</p>
+      <h3 className="mb-2 text-lg font-bold text-text break-words" title={bookmark.title}>{bookmark.title || 'Untitled'}</h3>
+      <p className="mb-4 flex-1 text-sm text-gray-400 break-words">{bookmark.description || bookmark.url}</p>
 
       <div className="mb-3 flex flex-wrap gap-2">
         {/* SAFE MAP */}
