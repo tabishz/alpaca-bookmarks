@@ -94,6 +94,8 @@ func main() {
 				c.JSON(http.StatusOK, gin.H{"user_id": userID})
 			})
 			protected.PATCH("/user/preferences", handlers.UpdatePreferences)
+			protected.GET("/user/layout", handlers.GetUserLayout)
+			protected.PUT("/user/layout", handlers.SaveUserLayout)
 			// Bookmarks CRUD
 			protected.POST("/bookmarks", handlers.CreateBookmark)
 			protected.GET("/bookmarks", handlers.GetBookmarks)

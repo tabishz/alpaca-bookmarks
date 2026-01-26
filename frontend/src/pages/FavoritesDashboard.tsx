@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../api/client';
 import { Bookmark } from '../api/types';
@@ -8,24 +8,24 @@ import { FavoriteBookmarkCard } from '../components/FavoriteBookmarkCard';
 
 type Layouts = Partial<Record<string, readonly LayoutItem[]>>;
 
-const getLayoutsFromLocalStorage = (): Layouts => {
+const getLayoutsFromServer = async (): Promise<Layouts> => {
   try {
-    const saved = localStorage.getItem('favorites_layout');
-    return saved ? JSON.parse(saved) : {};
+    const res = await api.get<Layouts>('/user/layout');
+    return res.data || {};
   } catch (e) {
+    console.error("Failed to fetch layouts from server", e);
     return {};
   }
 };
 
-const saveLayoutsToLocalStorage = (layouts: Layouts) => {
-  localStorage.setItem('favorites_layout', JSON.stringify(layouts));
+const saveLayoutsToServer = (layouts: Layouts) => {
+  api.put('/user/layout', { layouts: JSON.stringify(layouts) });
 };
-
 
 export const FavoritesDashboard = () => {
   const [favorites, setFavorites] = useState<Bookmark[]>([]);
   const [loading, setLoading] = useState(true);
-  const [layouts, setLayouts] = useState<Layouts>(getLayoutsFromLocalStorage());
+  const [layouts, setLayouts] = useState<Layouts>({});
   const gridRef = useRef<HTMLDivElement>(null);
   const [gridWidth, setGridWidth] = useState(1200);
 
@@ -48,47 +48,45 @@ export const FavoritesDashboard = () => {
   }, []);
 
   useEffect(() => {
-    const fetchFavorites = async () => {
+    const fetchFavoritesAndLayouts = async () => {
       setLoading(true);
       try {
-        const res = await api.get<Bookmark[]>('/bookmarks?tag=Favorites');
-        setFavorites(res.data);
+        const [favRes, savedLayouts] = await Promise.all([
+          api.get<Bookmark[]>('/bookmarks?tag=Favorites'),
+          getLayoutsFromServer()
+        ]);
+        
+        const favoritesData = favRes.data;
+        setFavorites(favoritesData);
+
+        const lgLayout: readonly LayoutItem[] = favoritesData.map((fav, i) => {
+          const saved = savedLayouts.lg?.find((l: LayoutItem) => l.i === fav.id.toString());
+          if (saved) return saved;
+          return {
+            i: fav.id.toString(),
+            x: (i * 2) % 12,
+            y: Math.floor(i / 6),
+            w: 2,
+            h: 1,
+            minW: 1,
+            minH: 1,
+          };
+        });
+        
+        setLayouts({ lg: lgLayout });
+
       } catch (error) {
-        console.error("Failed to fetch favorites", error);
+        console.error("Failed to fetch favorites or layouts", error);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchFavorites();
-  }, []);
-
-  const generateLayouts = useCallback(() => {
-    const savedLayouts = getLayoutsFromLocalStorage();
-    const lgLayout: readonly LayoutItem[] = favorites.map((fav, i) => {
-      const saved = savedLayouts.lg?.find((l: LayoutItem) => l.i === fav.id.toString());
-      if (saved) return saved;
-      return {
-        i: fav.id.toString(),
-        x: (i * 2) % 12,
-        y: Math.floor(i / 6),
-        w: 2,
-        h: 1,
-        minW: 1,
-        minH: 1,
-      };
-    });
-    setLayouts({ lg: lgLayout });
-  }, [favorites]);
-
-  useEffect(() => {
-    if (favorites.length > 0) {
-      generateLayouts();
-    }
-  }, [favorites, generateLayouts]);
+    fetchFavoritesAndLayouts();
+  }, []); // Run only on mount
 
   const onLayoutChange = (_layout: Layout, allLayouts: Layouts) => {
-    saveLayoutsToLocalStorage(allLayouts);
+    saveLayoutsToServer(allLayouts);
     setLayouts(allLayouts);
   };
 

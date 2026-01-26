@@ -45,3 +45,10 @@ type User struct {
 	CreatedAt time.Time `json:"created_at"`
 	Theme     string    `json:"theme" gorm:"default:'dracula'"`
 }
+
+// UserLayout stores the layout of the favorites dashboard for a user
+type UserLayout struct {
+	ID      uint   `gorm:"primaryKey"`
+	UserID  uint   `gorm:"uniqueIndex;not null"`
+	Layouts string `gorm:"type:json"` // Store layouts as a JSON string
+}
