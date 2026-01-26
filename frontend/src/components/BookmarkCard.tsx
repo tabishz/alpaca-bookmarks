@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Bookmark } from '../api/types';
-import { ExternalLink, Trash2, Tag as TagIcon, Pencil, Globe } from 'lucide-react';
+import { ExternalLink, Trash2, Tag as TagIcon, Pencil, Globe, Heart } from 'lucide-react';
 
 interface Props {
   bookmark: Bookmark;
@@ -8,9 +8,10 @@ interface Props {
   onDelete: (id: number) => void;
   onEdit: (bookmark: Bookmark) => void;
   onTagClick: (tagName: string) => void;
+  onToggleFavorite: (bookmark: Bookmark, isFavorite: boolean) => void;
 }
 
-export const BookmarkCard: React.FC<Props> = ({ bookmark, viewMode, onDelete, onEdit, onTagClick }) => {
+export const BookmarkCard: React.FC<Props> = ({ bookmark, viewMode, onDelete, onEdit, onTagClick, onToggleFavorite }) => {
 
   const hostname = useMemo(() => {
     try {
@@ -47,6 +48,7 @@ export const BookmarkCard: React.FC<Props> = ({ bookmark, viewMode, onDelete, on
   };
 
   const tags = bookmark.tags || [];
+  const isFavorite = useMemo(() => tags.some(t => t.name.toLowerCase() === 'favorites'), [tags]);
 
   const renderIcon = (className: string) => {
     if (!hostname || hasError) {
@@ -90,6 +92,9 @@ export const BookmarkCard: React.FC<Props> = ({ bookmark, viewMode, onDelete, on
         </div>
 
         <div className="ml-4 flex gap-2 opacity-0 transition-opacity group-hover:opacity-100">
+          <button onClick={() => onToggleFavorite(bookmark, isFavorite)} className={`text-gray-400 hover:text-red-400 ${isFavorite ? 'text-red-400' : ''}`} title="Favorite">
+            <Heart size={18} fill={isFavorite ? 'currentColor' : 'none'} />
+          </button>
           <button onClick={() => onEdit(bookmark)} className="text-gray-400 hover:text-primary" title="Edit"><Pencil size={18} /></button>
           <button onClick={() => onDelete(bookmark.id)} className="text-gray-400 hover:text-red-400" title="Delete"><Trash2 size={18} /></button>
         </div>
@@ -104,6 +109,9 @@ export const BookmarkCard: React.FC<Props> = ({ bookmark, viewMode, onDelete, on
         {renderIcon("h-10 w-10 rounded-md")}
 
         <div className="flex gap-2 opacity-0 transition-opacity group-hover:opacity-100">
+          <button onClick={() => onToggleFavorite(bookmark, isFavorite)} className={`text-gray-500 hover:text-red-400 ${isFavorite ? 'text-red-400' : ''}`} title="Favorite">
+            <Heart size={18} fill={isFavorite ? 'currentColor' : 'none'} />
+          </button>
           <button onClick={() => onEdit(bookmark)} className="text-gray-500 hover:text-primary" title="Edit"><Pencil size={18} /></button>
           <button onClick={() => onDelete(bookmark.id)} className="text-gray-500 hover:text-red-400" title="Delete"><Trash2 size={18} /></button>
         </div>

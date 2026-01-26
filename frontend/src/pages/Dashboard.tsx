@@ -256,6 +256,27 @@ export const Dashboard = () => {
       }
     }
   };
+  const handleToggleFavorite = async (bookmark: Bookmark, isFavorite: boolean) => {
+    const favoriteTagName = 'Favorites';
+    let newTags: string[];
+
+    if (isFavorite) {
+      newTags = bookmark.tags.filter(t => t.name !== favoriteTagName).map(t => t.name);
+    } else {
+      newTags = [...bookmark.tags.map(t => t.name), favoriteTagName];
+    }
+
+    try {
+      const response = await api.put(`/bookmarks/${bookmark.id}`, {
+        ...bookmark, // send the whole bookmark back
+        tags: newTags
+      });
+      handleEditSuccess(response.data);
+    } catch (error) {
+      console.error("Failed to toggle favorite status", error);
+      alert("Failed to update favorite status.");
+    }
+  };
   const handleAddSuccess = (newBookmark: Bookmark) => { setBookmarks(prev => [newBookmark, ...prev]); fetchTags(); };
   const handleEditSuccess = (updatedBookmark: Bookmark) => { setBookmarks(prev => prev.map(b => b.id === updatedBookmark.id ? updatedBookmark : b)); fetchTags(); };
   const closeAddModal = () => {
@@ -459,6 +480,7 @@ export const Dashboard = () => {
                 onDelete={handleDelete}
                 onEdit={setEditingBookmark}
                 onTagClick={handleTagSelect}
+                onToggleFavorite={handleToggleFavorite}
               />
             ))
           )}
