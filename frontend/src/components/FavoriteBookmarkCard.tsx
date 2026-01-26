@@ -7,9 +7,10 @@ interface Props {
   bookmark: Bookmark;
   width: number;
   height: number;
+  isEditMode: boolean;
 }
 
-export const FavoriteBookmarkCard: React.FC<Props> = ({ bookmark, width, height }) => {
+export const FavoriteBookmarkCard: React.FC<Props> = ({ bookmark, width, height, isEditMode }) => {
   const isSmall = width === 1 && height === 1;
   const [iconSrc, setIconSrc] = useState<string | null>(null);
   const [iconError, setIconError] = useState(false);
@@ -60,11 +61,18 @@ export const FavoriteBookmarkCard: React.FC<Props> = ({ bookmark, width, height 
     )
   }
 
+  const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    if (isEditMode) {
+      e.preventDefault();
+    }
+  };
+
   return (
     <a
       href={bookmark.url}
       target="_blank"
       rel="noopener noreferrer"
+      onClick={handleClick}
       className="group relative w-full h-full bg-surface rounded-lg shadow-md hover:shadow-xl transition-shadow flex flex-col items-center justify-center p-2 flex-grow overflow-hidden"
     >
       {isSmall ? (
