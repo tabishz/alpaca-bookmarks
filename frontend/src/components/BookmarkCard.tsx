@@ -1,6 +1,7 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Bookmark } from '../api/types';
 import { ExternalLink, Trash2, Tag as TagIcon, Pencil, Globe, Heart } from 'lucide-react';
+import api from '../api/client';
 
 interface Props {
   bookmark: Bookmark;
@@ -11,36 +12,52 @@ interface Props {
   onToggleFavorite: (bookmark: Bookmark, isFavorite: boolean) => void;
 }
 
-export const BookmarkCard: React.FC<Props> = ({ bookmark, viewMode, onDelete, onEdit, onTagClick, onToggleFavorite }) => {
-
-  const hostname = useMemo(() => {
-    try {
-      return new URL(bookmark.url).hostname;
-    } catch (e) {
-      return '';
-    }
-  }, [bookmark.url]);
-
-  const primaryUrl = `https://www.google.com/s2/favicons?domain=${hostname}&sz=64`;
-  const secondaryUrl = `https://icons.duckduckgo.com/ip3/${hostname}.ico`;
-
-  const [imgSrc, setImgSrc] = useState(primaryUrl);
+const Icon: React.FC<{ bookmark: Bookmark; className: string }> = ({ bookmark, className }) => {
+  const [iconSrc, setIconSrc] = useState<string | null>(bookmark.icon || null);
   const [hasError, setHasError] = useState(false);
 
-  // Reset state if the bookmark URL changes
-  React.useEffect(() => {
-    setImgSrc(primaryUrl);
-    setHasError(false);
-  }, [primaryUrl]);
-
-  const handleImgError = () => {
-    if (imgSrc === primaryUrl) {
-      // If Google failed, try DuckDuckGo
-      setImgSrc(secondaryUrl);
-    } else {
-      setHasError(true);
+  useEffect(() => {
+    const needsFetch = !bookmark.icon_last_fetched || new Date(bookmark.icon_last_fetched).getTime() < Date.now() - 2592000000;
+    if (needsFetch) {
+      api.get(`/bookmarks/${bookmark.id}/icon`, { responseType: 'blob' })
+        .then(response => {
+          if (response.status === 200) {
+            const blob = response.data;
+            const reader = new FileReader();
+            reader.onloadend = () => {
+              const base64data = reader.result;
+              setIconSrc(base64data as string);
+            };
+            reader.readAsDataURL(blob);
+          } else {
+            setHasError(true);
+          }
+        })
+        .catch(() => {
+          setHasError(true);
+        });
     }
-  };
+  }, [bookmark.id, bookmark.icon, bookmark.icon_last_fetched]);
+
+  if (hasError || !iconSrc) {
+    return (
+      <div className={`${className} flex items-center justify-center bg-gray-700 text-gray-400 shrink-0`}>
+        <Globe size="60%" />
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={iconSrc}
+      alt="icon"
+      className={`${className} bg-white object-contain p-0.5 shrink-0`}
+      loading="lazy"
+    />
+  );
+}
+
+export const BookmarkCard: React.FC<Props> = ({ bookmark, viewMode, onDelete, onEdit, onTagClick, onToggleFavorite }) => {
 
   const handleTagClick = (e: React.MouseEvent, tagName: string) => {
     e.preventDefault(); e.stopPropagation();
@@ -50,31 +67,11 @@ export const BookmarkCard: React.FC<Props> = ({ bookmark, viewMode, onDelete, on
   const tags = bookmark.tags || [];
   const isFavorite = useMemo(() => tags.some(t => t.name.toLowerCase() === 'favorites'), [tags]);
 
-  const renderIcon = (className: string) => {
-    if (!hostname || hasError) {
-      return (
-        <div className={`${className} flex items-center justify-center bg-gray-700 text-gray-400 shrink-0`}>
-          <Globe size="60%" />
-        </div>
-      );
-    }
-
-    return (
-      <img
-        src={imgSrc}
-        alt="icon"
-        className={`${className} bg-white object-contain p-0.5 shrink-0`}
-        onError={handleImgError}
-        loading="lazy"
-      />
-    );
-  };
-
   if (viewMode === 'list') {
     return (
       <div className="group mb-2 flex items-center justify-between rounded-md bg-surface p-3 shadow-sm transition-colors hover:bg-opacity-80">
         <div className="flex items-center gap-4 overflow-hidden">
-          {renderIcon("h-6 w-6 rounded-sm shrink-0")}
+          <Icon bookmark={bookmark} className="h-6 w-6 rounded-sm shrink-0" />
 
           <div className="min-w-0">
             <a href={bookmark.url} target="_blank" rel="noopener noreferrer" className="block truncate font-medium text-primary hover:underline">
@@ -106,7 +103,7 @@ export const BookmarkCard: React.FC<Props> = ({ bookmark, viewMode, onDelete, on
   return (
     <div className="group relative flex flex-col rounded-lg bg-surface p-5 shadow-md transition-all hover:-translate-y-1 hover:shadow-xl">
       <div className="mb-4 flex items-start justify-between">
-        {renderIcon("h-10 w-10 rounded-md")}
+        <Icon bookmark={bookmark} className="h-10 w-10 rounded-md" />
 
         <div className="flex gap-2 opacity-0 transition-opacity group-hover:opacity-100">
           <button onClick={() => onToggleFavorite(bookmark, isFavorite)} className={`text-gray-500 hover:text-red-400 ${isFavorite ? 'text-red-400' : ''}`} title="Favorite">
