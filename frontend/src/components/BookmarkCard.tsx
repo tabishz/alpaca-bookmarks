@@ -66,6 +66,13 @@ export const BookmarkCard: React.FC<Props> = ({ bookmark, viewMode, onDelete, on
 
   const tags = bookmark.tags || [];
   const isFavorite = useMemo(() => tags.some(t => t.name.toLowerCase() === 'favorites'), [tags]);
+  
+  const truncateUrl = (url: string, length: number) => {
+    if (url.length <= length) {
+      return url;
+    }
+    return url.substring(0, length) + '...';
+  };
 
   if (viewMode === 'list') {
     return (
@@ -75,7 +82,7 @@ export const BookmarkCard: React.FC<Props> = ({ bookmark, viewMode, onDelete, on
 
           <div className="min-w-0">
             <a href={bookmark.url} target="_blank" rel="noopener noreferrer" className="block font-medium text-primary hover:underline break-words">
-              {bookmark.title || bookmark.url}
+              {bookmark.title || truncateUrl(bookmark.url, 100)}
             </a>
             <div className="flex gap-2 text-xs text-gray-400">
               {/* SAFE MAP */}
@@ -115,7 +122,7 @@ export const BookmarkCard: React.FC<Props> = ({ bookmark, viewMode, onDelete, on
       </div>
 
       <h3 className="mb-2 text-lg font-bold text-text break-words" title={bookmark.title}>{bookmark.title || 'Untitled'}</h3>
-      <p className="mb-4 flex-1 text-sm text-gray-400 break-words">{bookmark.description || bookmark.url}</p>
+      <p className="mb-4 flex-1 text-sm text-gray-400 break-words">{bookmark.description || truncateUrl(bookmark.url, 100)}</p>
 
       <div className="mb-3 flex flex-wrap gap-2">
         {/* SAFE MAP */}
