@@ -6,7 +6,7 @@ import { BookmarkCard } from '../components/BookmarkCard';
 import { AddBookmarkModal } from '../components/AddBookmarkModal';
 import { EditBookmarkModal } from '../components/EditBookmarkModal';
 import { SettingsModal } from '../components/SettingsModal';
-import { LayoutGrid, List, Plus, Search, LogOut, Tags, Settings, Upload, Download, Sliders, Shield, X } from 'lucide-react';
+import { LayoutGrid, List, Plus, Search, LogOut, Tags, Settings, Upload, Download, Sliders, Shield, X, Heart } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { useTheme, Theme } from '../hooks/useTheme';
 
@@ -338,6 +338,11 @@ export const Dashboard = () => {
               }}
             />
           </div>
+
+          <Link to="/favorites" className="flex items-center gap-2 p-2 text-sm font-medium focus:outline-none rounded-md border border-transparent bg-surface text-gray-400 hover:text-white">
+            <Heart size={20} />
+            <span className="hidden md:inline">Favorites</span>
+          </Link>
 
           <div className="relative">
             <div
