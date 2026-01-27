@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../api/client';
 import { Bookmark } from '../api/types';
@@ -11,32 +11,43 @@ import 'react-resizable/css/styles.css';
 type Layouts = Partial<Record<string, readonly LayoutItem[]>>;
 
 const getLayoutsFromServer = async (): Promise<Layouts> => {
-  try {
-    const res = await api.get<Layouts | string>('/user/layout');
-    if (typeof res.data === 'string' && res.data) {
-      return JSON.parse(res.data);
+    try {
+        const res = await api.get<Layouts | string>('/user/layout', {
+            headers: {
+                'Cache-Control': 'no-cache',
+                'Pragma': 'no-cache',
+                'Expires': '0',
+            }
+        });
+        if (typeof res.data === 'string' && res.data) {
+            return JSON.parse(res.data);
+        }
+        if (typeof res.data === 'object' && res.data !== null) {
+            return res.data as Layouts;
+        }
+        return {};
+    } catch (e) {
+        console.error("Failed to fetch layouts from server", e);
+        return {};
     }
-    if (typeof res.data === 'object' && res.data !== null) {
-      return res.data as Layouts;
-    }
-    return {};
-  } catch (e) {
-    console.error("Failed to fetch layouts from server", e);
-    return {};
-  }
 };
 
-const saveLayoutsToServer = (layouts: Layouts) => {
-  api.put('/user/layout', { layouts: JSON.stringify(layouts) });
+const saveLayoutsToServer = async (layouts: Layouts) => {
+  await api.put('/user/layout', { layouts: JSON.stringify(layouts) });
 };
+
+const breakpoints = { lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 };
+const cols = { lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 };
 
 export const FavoritesDashboard = () => {
   const [favorites, setFavorites] = useState<Bookmark[]>([]);
   const [loading, setLoading] = useState(true);
   const [layouts, setLayouts] = useState<Layouts>({});
   const [isEditMode, setIsEditMode] = useState(false);
+  const [breakpoint, setBreakpoint] = useState<keyof typeof cols>('lg');
   const gridRef = useRef<HTMLDivElement>(null);
   const [gridWidth, setGridWidth] = useState(1200);
+  const layoutChanges = useRef<Layouts | null>(null);
 
   useEffect(() => {
     const observer = new ResizeObserver(entries => {
@@ -68,27 +79,27 @@ export const FavoritesDashboard = () => {
         const favoritesData = favRes.data;
         setFavorites(favoritesData);
 
-        const newLayouts: Layouts = { ...savedLayouts };
-
-        // Ensure all favorites have a layout entry, creating one if it doesn't exist
-        const lgLayout = favoritesData.map((fav, i) => {
-          const existingLayout = savedLayouts.lg?.find(l => l.i === fav.id.toString());
-          if (existingLayout) {
-            return { ...existingLayout, static: !isEditMode };
-          }
-          return {
-            i: fav.id.toString(),
-            x: (i * 2) % 12,
-            y: Math.floor(i / 6),
-            w: 2,
-            h: 1,
-            minW: 1,
-            minH: 1,
-            static: !isEditMode,
-          };
-        });
-
-        newLayouts.lg = lgLayout;
+        const newLayouts: Layouts = {};
+        for (const bp of Object.keys(cols)) {
+            const savedBpLayout = savedLayouts[bp] || [];
+            newLayouts[bp] = favoritesData.map((fav, i) => {
+                const existing = savedBpLayout.find(l => String(l.i) === String(fav.id));
+                if (existing) {
+                    return { ...existing, static: true };
+                }
+                const numCols = cols[bp as keyof typeof cols];
+                return {
+                    i: String(fav.id),
+                    x: (i * 2) % numCols,
+                    y: Math.floor(i / (numCols / 2)),
+                    w: 2,
+                    h: 1,
+                    minW: 1,
+                    minH: 1,
+                    static: true,
+                };
+            });
+        }
         setLayouts(newLayouts);
 
       } catch (error) {
@@ -101,32 +112,50 @@ export const FavoritesDashboard = () => {
     fetchFavoritesAndLayouts();
   }, []);
 
-  useEffect(() => {
-    setLayouts(currentLayouts => {
-      const newLayouts: Layouts = {};
-      for (const bp of Object.keys(currentLayouts)) {
-        if (currentLayouts[bp]) {
-          newLayouts[bp] = currentLayouts[bp]!.map(item => ({
-            ...item,
-            static: !isEditMode,
-          }));
+  const onLayoutChange = useCallback((_layout: Layout, allLayouts: Layouts) => {
+    layoutChanges.current = allLayouts;
+    // We update state so the grid knows the "current" positions
+    // and doesn't snap back on the next render
+    setLayouts(allLayouts);
+  }, []);
+
+  const handleEnterEditMode = () => {
+    layoutChanges.current = null;
+    const editableLayout: Layouts = {};
+    for (const bp of Object.keys(layouts)) {
+        if (layouts[bp]) {
+            editableLayout[bp] = layouts[bp]!.map(item => ({
+                ...item,
+                static: false,
+            }));
         }
-      }
-      return newLayouts;
-    });
-  }, [isEditMode]);
-
-  const onLayoutChange = (_layout: Layout, allLayouts: Layouts) => {
-    // Only update layouts if there's an actual change to an item.
-    // This prevents overwriting on initial load or resize.
-    if (isEditMode) {
-      setLayouts(allLayouts);
     }
-  };
+    setLayouts(editableLayout);
+    setIsEditMode(true);
+  }
 
-  const handleSave = () => {
-    saveLayoutsToServer(layouts);
-    setIsEditMode(false);
+  const handleSave = async () => {
+    // Use the latest layout from the ref, or the state if no changes were made.
+    const finalLayout = layoutChanges.current || layouts;
+
+    const staticLayout: Layouts = {};
+    for (const bp of Object.keys(finalLayout)) {
+        if (finalLayout[bp]) {
+            staticLayout[bp] = finalLayout[bp]!.map(item => ({
+                ...item,
+                static: true,
+            }));
+        }
+    }
+
+    try {
+      await saveLayoutsToServer(staticLayout);
+      setLayouts(staticLayout);
+      setIsEditMode(false);
+      layoutChanges.current = null;
+    } catch (e) {
+        console.error("Failed to save", e);
+    }
   };
 
   return (
@@ -144,7 +173,7 @@ export const FavoritesDashboard = () => {
               <span>Save</span>
             </button>
           ) : (
-            <button onClick={() => setIsEditMode(true)} className="flex items-center gap-2 rounded-md bg-blue-500 px-4 py-2 text-white hover:bg-blue-600 transition-colors">
+            <button onClick={handleEnterEditMode} className="flex items-center gap-2 rounded-md bg-blue-500 px-4 py-2 text-white hover:bg-blue-600 transition-colors">
               <Edit size={20} />
               <span>Edit</span>
             </button>
@@ -156,20 +185,20 @@ export const FavoritesDashboard = () => {
       ) : (
         <div ref={gridRef}>
           <ResponsiveGridLayout
-            key={isEditMode ? 'edit' : 'view'}
             className="layout"
             layouts={layouts}
             onLayoutChange={onLayoutChange}
-            breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
-            cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
+            onBreakpointChange={(bp) => setBreakpoint(bp as keyof typeof cols)}
+            breakpoints={breakpoints}
+            cols={cols}
             rowHeight={120}
             width={gridWidth}
           >
             {favorites.map(fav => {
-              const layoutItem = layouts.lg?.find((l: LayoutItem) => l.i === fav.id.toString());
-              const handleClasses = isEditMode ? 'drag-handle drag-handle-active' : '';
+              const currentLayout = layouts[breakpoint] || layouts.lg || [];
+              const layoutItem = currentLayout.find(l => String(l.i) === String(fav.id));
               return (
-                <div key={fav.id.toString()} className={handleClasses}>
+                <div key={String(fav.id)}>
                   <FavoriteBookmarkCard
                     bookmark={fav}
                     width={layoutItem?.w || 2}
