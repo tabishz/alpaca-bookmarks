@@ -7,6 +7,7 @@ import { Home, Edit, Save } from 'lucide-react';
 import { FavoriteBookmarkCard } from '../components/FavoriteBookmarkCard';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
+import { useTheme } from '../hooks/useTheme';
 
 type Layouts = Partial<Record<string, readonly LayoutItem[]>>;
 
@@ -40,6 +41,7 @@ const breakpoints = { lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 };
 const cols = { lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 };
 
 export const FavoritesDashboard = () => {
+  useTheme();
   const [favorites, setFavorites] = useState<Bookmark[]>([]);
   const [loading, setLoading] = useState(true);
   const [layouts, setLayouts] = useState<Layouts>({});
