@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Bookmark } from '../api/types';
 import { Globe } from 'lucide-react';
 import api from '../api/client';
+import { failedIconCache, iconCache, inFlightRequests } from '../utils/cache';
 
 interface Props {
   bookmark: Bookmark;
@@ -12,40 +13,56 @@ interface Props {
 
 export const FavoriteBookmarkCard: React.FC<Props> = ({ bookmark, width, height, isEditMode }) => {
   const isSmall = width === 1 && height === 1;
-  const [iconSrc, setIconSrc] = useState<string | null>(null);
-  const [iconError, setIconError] = useState(false);
+  const [iconSrc, setIconSrc] = useState<string | null>(() => iconCache.get(bookmark.id) || null);
+  const [iconError, setIconError] = useState(failedIconCache.has(bookmark.id));
 
   useEffect(() => {
-    let objectUrl: string;
-
     const fetchIcon = async () => {
-      if (!bookmark.id) return;
+      if (!bookmark.id || iconSrc || iconError) {
+        return;
+      }
+
+      if (inFlightRequests.has(bookmark.id)) {
+        // Another component is already fetching this icon.
+        // We can wait for it to finish and then update the UI.
+        const interval = setInterval(() => {
+            if (iconCache.has(bookmark.id)) {
+                setIconSrc(iconCache.get(bookmark.id)!);
+                clearInterval(interval);
+            } else if (failedIconCache.has(bookmark.id)) {
+                setIconError(true);
+                clearInterval(interval);
+            }
+        }, 100);
+
+        return () => clearInterval(interval);
+      }
 
       try {
+        inFlightRequests.add(bookmark.id);
         const response = await api.get(`/bookmarks/${bookmark.id}/icon`, {
           responseType: 'blob',
         });
 
         if (response.data.size > 0) {
-          objectUrl = URL.createObjectURL(response.data);
+          const objectUrl = URL.createObjectURL(response.data);
           setIconSrc(objectUrl);
+          iconCache.set(bookmark.id, objectUrl);
         } else {
-            setIconError(true);
+          setIconError(true);
+          failedIconCache.add(bookmark.id);
         }
       } catch (error) {
         console.error('Failed to fetch icon:', error);
         setIconError(true);
+        failedIconCache.add(bookmark.id);
+      } finally {
+        inFlightRequests.delete(bookmark.id);
       }
     };
 
     fetchIcon();
-
-    return () => {
-      if (objectUrl) {
-        URL.revokeObjectURL(objectUrl);
-      }
-    };
-  }, [bookmark.id]);
+  }, [bookmark.id, iconSrc, iconError]);
 
   const renderIcon = () => {
     if (iconError || !iconSrc) {
