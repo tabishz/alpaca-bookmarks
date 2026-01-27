@@ -25,7 +25,7 @@ export const FavoriteBookmarkCard: React.FC<Props> = ({ bookmark, width, height,
         const response = await api.get(`/bookmarks/${bookmark.id}/icon`, {
           responseType: 'blob',
         });
-        
+
         if (response.data.size > 0) {
           objectUrl = URL.createObjectURL(response.data);
           setIconSrc(objectUrl);
@@ -51,7 +51,7 @@ export const FavoriteBookmarkCard: React.FC<Props> = ({ bookmark, width, height,
     if (iconError || !iconSrc) {
       return <Globe className="w-1/2 h-1/2 text-gray-400" />;
     }
-    
+
     return (
         <img
             src={iconSrc}
@@ -73,6 +73,7 @@ export const FavoriteBookmarkCard: React.FC<Props> = ({ bookmark, width, height,
       target="_blank"
       rel="noopener noreferrer"
       onClick={handleClick}
+      onDragStart={(e) => e.preventDefault()}
       className="group relative w-full h-full bg-surface rounded-lg shadow-md hover:shadow-xl transition-shadow flex flex-col items-center justify-center p-2 flex-grow overflow-hidden"
     >
       {isSmall ? (

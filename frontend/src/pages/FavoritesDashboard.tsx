@@ -198,7 +198,7 @@ export const FavoritesDashboard = () => {
               const currentLayout = layouts[breakpoint] || layouts.lg || [];
               const layoutItem = currentLayout.find(l => String(l.i) === String(fav.id));
               return (
-                <div key={String(fav.id)}>
+                <div key={String(fav.id)} >
                   <FavoriteBookmarkCard
                     bookmark={fav}
                     width={layoutItem?.w || 2}
