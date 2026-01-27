@@ -2,7 +2,7 @@ import axios from 'axios';
 import { useAuthStore } from '../store/authStore';
 
 const api = axios.create({
-  baseURL: '/api/v1',
+  baseURL: import.meta.env.VITE_API_BASE_URL || '/api/v1',
 });
 
 // Request interceptor to add the JWT token to every request
