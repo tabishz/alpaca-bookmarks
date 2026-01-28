@@ -1,7 +1,7 @@
 package database
 
 import (
-	"bookmarks-manager/internal/models"
+	"alpaca-bookmarks/internal/models"
 	"log"
 	"os"
 	"path/filepath"

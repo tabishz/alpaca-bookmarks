@@ -3,7 +3,7 @@
 # 1. Start the Go Backend in the background
 # We log output to a file or stdout (simpler)
 echo "Starting Bookmarks Manager Backend..."
-/usr/local/bin/bookmarks-manager &
+/usr/local/bin/alpaca-bookmarks &
 
 # 2. Wait a moment for the backend to initialize (optional but safe)
 sleep 2

@@ -117,10 +117,10 @@ If you want to build the Docker image yourself (for example, if you have modifie
 
 ```bash
 # Build the image
-docker build -t bookmarks-manager .
+docker build -t alpaca-bookmarks .
 
 # Run your custom image
-docker run -d -p 3000:80 -v $(pwd)/data:/data -e JWT_SECRET="mysecret" bookmarks-manager
+docker run -d -p 3000:80 -v $(pwd)/data:/data -e JWT_SECRET="mysecret" alpaca-bookmarks
 ```
 
 ### Local Development (Non-Docker)

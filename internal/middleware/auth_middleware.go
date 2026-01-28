@@ -8,9 +8,9 @@ import (
 	"net/http"
 	"strings"
 
-	"bookmarks-manager/internal/database"
-	"bookmarks-manager/internal/models"
-	"bookmarks-manager/internal/utils"
+	"alpaca-bookmarks/internal/database"
+	"alpaca-bookmarks/internal/models"
+	"alpaca-bookmarks/internal/utils"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
