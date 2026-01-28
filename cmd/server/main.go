@@ -1,11 +1,11 @@
 package main
 
 import (
-	"bookmarks-manager/internal/database"
-	"bookmarks-manager/internal/handlers"
-	"bookmarks-manager/internal/middleware"
-	"bookmarks-manager/internal/models"
-	"bookmarks-manager/internal/services"
+	"alpaca-bookmarks/internal/database"
+	"alpaca-bookmarks/internal/handlers"
+	"alpaca-bookmarks/internal/middleware"
+	"alpaca-bookmarks/internal/models"
+	"alpaca-bookmarks/internal/services"
 	"fmt"
 	"log"
 	"net/http"

@@ -1,10 +1,10 @@
 package handlers
 
 import (
-	"bookmarks-manager/internal/database"
-	"bookmarks-manager/internal/models"
-	"bookmarks-manager/internal/services"
-	"bookmarks-manager/internal/utils"
+	"alpaca-bookmarks/internal/database"
+	"alpaca-bookmarks/internal/models"
+	"alpaca-bookmarks/internal/services"
+	"alpaca-bookmarks/internal/utils"
 	"net/http"
 
 	"github.com/gin-gonic/gin"

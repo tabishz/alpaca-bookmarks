@@ -1,7 +1,7 @@
 package utils
 
 import (
-	"bookmarks-manager/internal/models"
+	"alpaca-bookmarks/internal/models"
 	"io"
 	"strings"
 
