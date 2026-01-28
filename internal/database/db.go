@@ -1,7 +1,7 @@
 package database
 
 import (
-	"bookmarks-manager/internal/models"
+	"alpaca-bookmarks/internal/models"
 	"log"
 	"os"
 	"path/filepath"
@@ -34,7 +34,7 @@ func Connect() {
 
 	// Auto-Migrate (Create tables based on structs)
 	log.Println("Migrating database schema...")
-	err = DB.AutoMigrate(&models.User{}, &models.Bookmark{}, &models.Tag{})
+	err = DB.AutoMigrate(&models.User{}, &models.Bookmark{}, &models.Tag{}, &models.UserLayout{})
 	if err != nil {
 		log.Fatal("Failed to migrate database:", err)
 	}

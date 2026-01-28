@@ -6,7 +6,7 @@ import { BookmarkCard } from '../components/BookmarkCard';
 import { AddBookmarkModal } from '../components/AddBookmarkModal';
 import { EditBookmarkModal } from '../components/EditBookmarkModal';
 import { SettingsModal } from '../components/SettingsModal';
-import { LayoutGrid, List, Plus, Search, LogOut, Tags, Settings, Upload, Download, Sliders, Shield, X } from 'lucide-react';
+import { LayoutGrid, List, Plus, Search, LogOut, Tags, Settings, Upload, Download, Sliders, Shield, X, Heart } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { useTheme, Theme } from '../hooks/useTheme';
 
@@ -18,6 +18,7 @@ export const Dashboard = () => {
   const [loading, setLoading] = useState(false);
   const [, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [limit, setLimit] = useState(() => {
     const saved = localStorage.getItem('bookmarks_limit');
     return saved ? parseInt(saved) : 50;
@@ -96,6 +97,7 @@ export const Dashboard = () => {
     }
 
     setLoading(true);
+    setFetchError(null); // Reset error on new fetch
     const controller = new AbortController();
     abortControllerRef.current = controller;
 
@@ -123,7 +125,11 @@ export const Dashboard = () => {
 
       setHasMore(newData.length >= limit);
     } catch (err: any) {
-      if (err.name !== 'Canceled') console.error("Failed to load bookmarks");
+      if (err.name !== 'Canceled') {
+        console.error("Failed to load bookmarks", err);
+        setFetchError("Could not connect to the server. Please try again later.");
+        setHasMore(false); // Stop infinite scroll on error
+      }
     } finally {
       if (abortControllerRef.current === controller) setLoading(false);
     }
@@ -258,6 +264,27 @@ export const Dashboard = () => {
       }
     }
   };
+  const handleToggleFavorite = async (bookmark: Bookmark, isFavorite: boolean) => {
+    const favoriteTagName = 'Favorites';
+    let newTags: string[];
+
+    if (isFavorite) {
+      newTags = bookmark.tags.filter(t => t.name !== favoriteTagName).map(t => t.name);
+    } else {
+      newTags = [...bookmark.tags.map(t => t.name), favoriteTagName];
+    }
+
+    try {
+      const response = await api.put(`/bookmarks/${bookmark.id}`, {
+        ...bookmark, // send the whole bookmark back
+        tags: newTags
+      });
+      handleEditSuccess(response.data);
+    } catch (error) {
+      console.error("Failed to toggle favorite status", error);
+      alert("Failed to update favorite status.");
+    }
+  };
   const handleAddSuccess = (newBookmark: Bookmark) => { setBookmarks(prev => [newBookmark, ...prev]); fetchTags(); };
   const handleEditSuccess = (updatedBookmark: Bookmark) => { setBookmarks(prev => prev.map(b => b.id === updatedBookmark.id ? updatedBookmark : b)); fetchTags(); };
   const closeAddModal = () => {
@@ -319,6 +346,11 @@ export const Dashboard = () => {
               }}
             />
           </div>
+
+          <Link to="/favorites" className="flex items-center gap-2 p-2 text-sm font-medium focus:outline-none rounded-md border border-transparent bg-surface text-gray-400 hover:text-white">
+            <Heart size={20} />
+            <span className="hidden md:inline">Favorites</span>
+          </Link>
 
           <div className="relative">
             <div
@@ -453,7 +485,9 @@ export const Dashboard = () => {
         >
           {bookmarks.length === 0 && !loading ? (
             <div className="col-span-full text-center text-gray-500 mt-20">
-              {search || selectedTag ? "No matches found." : "No bookmarks yet. Add one!"}
+              {fetchError ? <span className="text-red-400">{fetchError}</span> :
+               (search || selectedTag ? "No matches found." : "No bookmarks yet. Add one!")
+              }
             </div>
           ) : (
             bookmarks.map(b => (
@@ -464,6 +498,7 @@ export const Dashboard = () => {
                 onDelete={handleDelete}
                 onEdit={setEditingBookmark}
                 onTagClick={handleTagSelect}
+                onToggleFavorite={handleToggleFavorite}
               />
             ))
           )}

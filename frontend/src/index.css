@@ -91,3 +91,7 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--accent-primary);
 }
+
+.drag-handle-active {
+  cursor: move;
+}

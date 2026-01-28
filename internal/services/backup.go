@@ -1,7 +1,7 @@
 package services
 
 import (
-	"bookmarks-manager/internal/database"
+	"alpaca-bookmarks/internal/database"
 	"context"
 	"fmt"
 	"log"

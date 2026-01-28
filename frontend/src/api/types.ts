@@ -8,6 +8,8 @@ export interface Bookmark {
   url: string;
   title: string;
   description: string;
+  icon?: string;
+  icon_last_fetched?: string;
   tags: Tag[];
   created_at: string;
 }

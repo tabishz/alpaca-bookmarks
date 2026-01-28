@@ -1,7 +1,6 @@
-# Bookmarks Manager
-
+# Alpaca Bookmarks
 ## Introduction
-Bookmarks Manager is a self-hosted, multi-user bookmarking application built for speed and simplicity. It allows users to save, organize, and search their links with a clean, responsive interface.
+Alpaca Bookmarks is a self-hosted, multi-user bookmarking application built for speed and simplicity. It allows users to save, organize, and search their links with a clean, responsive interface.
 
 The application is distributed as a single Docker container that includes:
 * **Frontend:** React (Vite) + Tailwind CSS
@@ -117,10 +116,10 @@ If you want to build the Docker image yourself (for example, if you have modifie
 
 ```bash
 # Build the image
-docker build -t bookmarks-manager .
+docker build -t alpaca-bookmarks .
 
 # Run your custom image
-docker run -d -p 3000:80 -v $(pwd)/data:/data -e JWT_SECRET="mysecret" bookmarks-manager
+docker run -d -p 3000:80 -v $(pwd)/data:/data -e JWT_SECRET="mysecret" alpaca-bookmarks
 ```
 
 ### Local Development (Non-Docker)

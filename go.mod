@@ -1,4 +1,4 @@
-module bookmarks-manager
+module alpaca-bookmarks
 
 go 1.25.5
 

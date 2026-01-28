@@ -1,72 +1,84 @@
-# ==========================================
+# =================================================================
 # Stage 1: Build the React Frontend
-# ==========================================
-FROM node:20-alpine AS frontend-builder
+# =================================================================
+FROM node:24-alpine AS frontend-builder
 
 WORKDIR /app
 
-# Copy frontend dependency files
+# Copy only package.json and package-lock.json first to leverage caching
 COPY frontend/package.json frontend/package-lock.json ./
+
+# Install dependencies
 RUN npm ci
 
-# Copy frontend source code
+# Copy the rest of the frontend source code
 COPY frontend/ ./
 
-# Build static assets (Output goes to /app/dist)
+# Build static assets
 RUN npm run build
 
-# ==========================================
+# =================================================================
 # Stage 2: Build the Go Backend
-# ==========================================
-FROM golang:1.25-alpine AS backend-builder
+# =================================================================
+FROM golang:1.25.5-alpine AS backend-builder
 
-# Install GCC (Required for SQLite CGO support)
+# Install build dependencies for CGO (SQLite)
 RUN apk add --no-cache gcc musl-dev
 
 WORKDIR /app
 
-# Copy Go dependency files
+# Copy Go modules and download dependencies first to leverage caching
 COPY go.mod go.sum ./
 RUN go mod download
 
-# Copy Go source code
-COPY . .
+# Copy the rest of the backend source code
+COPY cmd/ ./cmd/
+COPY internal/ ./internal/
 
-# Build the binary (CGO enabled for SQLite)
-RUN CGO_ENABLED=1 GOOS=linux go build -o bookmarks-manager cmd/server/main.go
+# Build the Go binary
+RUN CGO_ENABLED=1 GOOS=linux go build -a -installsuffix cgo -o alpaca-bookmarks cmd/server/main.go
 
-# ==========================================
+# =================================================================
 # Stage 3: Final Production Image
-# ==========================================
+# =================================================================
 FROM alpine:latest
 
-# 1. Install Caddy (Web Server) & Certs
+# 1. Install runtime dependencies
+# Caddy for web server, curl for healthcheck
 RUN apk add --no-cache caddy ca-certificates curl
 
-# 2. Setup Directories
+# 2. Create a non-root user and group
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+
+# 3. Setup Directories and Permissions
 WORKDIR /srv
+# Create data directory and set ownership
+RUN mkdir -p /data && chown -R appuser:appgroup /data
 
-# 3. Copy Go Binary from Stage 2
-COPY --from=backend-builder /app/bookmarks-manager /usr/local/bin/bookmarks-manager
+# 4. Copy Go Binary from backend-builder
+COPY --from=backend-builder --chown=appuser:appgroup /app/alpaca-bookmarks /usr/local/bin/
 
-# 4. Copy React Build from Stage 1 (Real Frontend!)
-# We copy it to /srv/dist, which matches the Caddyfile "root" config
-COPY --from=frontend-builder /app/dist /srv/dist
+# 5. Copy React Build from frontend-builder
+COPY --from=frontend-builder --chown=appuser:appgroup /app/dist /srv/dist
 
-# 5. Copy Configuration Files
-COPY Caddyfile /etc/caddy/Caddyfile
-COPY start.sh /usr/local/bin/start.sh
+# 6. Copy Caddyfile
+COPY --chown=appuser:appgroup Caddyfile /etc/caddy/Caddyfile
 
-# 6. Set Permissions & Environment
-RUN chmod +x /usr/local/bin/start.sh
-
+# 7. Set User and Environment
+USER appuser
 ENV GIN_MODE=release
 ENV DB_PATH=/data/data.sqlite
 ENV PORT=8080
 
-# 7. Expose Ports & Define Volume
+# 8. Expose port, define volume
 EXPOSE 80
 VOLUME ["/data"]
 
-# 8. Start the Application
-CMD ["/usr/local/bin/start.sh"]
+# 9. Add Health Check for the Go backend
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD curl --fail http://localhost:8080/api/v1/ping || exit 1
+
+# 10. Entrypoint
+# This starts the Go backend in the background and Caddy in the foreground
+# Caddy will act as the main process for the container
+CMD ["sh", "-c", "/usr/local/bin/alpaca-bookmarks & caddy run --config /etc/caddy/Caddyfile --adapter caddyfile"]
