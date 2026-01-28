@@ -20,7 +20,7 @@ RUN npm run build
 # =================================================================
 # Stage 2: Build the Go Backend
 # =================================================================
-FROM golang:1.22-alpine AS backend-builder
+FROM golang:1.25.5-alpine AS backend-builder
 
 # Install build dependencies for CGO (SQLite)
 RUN apk add --no-cache gcc musl-dev
