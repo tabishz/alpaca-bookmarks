@@ -6,7 +6,7 @@ import api from '../api/client';
 interface Props {
   bookmark: Bookmark;
   viewMode: 'grid' | 'list';
-  onDelete: (id: number) => void;
+  onDelete: (bookmark: Bookmark) => void;
   onEdit: (bookmark: Bookmark) => void;
   onTagClick: (tagName: string) => void;
   onToggleFavorite: (bookmark: Bookmark, isFavorite: boolean) => void;
@@ -100,7 +100,7 @@ export const BookmarkCard: React.FC<Props> = ({ bookmark, viewMode, onDelete, on
             <Heart size={18} fill={isFavorite ? 'currentColor' : 'none'} />
           </button>
           <button onClick={() => onEdit(bookmark)} className="text-gray-400 hover:text-primary" title="Edit"><Pencil size={18} /></button>
-          <button onClick={() => onDelete(bookmark.id)} className="text-gray-400 hover:text-red-400" title="Delete"><Trash2 size={18} /></button>
+          <button onClick={() => onDelete(bookmark)} className="text-gray-400 hover:text-red-400" title="Delete"><Trash2 size={18} /></button>
         </div>
       </div>
     );
@@ -117,7 +117,7 @@ export const BookmarkCard: React.FC<Props> = ({ bookmark, viewMode, onDelete, on
             <Heart size={18} fill={isFavorite ? 'currentColor' : 'none'} />
           </button>
           <button onClick={() => onEdit(bookmark)} className="text-gray-500 hover:text-primary" title="Edit"><Pencil size={18} /></button>
-          <button onClick={() => onDelete(bookmark.id)} className="text-gray-500 hover:text-red-400" title="Delete"><Trash2 size={18} /></button>
+          <button onClick={() => onDelete(bookmark)} className="text-gray-500 hover:text-red-400" title="Delete"><Trash2 size={18} /></button>
         </div>
       </div>
 
