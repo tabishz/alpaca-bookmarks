@@ -307,10 +307,12 @@ export const Dashboard = () => {
 
   const handleTagSelect = (tag: string) => { setSelectedTag(tag); setIsTagMenuOpen(false); setTagSearch(''); };
   const handleTagInputKeyDown = (e: React.KeyboardEvent) => {
-    const showUntagged = !tagSearch;
-    const totalOptions = visibleTags.length + (showUntagged ? 1 : 0);
     const hasUntaggedOption = !tagSearch;
     const totalOptions = visibleTags.length + (hasUntaggedOption ? 1 : 0);
+    const hasUntaggedOption = !tagSearch;
+    const totalOptions = visibleTags.length + (hasUntaggedOption ? 1 : 0);
+
+    if (totalOptions === 0) return;
 
     if (totalOptions === 0) return;
 
@@ -325,7 +327,13 @@ export const Dashboard = () => {
 
       let selected;
       if (hasUntaggedOption) {
+
+      let selected;
+      if (hasUntaggedOption) {
         if (highlightedTagIndex === 0) {
+          selected = 'Untagged';
+        } else {
+          selected = visibleTags[highlightedTagIndex - 1];
           selected = 'Untagged';
         } else {
           selected = visibleTags[highlightedTagIndex - 1];
