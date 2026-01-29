@@ -6,7 +6,8 @@ import { BookmarkCard } from '../components/BookmarkCard';
 import { AddBookmarkModal } from '../components/AddBookmarkModal';
 import { EditBookmarkModal } from '../components/EditBookmarkModal';
 import { SettingsModal } from '../components/SettingsModal';
-import { LayoutGrid, List, Plus, Search, LogOut, Tags, Settings, Upload, Download, Sliders, Shield, X, Heart } from 'lucide-react';
+import { KeyboardShortcutsModal } from '../components/KeyboardShortcutsModal';
+import { LayoutGrid, List, Plus, Search, LogOut, Tags, Settings, Upload, Download, Sliders, Shield, X, Heart, Info } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { useTheme, Theme } from '../hooks/useTheme';
 
@@ -31,6 +32,7 @@ export const Dashboard = () => {
 
   const [isSettingsMenuOpen, setIsSettingsMenuOpen] = useState(false);
   const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
+  const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingBookmark, setEditingBookmark] = useState<Bookmark | null>(null);
   const [droppedData, setDroppedData] = useState<{ url: string; title?: string } | null>(null);
@@ -425,6 +427,15 @@ export const Dashboard = () => {
 
           <div className="relative">
             <button
+              onClick={(e) => { e.stopPropagation(); setIsInfoModalOpen(true); }}
+              className="p-2 rounded-md text-gray-400 hover:text-white transition-colors"
+            >
+              <Info size={20} />
+            </button>
+          </div>
+
+          <div className="relative">
+            <button
               onClick={(e) => { e.stopPropagation(); setIsSettingsMenuOpen(!isSettingsMenuOpen); setIsTagMenuOpen(false); }}
               className={`p-2 rounded-md transition-colors ${isSettingsMenuOpen ? 'bg-surface text-white' : 'text-gray-400 hover:text-white'}`}
             >
@@ -522,6 +533,7 @@ export const Dashboard = () => {
         onTagsUpdate={() => fetchBookmarks(1, true)} // Refresh bookmarks if tags change
         initialView={settingsStartView}
       />
+      <KeyboardShortcutsModal isOpen={isInfoModalOpen} onClose={() => setIsInfoModalOpen(false)} />
     </div>
   );
 };
