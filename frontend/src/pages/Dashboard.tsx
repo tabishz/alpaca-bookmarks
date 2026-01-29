@@ -7,9 +7,17 @@ import { AddBookmarkModal } from '../components/AddBookmarkModal';
 import { EditBookmarkModal } from '../components/EditBookmarkModal';
 import { SettingsModal } from '../components/SettingsModal';
 import { KeyboardShortcutsModal } from '../components/KeyboardShortcutsModal';
+import { UndoToast } from '../components/UndoToast';
 import { LayoutGrid, List, Plus, Search, LogOut, Tags, Settings, Upload, Download, Sliders, Shield, X, Heart, Info } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { useTheme, Theme } from '../hooks/useTheme';
+
+interface UndoToastData {
+  id: string;
+  message: string;
+  bookmark: Bookmark;
+  index: number;
+}
 
 export const Dashboard = () => {
   const { theme, setTheme } = useTheme();
@@ -43,6 +51,10 @@ export const Dashboard = () => {
   const [totalCount, setTotalCount] = useState(0);
   const [settingsStartView, setSettingsStartView] = useState<'settings' | 'tags'>('settings');
   const [highlightedTagIndex, setHighlightedTagIndex] = useState(0);
+  
+  const [undoToasts, setUndoToasts] = useState<UndoToastData[]>([]);
+  const undoTimersRef = useRef<{ [key: string]: number }>({});
+
 
   const searchInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -72,6 +84,13 @@ export const Dashboard = () => {
       setTheme(user.theme as Theme);
     }
   }, [user, setTheme]);
+
+  useEffect(() => {
+    // Cleanup timers on unmount
+    return () => {
+      Object.values(undoTimersRef.current).forEach(clearTimeout);
+    };
+  }, []);
 
   const setTagInputFocus = useCallback((element: HTMLInputElement) => {
     if (element) {
@@ -235,10 +254,55 @@ export const Dashboard = () => {
     setIsSettingsMenuOpen(false);
     try { const response = await api.get('/system/export', { responseType: 'blob' }); const url = window.URL.createObjectURL(new Blob([response.data])); const link = document.createElement('a'); link.href = url; link.setAttribute('download', 'bookmarks.html'); document.body.appendChild(link); link.click(); link.remove(); } catch (error) { alert("Failed"); }
   };
-  const handleDelete = async (id: number) => {
-    if (!confirm("Are you sure?")) return;
-    try { await api.delete(`/bookmarks/${id}`); setBookmarks(prev => prev.filter(b => b.id !== id)); } catch (error) { alert("Failed"); }
+  
+  const removeToast = (toastId: string) => {
+    setUndoToasts(currentToasts => currentToasts.filter(t => t.id !== toastId));
+    if (undoTimersRef.current[toastId]) {
+      clearTimeout(undoTimersRef.current[toastId]);
+      delete undoTimersRef.current[toastId];
+    }
   };
+  
+  const handleUndoDelete = (toastId: string) => {
+    const toast = undoToasts.find(t => t.id === toastId);
+    if (toast) {
+      setBookmarks(prev => {
+        const newBookmarks = [...prev];
+        newBookmarks.splice(toast.index, 0, toast.bookmark);
+        return newBookmarks;
+      });
+      removeToast(toastId);
+    }
+  };
+  
+  const handleDelete = (bookmarkToDelete: Bookmark) => {
+    const index = bookmarks.findIndex(b => b.id === bookmarkToDelete.id);
+    if (index === -1) return;
+  
+    setBookmarks(prev => prev.filter(b => b.id !== bookmarkToDelete.id));
+  
+    const toastId = `undo-${Date.now()}`;
+    const newToast: UndoToastData = {
+      id: toastId,
+      message: `Deleted bookmark "${bookmarkToDelete.title || 'Untitled'}"`,
+      bookmark: bookmarkToDelete,
+      index: index,
+    };
+    setUndoToasts(prev => [...prev, newToast]);
+  
+    const timer = window.setTimeout(() => {
+      api.delete(`/bookmarks/${bookmarkToDelete.id}`).catch(error => {
+        console.error("Failed to permanently delete bookmark", error);
+        // Optionally, inform user and restore bookmark
+        handleUndoDelete(toastId); 
+        alert("Error: Could not delete bookmark from server.");
+      });
+      removeToast(toastId);
+    }, 10000);
+  
+    undoTimersRef.current[toastId] = timer;
+  };
+
   const handleTagSelect = (tag: string) => { setSelectedTag(tag); setIsTagMenuOpen(false); setTagSearch(''); };
   const handleTagInputKeyDown = (e: React.KeyboardEvent) => {
     const hasUntaggedOption = !tagSearch;
@@ -556,6 +620,20 @@ export const Dashboard = () => {
         initialView={settingsStartView}
       />
       <KeyboardShortcutsModal isOpen={isInfoModalOpen} onClose={() => setIsInfoModalOpen(false)} />
+      
+      {/* Undo Toasts Container */}
+      <div className="fixed bottom-10 right-10 z-50 flex flex-col gap-3">
+        {undoToasts.map(toast => (
+          <UndoToast
+            key={toast.id}
+            id={toast.id}
+            message={toast.message}
+            duration={10000}
+            onUndo={() => handleUndoDelete(toast.id)}
+            onDismiss={() => removeToast(toast.id)}
+          />
+        ))}
+      </div>
     </div>
   );
 };
