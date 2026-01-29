@@ -241,7 +241,10 @@ export const Dashboard = () => {
   };
   const handleTagSelect = (tag: string) => { setSelectedTag(tag); setIsTagMenuOpen(false); setTagSearch(''); };
   const handleTagInputKeyDown = (e: React.KeyboardEvent) => {
-    const totalOptions = visibleTags.length + 1; // +1 for "Without Tags"
+    const hasUntaggedOption = !tagSearch;
+    const totalOptions = visibleTags.length + (hasUntaggedOption ? 1 : 0);
+
+    if (totalOptions === 0) return;
 
     if (e.key === 'ArrowDown') {
       e.preventDefault();
@@ -251,10 +254,20 @@ export const Dashboard = () => {
       setHighlightedTagIndex(prev => (prev - 1 + totalOptions) % totalOptions);
     } else if ((e.key === 'Tab' || e.key === 'Enter')) {
       e.preventDefault();
-      if (highlightedTagIndex === 0) {
-        handleTagSelect('Untagged');
-      } else if (visibleTags.length > 0) {
-        handleTagSelect(visibleTags[highlightedTagIndex - 1]);
+
+      let selected;
+      if (hasUntaggedOption) {
+        if (highlightedTagIndex === 0) {
+          selected = 'Untagged';
+        } else {
+          selected = visibleTags[highlightedTagIndex - 1];
+        }
+      } else {
+        selected = visibleTags[highlightedTagIndex];
+      }
+
+      if (selected) {
+        handleTagSelect(selected);
       }
     }
   };
@@ -393,28 +406,37 @@ export const Dashboard = () => {
                     onKeyDown={handleTagInputKeyDown}
                   />
                 </div>
-                {/* UNTAGGED OPTION */}
-                <button
-                  ref={highlightedTagIndex === 0 ? highlightedTagRef : null}
-                  onClick={() => { setSelectedTag('Untagged'); setIsTagMenuOpen(false); }}
-                  className={`block w-full text-left px-4 py-2 italic border-b border-gray-700 transition-colors ${highlightedTagIndex === 0 ? 'bg-primary text-white' : 'text-yellow-400 hover:bg-gray-700'}`}
-                >
-                  Without Tags
-                </button>
-                {/* ... Tag List ... */}
+
+                {/* UNTAGGED OPTION (conditional) */}
+                {!tagSearch && (
+                  <button
+                    ref={highlightedTagIndex === 0 ? highlightedTagRef : null}
+                    onClick={() => handleTagSelect('Untagged')}
+                    className={`block w-full text-left px-4 py-2 italic border-b border-gray-700 transition-colors ${highlightedTagIndex === 0 ? 'bg-primary text-white' : 'text-yellow-400 hover:bg-gray-700'}`}
+                  >
+                    Without Tags
+                  </button>
+                )}
+
+                {/* TAGS LIST */}
                 <div className="overflow-y-auto max-h-60">
-                  {visibleTags.length === 0 ? <div className="p-3 text-center text-sm text-gray-500">No matching tags</div> :
-                    visibleTags.map((tag, index) => (
-                      <button
-                        key={tag}
-                        ref={highlightedTagIndex === index + 1 ? highlightedTagRef : null}
-                        onClick={() => { setSelectedTag(tag); setIsTagMenuOpen(false); }}
-                        className={`w-full text-left px-4 py-2 text-sm transition-colors ${selectedTag === tag ? 'bg-primary/20 text-primary' : 'text-text'} ${highlightedTagIndex === index + 1 ? 'bg-primary text-white' : 'hover:bg-primary hover:text-white'}`}
-                      >
-                        #{tag}
-                      </button>
-                    ))
-                  }
+                  {visibleTags.length > 0 ? (
+                    visibleTags.map((tag, index) => {
+                      const itemIndex = !tagSearch ? index + 1 : index;
+                      return (
+                        <button
+                          key={tag}
+                          ref={highlightedTagIndex === itemIndex ? highlightedTagRef : null}
+                          onClick={() => handleTagSelect(tag)}
+                          className={`w-full text-left px-4 py-2 text-sm transition-colors ${selectedTag === tag ? 'bg-primary/20 text-primary' : 'text-text'} ${highlightedTagIndex === itemIndex ? 'bg-primary text-white' : 'hover:bg-primary hover:text-white'}`}
+                        >
+                          #{tag}
+                        </button>
+                      );
+                    })
+                  ) : (
+                    tagSearch && <div className="p-3 text-center text-sm text-gray-500">No matching tags</div>
+                  )}
                 </div>
               </div>
             )}
