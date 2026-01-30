@@ -38,7 +38,7 @@ const saveLayoutsToServer = async (layouts: Layouts) => {
 };
 
 const breakpoints = { lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 };
-const cols = { lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 };
+const cols = { lg: 12, md: 10, sm: 6, xs: 4, xxs: 1 };
 
 export const FavoritesDashboard = () => {
   useTheme();
@@ -90,11 +90,14 @@ export const FavoritesDashboard = () => {
                     return { ...existing, static: true };
                 }
                 const numCols = cols[bp as keyof typeof cols];
+                const w = numCols > 1 ? 2 : 1;
+                const y = numCols > 1 ? Math.floor(i / (numCols / w)) : i;
+
                 return {
                     i: String(fav.id),
-                    x: (i * 2) % numCols,
-                    y: Math.floor(i / (numCols / 2)),
-                    w: 2,
+                    x: (i * w) % numCols,
+                    y,
+                    w,
                     h: 1,
                     minW: 1,
                     minH: 1,
