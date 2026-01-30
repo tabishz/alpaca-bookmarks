@@ -5,6 +5,7 @@ import (
 	"alpaca-bookmarks/internal/models"
 	"alpaca-bookmarks/internal/utils"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
@@ -14,6 +15,7 @@ type AuthInput struct {
 	Username string `json:"username" binding:"required"`
 	Password string `json:"password" binding:"required"`
 	Role     string `json:"role" gorm:"default:'user'"`
+	RememberMe bool `json:"rememberMe"`
 }
 
 // POST /api/v1/auth/register
@@ -68,8 +70,16 @@ func Login(c *gin.Context) {
 		return
 	}
 
+	// Determine token lifetime
+	var tokenLifetime time.Duration
+	if input.RememberMe {
+		tokenLifetime = time.Hour * 24 * 30 // 30 days
+	} else {
+		tokenLifetime = time.Hour * 24      // 24 hours
+	}
+
 	// Generate Token
-	token, err := utils.GenerateToken(user.ID)
+	token, err := utils.GenerateToken(user.ID, tokenLifetime)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
 		return
