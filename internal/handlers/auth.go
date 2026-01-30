@@ -99,7 +99,6 @@ func UpdatePreferences(c *gin.Context) {
 		return
 	}
 
-	// Update the specific field
 	if err := database.DB.Model(&models.User{}).Where("id = ?", userID).Update("theme", input.Theme).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update preferences"})
 		return
@@ -135,9 +134,13 @@ func UpdatePassword(c *gin.Context) {
 	}
 
 	// Hash new password
-	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(input.NewPassword), bcrypt.DefaultCost)
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(input.NewPassword), bcrypt.DefaultCost)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to hash new password"})
+		return
+	}
 
-	// Save
+	// Save to Database
 	if err := database.DB.Model(&user).Update("password", string(hashedPassword)).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update password"})
 		return
