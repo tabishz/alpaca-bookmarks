@@ -16,7 +16,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-const Version = "0.1.1-alpha"
+const Version = "0.1.5-beta"
 
 // Helper function to create initial admin
 func createDefaultAdmin() {
