@@ -1,0 +1,30 @@
+version: "3.8"
+
+services:
+  alpaca-bookmarks:
+    build: .
+    container_name: alpaca-bookmarks
+    ports:
+      # Map host port 8080 to container port 80 (which Caddy listens on)
+      - "3014:80"
+    volumes:
+      # Use a named volume to persist the SQLite database
+      - ./data:/data
+      - ./Caddyfile:/etc/caddy/Caddyfile
+    restart: unless-stopped
+    environment:
+      - TZ=America/Edmonton
+      - JWT_SECRET=someSecret
+    healthcheck:
+      # This healthcheck pings the Go backend directly, which runs on port 8080 inside the container.
+      # It mirrors the healthcheck defined in the Dockerfile.
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/api/v1/ping"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "1m"
+        max-file: "3"
