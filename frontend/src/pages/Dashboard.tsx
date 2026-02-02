@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import api from '../api/client';
 import { Bookmark } from '../api/types';
 import { BookmarkCard } from '../components/BookmarkCard';
@@ -22,6 +22,7 @@ interface UndoToastData {
 export const Dashboard = () => {
   const { theme, setTheme } = useTheme();
   const { user, updateUser } = useAuthStore();
+  const navigate = useNavigate();
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
   const [allTags, setAllTags] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
@@ -189,23 +190,40 @@ export const Dashboard = () => {
       const target = e.target as HTMLElement;
       const isTyping = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA';
 
-      if (e.key === '/' && !isTyping) {
-        e.preventDefault();
-        searchInputRef.current?.focus();
-      } else if (e.key === 't' && !isTyping) {
-        e.preventDefault();
-        setIsTagMenuOpen(prev => !prev);
-      } else if (e.key === 'Escape') {
-        if (isTagMenuOpen) { e.preventDefault(); setIsTagMenuOpen(false); }
-        else if (isSettingsMenuOpen) { e.preventDefault(); setIsSettingsMenuOpen(false); }
-      } else if (e.key === 'Backspace' && !isTyping && selectedTag) {
-        e.preventDefault();
-        setSelectedTag('');
+      switch (e.key) {
+        case '/':
+          if (!isTyping) {
+            e.preventDefault();
+            searchInputRef.current?.focus();
+          }
+          break;
+        case 't':
+          if (!isTyping) {
+            e.preventDefault();
+            setIsTagMenuOpen(prev => !prev);
+          }
+          break;
+        case 'f':
+          if (!isTyping) {
+            e.preventDefault();
+            navigate('/favorites');
+          }
+          break;
+        case 'Escape':
+          if (isTagMenuOpen) { e.preventDefault(); setIsTagMenuOpen(false); }
+          else if (isSettingsMenuOpen) { e.preventDefault(); setIsSettingsMenuOpen(false); }
+          break;
+        case 'Backspace':
+          if (!isTyping && selectedTag) {
+            e.preventDefault();
+            setSelectedTag('');
+          }
+          break;
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedTag, isTagMenuOpen, isSettingsMenuOpen]);
+  }, [selectedTag, isTagMenuOpen, isSettingsMenuOpen, navigate]);
 
   // Reset tag search when menu opens
   useEffect(() => {

@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import api from '../api/client';
 import { Bookmark } from '../api/types';
 import { Responsive as ResponsiveGridLayout, type Layout, type LayoutItem } from 'react-grid-layout';
@@ -42,6 +42,7 @@ const cols = { lg: 12, md: 10, sm: 6, xs: 4, xxs: 1 };
 
 export const FavoritesDashboard = () => {
   useTheme();
+  const navigate = useNavigate();
   const [favorites, setFavorites] = useState<Bookmark[]>([]);
   const [loading, setLoading] = useState(true);
   const [layouts, setLayouts] = useState<Layouts>({});
@@ -116,6 +117,23 @@ export const FavoritesDashboard = () => {
 
     fetchFavoritesAndLayouts();
   }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      const isTyping = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA';
+
+      if (e.key === 'Backspace' && !isTyping) {
+        e.preventDefault();
+        navigate('/');
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [navigate]);
 
   const onLayoutChange = useCallback((_layout: Layout, allLayouts: Layouts) => {
     layoutChanges.current = allLayouts;
