@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, User, Lock, Eye, EyeOff } from 'lucide-react';
 import api from '../api/client';
+import { AxiosError } from 'axios';
 
 interface Props {
   isOpen: boolean;
@@ -41,8 +42,9 @@ export const AddUserModal: React.FC<Props> = ({ isOpen, onClose, onSuccess }) =>
       await api.post('/admin/users', { username, password, role: 'user' });
       onSuccess();
       onClose();
-    } catch (err: any) {
-      setError(err.response?.data?.error || "Failed to create user");
+    } catch (error: unknown) {
+      const axiosError = error as AxiosError<{ error: string }>;
+      setError(axiosError.response?.data?.error || "Failed to create user");
     } finally {
       setLoading(false);
     }

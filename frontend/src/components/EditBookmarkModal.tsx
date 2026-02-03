@@ -43,7 +43,7 @@ export const EditBookmarkModal: React.FC<Props> = ({ bookmark, onClose, onSucces
 
       onSuccess(res.data);
       onClose();
-    } catch (error) {
+    } catch {
       alert("Failed to update bookmark");
     } finally {
       setLoading(false);

@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import api from '../api/client';
+import { AxiosError } from 'axios';
 import { Trash2, Key, UserPlus, Shield, User as UserIcon, ArrowLeft, ChevronDown, Check } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
@@ -67,7 +68,7 @@ export const Admin = () => {
     try {
       await api.delete(`/admin/users/${id}`);
       setUsers(prev => prev.filter(u => u.ID !== id));
-    } catch (error) {
+    } catch {
       alert("Failed to delete");
     }
   };
@@ -78,7 +79,7 @@ export const Admin = () => {
     try {
       await api.patch(`/admin/users/${id}/reset-password`, { password: newPass });
       alert("Password reset successfully");
-    } catch (error) {
+    } catch {
       alert("Failed to reset password");
     }
   };
@@ -93,8 +94,9 @@ export const Admin = () => {
         u.ID === id ? { ...u, role: newRole } : u
       ));
       setOpenMenuId(null); // Close menu
-    } catch (error: any) {
-      alert(error.response?.data?.error || "Failed to update role");
+    } catch (error: unknown) {
+      const axiosError = error as AxiosError<{ error: string }>;
+      alert(axiosError.response?.data?.error || "Failed to update role");
     }
   };
 
