@@ -143,6 +143,12 @@ export const Dashboard = () => {
             navigate('/favorites');
           }
           break;
+        case 'i':
+          if (!isTyping) {
+            e.preventDefault();
+            isInfoModalOpen ? setIsInfoModalOpen(false) : setIsInfoModalOpen(true);
+          }
+          break;
         case 'Escape':
           if (isTagMenuOpen) { e.preventDefault(); setIsTagMenuOpen(false); }
           else if (isSettingsMenuOpen) { e.preventDefault(); setIsSettingsMenuOpen(false); }

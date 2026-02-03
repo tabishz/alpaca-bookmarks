@@ -3,11 +3,12 @@ import { Link, useNavigate } from 'react-router-dom';
 import api from '../api/client';
 import { Bookmark } from '../api/types';
 import { Responsive as ResponsiveGridLayout, type Layout, type LayoutItem } from 'react-grid-layout';
-import { Home, Edit, Save } from 'lucide-react';
+import { Home, Edit, Save, Info } from 'lucide-react';
 import { FavoriteBookmarkCard } from '../components/FavoriteBookmarkCard';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 import { useTheme } from '../hooks/useTheme';
+import { KeyboardShortcutsModal } from '../components/KeyboardShortcutsModal';
 
 type Layouts = Partial<Record<string, readonly LayoutItem[]>>;
 
@@ -51,22 +52,25 @@ export const FavoritesDashboard = () => {
   const gridRef = useRef<HTMLDivElement>(null);
   const [gridWidth, setGridWidth] = useState(1200);
   const layoutChanges = useRef<Layouts | null>(null);
+  const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
 
   useEffect(() => {
+    const grid = gridRef.current;
     const observer = new ResizeObserver(entries => {
       if (entries[0]) {
         setGridWidth(entries[0].contentRect.width);
       }
     });
 
-    if (gridRef.current) {
-      observer.observe(gridRef.current);
+    if (grid) {
+      observer.observe(grid);
     }
 
     return () => {
-      if (gridRef.current) {
-        observer.unobserve(gridRef.current);
+      if (grid) {
+        observer.unobserve(grid);
       }
+      observer.disconnect();
     };
   }, []);
 
@@ -123,9 +127,16 @@ export const FavoritesDashboard = () => {
       const target = e.target as HTMLElement;
       const isTyping = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA';
 
-      if (e.key === 'Backspace' && !isTyping) {
+      if (['Backspace', 'f', 'h'].includes(e.key) && !isTyping) {
         e.preventDefault();
         navigate('/');
+      }
+      if (e.key === 'Escape' && !isTyping) {
+        if (isInfoModalOpen) { setIsInfoModalOpen(false); }
+      }
+      if (e.key === 'i' && !isTyping) {
+        if (isInfoModalOpen) { setIsInfoModalOpen(false); }
+        else { setIsInfoModalOpen(true); }
       }
     };
 
@@ -133,7 +144,7 @@ export const FavoritesDashboard = () => {
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [navigate]);
+  }, [navigate, isInfoModalOpen]);
 
   const onLayoutChange = useCallback((_layout: Layout, allLayouts: Layouts) => {
     layoutChanges.current = allLayouts;
@@ -190,6 +201,7 @@ export const FavoritesDashboard = () => {
             <Home size={20} />
             <span>Dashboard</span>
           </Link>
+
           {isEditMode ? (
             <button onClick={handleSave} className="flex items-center gap-2 rounded-md bg-green-500 px-4 py-2 text-white hover:bg-green-600 transition-colors">
               <Save size={20} />
@@ -201,6 +213,14 @@ export const FavoritesDashboard = () => {
               <span>Edit</span>
             </button>
           )}
+          <div className="relative">
+            <button
+              onClick={(e) => { e.stopPropagation(); setIsInfoModalOpen(true); }}
+              className="p-2 rounded-md text-gray-400 hover:text-white transition-colors"
+            >
+              <Info size={28} />
+            </button>
+          </div>
         </div>
       </header>
       {loading ? (
@@ -234,6 +254,7 @@ export const FavoritesDashboard = () => {
           </ResponsiveGridLayout>
         </div>
       )}
+      <KeyboardShortcutsModal isOpen={isInfoModalOpen} onClose={() => setIsInfoModalOpen(false)} />
     </div>
   );
 };

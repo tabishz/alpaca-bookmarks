@@ -13,7 +13,7 @@ interface DashboardHeaderProps {
   setTagSearch: (val: string) => void;
   viewMode: 'grid' | 'list';
   setViewMode: (val: 'grid' | 'list') => void;
-  
+
   // Tag Menu
   isTagMenuOpen: boolean;
   setIsTagMenuOpen: (val: boolean) => void;
@@ -35,7 +35,7 @@ interface DashboardHeaderProps {
   handleExport: () => void;
   logout: () => void;
   user: User | null;
-  
+
   searchInputRef: React.RefObject<HTMLInputElement | null>;
 }
 
@@ -215,7 +215,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
                 onClick={(e) => { e.stopPropagation(); setIsInfoModalOpen(true); }}
                 className="p-2 rounded-md text-gray-400 hover:text-white transition-colors"
               >
-                <Info size={20} />
+                <Info size={24} />
               </button>
             </div>
 

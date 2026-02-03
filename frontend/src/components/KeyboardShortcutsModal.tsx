@@ -12,6 +12,7 @@ const shortcuts = [
     { key: 'esc', description: 'Close modals or menus' },
     { key: 'backspace', description: 'Clear selected tag' },
     { key: 'f', description: 'Favorites Dashboard' },
+    { key: 'i', description: 'Opens (this) shortcuts list' },
 
 ];
 
