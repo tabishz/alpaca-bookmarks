@@ -1,7 +1,6 @@
-# Bookmarks Manager
-
+# Alpaca Bookmarks
 ## Introduction
-Bookmarks Manager is a self-hosted, multi-user bookmarking application built for speed and simplicity. It allows users to save, organize, and search their links with a clean, responsive interface.
+Alpaca Bookmarks is a self-hosted, multi-user bookmarking application built for speed and simplicity. It allows users to save, organize, and search their links with a clean, responsive interface.
 
 The application is distributed as a single Docker container that includes:
 * **Frontend:** React (Vite) + Tailwind CSS

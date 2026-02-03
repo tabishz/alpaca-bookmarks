@@ -6,6 +6,7 @@ import { useAuthStore } from '../store/authStore';
 export const Login = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(false); // Added state for rememberMe
   const [error, setError] = useState('');
   const navigate = useNavigate();
   const login = useAuthStore((state) => state.setToken);
@@ -13,11 +14,11 @@ export const Login = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const res = await api.post('/auth/login', { username, password });
+      const res = await api.post('/auth/login', { username, password, rememberMe });
       login(res.data.token, res.data.user);
       navigate('/'); // Redirect to dashboard
-    } catch (err: any) {
-      setError('Invalid credentials');
+    } catch {
+      setError("Invalid credentials");
     }
   };
 
@@ -45,6 +46,17 @@ export const Login = () => {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
+        </div>
+
+        <div className="mb-6 flex items-center">
+          <input
+            type="checkbox"
+            id="rememberMe"
+            className="mr-2"
+            checked={rememberMe}
+            onChange={(e) => setRememberMe(e.target.checked)}
+          />
+          <label htmlFor="rememberMe" className="text-sm">Remember Me</label>
         </div>
 
         <button className="w-full rounded bg-primary py-2 font-bold text-white hover:opacity-90">

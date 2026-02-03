@@ -26,11 +26,11 @@ func getSecret() string {
 // Define a custom error for invalid tokens
 var ErrInvalidToken = errors.New("invalid token")
 
-// GenerateToken creates a JWT valid for 24 hours
-func GenerateToken(userID uint) (string, error) {
+// GenerateToken creates a JWT valid for a specified duration
+func GenerateToken(userID uint, lifetime time.Duration) (string, error) {
 	claims := jwt.MapClaims{
 		"user_id": userID,
-		"exp": time.Now().Add(time.Hour * 24).Unix(),
+		"exp": time.Now().Add(lifetime).Unix(),
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)

@@ -49,7 +49,7 @@ export const AddBookmarkModal: React.FC<Props> = ({ isOpen, onClose, onSuccess, 
 
       onSuccess(res.data);
       onClose();
-    } catch (error) {
+    } catch {
       alert("Failed to save bookmark");
     } finally {
       setLoading(false);
