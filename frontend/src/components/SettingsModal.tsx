@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Save, Palette, Lock, Check, AlertCircle, Tags, Trash2, ArrowLeft } from 'lucide-react';
 import { Theme } from '../hooks/useTheme';
 import api from '../api/client';
+import { AxiosError } from 'axios';
 
 interface Props {
   isOpen: boolean;
@@ -39,7 +40,7 @@ export const SettingsModal: React.FC<Props> = ({ isOpen, onClose, currentLimit, 
     try {
       const res = await api.get<TagObj[]>('/tags');
       setTagList(res.data);
-    } catch (e) {
+    } catch {
       console.error("Failed to load tags");
     } finally {
       setIsLoadingTags(false);
@@ -76,7 +77,7 @@ export const SettingsModal: React.FC<Props> = ({ isOpen, onClose, currentLimit, 
       await api.delete(`/tags/${id}`);
       setTagList(prev => prev.filter(t => t.id !== id));
       if (onTagsUpdate) onTagsUpdate();
-    } catch (e) {
+    } catch {
       alert("Failed to delete tag");
     }
   };
@@ -93,8 +94,9 @@ export const SettingsModal: React.FC<Props> = ({ isOpen, onClose, currentLimit, 
       setPassMessage({ type: 'success', text: 'Password updated successfully' });
       setCurrentPass(''); setNewPass(''); setConfirmPass('');
       setTimeout(() => setShowPasswordForm(false), 2000);
-    } catch (error: any) {
-      setPassMessage({ type: 'error', text: error.response?.data?.error || 'Failed to update password' });
+    } catch (error: unknown) {
+      const axiosError = error as AxiosError<{ error: string }>;
+      setPassMessage({ type: 'error', text: axiosError.response?.data?.error || 'Failed to update password' });
     }
   };
 
@@ -251,7 +253,7 @@ export const SettingsModal: React.FC<Props> = ({ isOpen, onClose, currentLimit, 
                   <div key={tag.id} className="flex items-center justify-between bg-black/20 p-3 rounded-lg border border-gray-700/50 hover:border-gray-600">
                     <span className="font-medium flex items-center gap-2">
                       <Tags size={14} className="text-gray-500" />
-                      {tag.name || (tag as any).Name}
+                      {tag.name}
                     </span>
                     <button
                       onClick={() => handleDeleteTag(tag.id)}

@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import api from '../api/client';
 import { Bookmark } from '../api/types';
 import { BookmarkCard } from '../components/BookmarkCard';
@@ -8,9 +8,12 @@ import { EditBookmarkModal } from '../components/EditBookmarkModal';
 import { SettingsModal } from '../components/SettingsModal';
 import { KeyboardShortcutsModal } from '../components/KeyboardShortcutsModal';
 import { UndoToast } from '../components/UndoToast';
-import { LayoutGrid, List, Plus, Search, LogOut, Tags, Settings, Upload, Download, Sliders, Shield, X, Heart, Info } from 'lucide-react';
+import { DashboardHeader } from '../components/DashboardHeader';
+import { Plus } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { useTheme, Theme } from '../hooks/useTheme';
+import { useBookmarks } from '../hooks/useBookmarks';
+import { useTags } from '../hooks/useTags';
 
 interface UndoToastData {
   id: string;
@@ -21,14 +24,10 @@ interface UndoToastData {
 
 export const Dashboard = () => {
   const { theme, setTheme } = useTheme();
-  const { user, updateUser } = useAuthStore();
+  const { user, updateUser, logout } = useAuthStore();
   const navigate = useNavigate();
-  const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
-  const [allTags, setAllTags] = useState<string[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
-  const [fetchError, setFetchError] = useState<string | null>(null);
+
+  // Local State
   const [limit, setLimit] = useState(() => {
     const saved = localStorage.getItem('bookmarks_limit');
     return saved ? parseInt(saved) : 50;
@@ -49,125 +48,59 @@ export const Dashboard = () => {
     const saved = localStorage.getItem('tile_size');
     return saved ? parseInt(saved) : 280;
   });
-  const [totalCount, setTotalCount] = useState(0);
   const [settingsStartView, setSettingsStartView] = useState<'settings' | 'tags'>('settings');
   const [highlightedTagIndex, setHighlightedTagIndex] = useState(0);
 
   const [undoToasts, setUndoToasts] = useState<UndoToastData[]>([]);
   const undoTimersRef = useRef<{ [key: string]: number }>({});
 
-
   const searchInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const observerTarget = useRef<HTMLDivElement>(null);
-  const abortControllerRef = useRef<AbortController | null>(null);
   const highlightedTagRef = useRef<HTMLButtonElement>(null);
 
-  const logout = useAuthStore(state => state.logout);
+  // Custom Hooks
+  const {
+    bookmarks,
+    setBookmarks,
+    loading,
+    hasMore,
+    fetchError,
+    totalCount,
+    fetchBookmarks,
+    setPage
+  } = useBookmarks({ limit, search, selectedTag });
 
+  const { allTags, fetchTags } = useTags();
+
+  // Effects
   useEffect(() => {
-    // Scroll highlighted tag into view
     if (highlightedTagRef.current) {
       highlightedTagRef.current.scrollIntoView({ block: 'nearest' });
     }
   }, [highlightedTagIndex]);
 
   useEffect(() => {
-    // Reset highlighted index when menu opens or search changes
     if (isTagMenuOpen) {
       setHighlightedTagIndex(0);
+      setTagSearch('');
     }
-  }, [isTagMenuOpen, tagSearch]);
+  }, [isTagMenuOpen]);
 
   useEffect(() => {
-    // If user has a saved theme in DB that differs from local, sync it
     if (user && user.theme && user.theme !== theme) {
       setTheme(user.theme as Theme);
     }
-  }, [user, setTheme]);
+  }, [user, setTheme, theme]);
 
   useEffect(() => {
-    // Cleanup timers on unmount
+    const timers = undoTimersRef.current;
     return () => {
-      Object.values(undoTimersRef.current).forEach(clearTimeout);
+      Object.values(timers).forEach(clearTimeout);
     };
   }, []);
 
-  const setTagInputFocus = useCallback((element: HTMLInputElement) => {
-    if (element) {
-      // Ensure the UI is fully loaded
-      requestAnimationFrame(() => element.focus());
-    }
-  }, []);
-
-  // Fetch Tags
-  const fetchTags = async () => {
-    try {
-      const res = await api.get<string[]>('/tags');
-      const tagNames = res.data.map((t: any) => t.name);
-      setAllTags(tagNames);
-    } catch (e) { console.error("Failed to load tags"); }
-  };
-  useEffect(() => { fetchTags(); }, []);
-
-  // Fetch Bookmarks (with Abort)
-  const fetchBookmarks = useCallback(async (pageNum: number, isRefresh = false) => {
-    if (isRefresh) {
-      if (abortControllerRef.current) abortControllerRef.current.abort();
-    } else {
-      if (loading) return;
-    }
-
-    setLoading(true);
-    setFetchError(null); // Reset error on new fetch
-    const controller = new AbortController();
-    abortControllerRef.current = controller;
-
-    if (isRefresh) setBookmarks([]);
-
-    try {
-      let url = `/bookmarks?page=${pageNum}&limit=${limit}`;
-      if (selectedTag) url += `&tag=${encodeURIComponent(selectedTag)}`;
-      if (search) url += `&search=${encodeURIComponent(search)}`;
-
-      const res = await api.get<Bookmark[]>(url, { signal: controller.signal });
-      const newData = res.data;
-      const total = parseInt(res.headers['x-total-count'] || '0', 10);
-      setTotalCount(total);
-
-      if (isRefresh) {
-        setBookmarks(newData);
-      } else {
-        setBookmarks(prev => {
-          const existingIds = new Set(prev.map(b => b.id));
-          const uniqueNewData = newData.filter(b => !existingIds.has(b.id));
-          return [...prev, ...uniqueNewData];
-        });
-      }
-
-      setHasMore(newData.length >= limit);
-    } catch (err: any) {
-      if (err.name !== 'Canceled') {
-        console.error("Failed to load bookmarks", err);
-        setFetchError("Could not connect to the server. Please try again later.");
-        setHasMore(false); // Stop infinite scroll on error
-      }
-    } finally {
-      if (abortControllerRef.current === controller) setLoading(false);
-    }
-  }, [limit, selectedTag, search, loading]);
-
-  // Reset Trigger
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      setPage(1);
-      setHasMore(true);
-      fetchBookmarks(1, true);
-    }, 300);
-    return () => clearTimeout(timeoutId);
-  }, [search, selectedTag, limit]);
-
-  // Infinite Scroll
+  // Infinite Scroll Observer
   useEffect(() => {
     const observer = new IntersectionObserver(
       entries => {
@@ -183,8 +116,9 @@ export const Dashboard = () => {
     );
     if (observerTarget.current) observer.observe(observerTarget.current);
     return () => observer.disconnect();
-  }, [hasMore, loading, fetchBookmarks]);
+  }, [hasMore, loading, fetchBookmarks, setPage]);
 
+  // Keyboard Handlers
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
@@ -212,6 +146,7 @@ export const Dashboard = () => {
         case 'Escape':
           if (isTagMenuOpen) { e.preventDefault(); setIsTagMenuOpen(false); }
           else if (isSettingsMenuOpen) { e.preventDefault(); setIsSettingsMenuOpen(false); }
+          else if (isInfoModalOpen) { setIsInfoModalOpen(false); }
           break;
         case 'Backspace':
           if (!isTyping && selectedTag) {
@@ -223,12 +158,14 @@ export const Dashboard = () => {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedTag, isTagMenuOpen, isSettingsMenuOpen, navigate]);
+  }, [selectedTag, isTagMenuOpen, isSettingsMenuOpen, navigate, isInfoModalOpen]);
 
-  // Reset tag search when menu opens
-  useEffect(() => {
-    if (isTagMenuOpen) setTagSearch('');
-  }, [isTagMenuOpen]);
+  // Helper Functions
+  const setTagInputFocus = useCallback((element: HTMLInputElement) => {
+    if (element) {
+      requestAnimationFrame(() => element.focus());
+    }
+  }, []);
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -258,22 +195,32 @@ export const Dashboard = () => {
         const updatedUser = { ...user, theme: newTheme };
         updateUser(updatedUser);
       }
-    } catch (error) {
+    } catch {
       console.error("Failed to save theme preference to server");
     }
   };
+
   const handleImportClick = () => { fileInputRef.current?.click(); setIsSettingsMenuOpen(false); };
+
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]; if (!file) return;
     if (!confirm(`Import "${file.name}"?`)) { e.target.value = ''; return; }
     const formData = new FormData(); formData.append('file', file);
-    try { setLoading(true); await api.post('/system/import', formData, { headers: { 'Content-Type': 'multipart/form-data' } }); alert('Import successful!'); fetchTags(); setPage(1); fetchBookmarks(1, true); } catch (error) { alert('Failed'); } finally { setLoading(false); e.target.value = ''; }
-  };
-  const handleExport = async () => {
-    setIsSettingsMenuOpen(false);
-    try { const response = await api.get('/system/export', { responseType: 'blob' }); const url = window.URL.createObjectURL(new Blob([response.data])); const link = document.createElement('a'); link.href = url; link.setAttribute('download', 'bookmarks.html'); document.body.appendChild(link); link.click(); link.remove(); } catch (error) { alert("Failed"); }
+    try {
+      await api.post('/system/import', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+      alert('Import successful!');
+      fetchTags();
+      setPage(1);
+      fetchBookmarks(1, true);
+    } catch { alert('Failed'); } finally { e.target.value = ''; }
   };
 
+  const handleExport = async () => {
+    setIsSettingsMenuOpen(false);
+    try { const response = await api.get('/system/export', { responseType: 'blob' }); const url = window.URL.createObjectURL(new Blob([response.data])); const link = document.createElement('a'); link.href = url; link.setAttribute('download', 'bookmarks.html'); document.body.appendChild(link); link.click(); link.remove(); } catch { alert("Failed"); }
+  };
+
+  // Undo Toast Logic
   const removeToast = (toastId: string) => {
     setUndoToasts(currentToasts => currentToasts.filter(t => t.id !== toastId));
     if (undoTimersRef.current[toastId]) {
@@ -312,7 +259,6 @@ export const Dashboard = () => {
     const timer = window.setTimeout(() => {
       api.delete(`/bookmarks/${bookmarkToDelete.id}`).catch(error => {
         console.error("Failed to permanently delete bookmark", error);
-        // Optionally, inform user and restore bookmark
         handleUndoDelete(toastId);
         alert("Error: Could not delete bookmark from server.");
       });
@@ -322,7 +268,14 @@ export const Dashboard = () => {
     undoTimersRef.current[toastId] = timer;
   };
 
+  // Tag & Bookmark Operations
   const handleTagSelect = (tag: string) => { setSelectedTag(tag); setIsTagMenuOpen(false); setTagSearch(''); };
+
+  const visibleTags = useMemo(() => {
+    if (!tagSearch) return allTags;
+    return allTags.filter(t => t.toLowerCase().includes(tagSearch.toLowerCase()));
+  }, [allTags, tagSearch]);
+
   const handleTagInputKeyDown = (e: React.KeyboardEvent) => {
     const hasUntaggedOption = !tagSearch;
     const totalOptions = visibleTags.length + (hasUntaggedOption ? 1 : 0);
@@ -354,6 +307,7 @@ export const Dashboard = () => {
       }
     }
   };
+
   const handleToggleFavorite = async (bookmark: Bookmark, isFavorite: boolean) => {
     const favoriteTagName = 'Favorites';
     let newTags: string[];
@@ -366,7 +320,7 @@ export const Dashboard = () => {
 
     try {
       const response = await api.put(`/bookmarks/${bookmark.id}`, {
-        ...bookmark, // send the whole bookmark back
+        ...bookmark,
         tags: newTags
       });
       handleEditSuccess(response.data);
@@ -375,6 +329,7 @@ export const Dashboard = () => {
       alert("Failed to update favorite status.");
     }
   };
+
   const handleAddSuccess = (newBookmark: Bookmark) => { setBookmarks(prev => [newBookmark, ...prev]); fetchTags(); };
   const handleEditSuccess = (updatedBookmark: Bookmark) => { setBookmarks(prev => prev.map(b => b.id === updatedBookmark.id ? updatedBookmark : b)); fetchTags(); };
   const closeAddModal = () => {
@@ -382,205 +337,41 @@ export const Dashboard = () => {
     setDroppedData(null);
   };
 
-  const visibleTags = useMemo(() => {
-    if (!tagSearch) return allTags;
-    return allTags.filter(t => t.toLowerCase().includes(tagSearch.toLowerCase()));
-  }, [allTags, tagSearch]);
-
   return (
     <div className="min-h-screen p-6 md:p-10 w-full flex flex-col" onClick={() => { setIsTagMenuOpen(false); setIsSettingsMenuOpen(false); }} onDragOver={handleDragOver} onDrop={handleDrop}>
       <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".html" />
 
-      <header className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between" onClick={e => e.stopPropagation()}>
-        <div>
-          <h1 className="text-3xl font-bold flex items-center">
-            <img src="/alpaca-bookmarks.png" alt="Alpaca Bookmarks" className="inline-block h-8 w-8 mr-2" />
-            Alpaca Bookmarks
-          </h1>
-          <p className="text-gray-400 text-sm">
-            Showing {bookmarks.length} results out of {totalCount}
-            {selectedTag && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setSelectedTag('');
-                  setTagSearch('');
-                }}
-                className="mr-2 rounded-full p-0.5 hover:bg-white/20 active:bg-white/30 transition-colors"
-                title="Clear tag filter"
-              >
-                <X size={20} />
-              </button>
-            )}
-          </p>
-        </div>
+      <DashboardHeader
+        bookmarksCount={bookmarks.length}
+        totalCount={totalCount}
+        search={search}
+        setSearch={setSearch}
+        selectedTag={selectedTag}
+        setSelectedTag={setSelectedTag}
+        setTagSearch={setTagSearch}
+        viewMode={viewMode}
+        setViewMode={setViewMode}
+        isTagMenuOpen={isTagMenuOpen}
+        setIsTagMenuOpen={setIsTagMenuOpen}
+        tagSearch={tagSearch}
+        visibleTags={visibleTags}
+        highlightedTagIndex={highlightedTagIndex}
+        highlightedTagRef={highlightedTagRef}
+        setTagInputFocus={setTagInputFocus}
+        handleTagInputKeyDown={handleTagInputKeyDown}
+        handleTagSelect={handleTagSelect}
+        isSettingsMenuOpen={isSettingsMenuOpen}
+        setIsSettingsMenuOpen={setIsSettingsMenuOpen}
+        setIsInfoModalOpen={setIsInfoModalOpen}
+        setIsConfigModalOpen={setIsConfigModalOpen}
+        setSettingsStartView={setSettingsStartView}
+        handleImportClick={handleImportClick}
+        handleExport={handleExport}
+        logout={logout}
+        user={user}
+        searchInputRef={searchInputRef}
+      />
 
-        <div className="flex flex-col gap-3 md:flex-row md:items-center">
-
-          <div className="relative">
-            <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center">
-              <Search className="text-gray-500" size={18} />
-              <img src="/alpaca-bookmarks.png" alt="Alpaca Icon" className="ml-2 h-5 w-5" />
-            </div>
-            <input
-              ref={searchInputRef}
-              type="text"
-              placeholder="Search..."
-              className="w-full rounded-md bg-surface py-2 pl-16 pr-4 text-text focus:outline-none focus:ring-2 focus:ring-primary md:w-64"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Escape') {
-                  searchInputRef.current?.blur();
-                }
-              }}
-            />
-          </div>
-
-          <div className="flex flex-row flex-wrap items-center gap-2 md:gap-3">
-            <Link to="/favorites" className="flex items-center gap-2 p-2 text-sm font-medium focus:outline-none rounded-md border border-transparent bg-surface text-gray-400 hover:text-white">
-              <Heart size={20} />
-              <span className="hidden md:inline">Favorites</span>
-            </Link>
-
-            <div className="relative">
-              <div
-                className={`flex items-center rounded-md border transition-colors ${selectedTag
-                  ? 'border-primary bg-primary/20 text-primary'
-                  : 'border-transparent bg-surface text-gray-400 hover:text-white'
-                  }`}
-              >
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setIsTagMenuOpen(!isTagMenuOpen);
-                    setIsSettingsMenuOpen(false);
-                  }}
-                  className="flex items-center gap-2 p-2 text-sm font-medium focus:outline-none"
-                >
-                  <Tags size={20} />
-                  <span className="hidden md:inline">{selectedTag || 'All Tags'}</span>
-                </button>
-
-                {selectedTag && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation(); // Prevent opening menu when clicked
-                      setSelectedTag('');  // Clear the tag
-                      setTagSearch('');    // Reset tag search
-                    }}
-                    className="mr-2 rounded-full p-1 hover:bg-white/20 active:bg-white/30 transition-colors"
-                    title="Clear tag filter"
-                  >
-                    <X size={14} />
-                  </button>
-                )}
-              </div>
-
-              {isTagMenuOpen && (
-                <div className="absolute left-0 right-0 mx-auto top-full z-20 mt-2 max-h-80 w-56 max-w-[calc(100vw-2rem)] overflow-hidden rounded-md border border-gray-600 bg-surface shadow-xl flex flex-col" onClick={(e) => e.stopPropagation()}>
-                  <div className="border-b border-gray-700 p-2">
-                    <input
-                      ref={setTagInputFocus}
-                      type="text"
-                      placeholder="Find tag..."
-                      className="w-full rounded bg-background px-2 py-1 text-sm text-text focus:outline-none focus:ring-1 focus:ring-primary"
-                      value={tagSearch}
-                      onChange={(e) => setTagSearch(e.target.value)}
-                      onKeyDown={handleTagInputKeyDown}
-                    />
-                  </div>
-
-                  {/* UNTAGGED OPTION (conditional) */}
-                  {!tagSearch && (
-                    <button
-                      ref={highlightedTagIndex === 0 ? highlightedTagRef : null}
-                      onClick={() => handleTagSelect('Untagged')}
-                      className={`block w-full text-left px-4 py-2 italic border-b border-gray-700 transition-colors ${highlightedTagIndex === 0 ? 'bg-primary text-white' : 'text-yellow-400 hover:bg-gray-700'}`}
-                    >
-                      Without Tags
-                    </button>
-                  )}
-
-                  {/* TAGS LIST */}
-                  <div className="overflow-y-auto max-h-60">
-                    {visibleTags.length > 0 ? (
-                      visibleTags.map((tag, index) => {
-                        const itemIndex = !tagSearch ? index + 1 : index;
-                        return (
-                          <button
-                            key={tag}
-                            ref={highlightedTagIndex === itemIndex ? highlightedTagRef : null}
-                            onClick={() => handleTagSelect(tag)}
-                            className={`w-full text-left px-4 py-2 text-sm transition-colors ${selectedTag === tag ? 'bg-primary/20 text-primary' : 'text-text'} ${highlightedTagIndex === itemIndex ? 'bg-primary text-white' : 'hover:bg-primary hover:text-white'}`}
-                          >
-                            #{tag}
-                          </button>
-                        );
-                      })
-                    ) : (
-                      tagSearch && <div className="p-3 text-center text-sm text-gray-500">No matching tags</div>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="flex gap-2 rounded-md bg-surface p-1">
-              <button onClick={() => setViewMode('grid')} className={`p-2 rounded ${viewMode === 'grid' ? 'bg-primary text-white' : 'text-gray-400'}`}><LayoutGrid size={20} /></button>
-              <button onClick={() => setViewMode('list')} className={`p-2 rounded ${viewMode === 'list' ? 'bg-primary text-white' : 'text-gray-400'}`}><List size={20} /></button>
-            </div>
-
-            <div className="relative">
-              <button
-                onClick={(e) => { e.stopPropagation(); setIsInfoModalOpen(true); }}
-                className="p-2 rounded-md text-gray-400 hover:text-white transition-colors"
-              >
-                <Info size={20} />
-              </button>
-            </div>
-
-            <div className="relative">
-              <button
-                onClick={(e) => { e.stopPropagation(); setIsSettingsMenuOpen(!isSettingsMenuOpen); setIsTagMenuOpen(false); }}
-                className={`p-2 rounded-md transition-colors ${isSettingsMenuOpen ? 'bg-surface text-white' : 'text-gray-400 hover:text-white'}`}
-              >
-                <Settings size={20} />
-              </button>
-              {isSettingsMenuOpen && (
-                <div className="absolute right-0 top-full z-20 mt-2 w-56 overflow-hidden rounded-md border border-gray-600 bg-surface shadow-xl">
-                  <button onClick={() => { setSettingsStartView('settings'); setIsConfigModalOpen(true); setIsSettingsMenuOpen(false); }} className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-muted hover:bg-primary hover:text-white"><Sliders size={16} /> Preferences</button>
-                  <div className="my-1 border-t border-gray-700"></div>
-                  <button onClick={handleImportClick} className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-muted hover:bg-primary hover:text-white"><Upload size={16} /> Import Bookmarks</button>
-                  <button onClick={handleExport} className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-muted hover:bg-primary hover:text-white"><Download size={16} /> Export Bookmarks</button>
-                  <button
-                    onClick={() => {
-                      setSettingsStartView('tags');
-                      setIsConfigModalOpen(true);
-                      setIsSettingsMenuOpen(false);
-                    }}
-                    className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-muted hover:bg-primary hover:text-white"
-                  >
-                    <Tags size={16} /> Organize Tags
-                  </button>
-                  {user?.role === 'admin' && (
-                    <Link
-                      to="/admin"
-                      className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-yellow-400 hover:bg-yellow-400/10"
-                    >
-                      <Shield size={16} /> Admin Console
-                    </Link>
-                  )}
-                  <div className="my-1 border-t border-gray-700"></div>
-                  <button onClick={logout} className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-red-400 hover:bg-red-400/10"><LogOut size={16} /> Logout</button>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </header>
-
-      {/* Grid */}
       <div className="flex-1">
         <div
           className={viewMode === 'grid' ? "grid gap-6" : "flex flex-col"}
@@ -637,12 +428,11 @@ export const Dashboard = () => {
         currentTheme={theme}
         currentTileSize={tileSize}
         onSave={handleConfigSave}
-        onTagsUpdate={() => fetchBookmarks(1, true)} // Refresh bookmarks if tags change
+        onTagsUpdate={() => fetchBookmarks(1, true)}
         initialView={settingsStartView}
       />
       <KeyboardShortcutsModal isOpen={isInfoModalOpen} onClose={() => setIsInfoModalOpen(false)} />
 
-      {/* Undo Toasts Container */}
       <div className="fixed bottom-10 right-10 z-50 flex flex-col gap-3">
         {undoToasts.map(toast => (
           <UndoToast

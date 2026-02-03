@@ -64,7 +64,7 @@ export const BookmarkCard: React.FC<Props> = ({ bookmark, viewMode, onDelete, on
     onTagClick(tagName);
   };
 
-  const tags = bookmark.tags || [];
+  const tags = useMemo(() => bookmark.tags || [], [bookmark.tags]);
   const isFavorite = useMemo(() => tags.some(t => t.name.toLowerCase() === 'favorites'), [tags]);
   
   const truncateUrl = (url: string, length: number) => {

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import { X } from 'lucide-react';
 
 interface Props {
@@ -9,22 +9,16 @@ interface Props {
 
 export const TagInput: React.FC<Props> = ({ selectedTags, onChange, availableTags }) => {
   const [inputValue, setInputValue] = useState('');
-  const [suggestions, setSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Filter suggestions based on input
-  useEffect(() => {
-    if (inputValue.trim() === '') {
-      setSuggestions([]);
-      return;
-    }
+  // Derive suggestions based on input
+  const suggestions = useMemo(() => {
+    if (inputValue.trim() === '') return [];
     const lowerInput = inputValue.toLowerCase();
-    const filtered = availableTags.filter(
+    return availableTags.filter(
       tag => tag.toLowerCase().includes(lowerInput) && !selectedTags.includes(tag)
     );
-    setSuggestions(filtered);
-    setShowSuggestions(filtered.length > 0);
   }, [inputValue, availableTags, selectedTags]);
 
   const addTag = (tag: string) => {
@@ -33,7 +27,6 @@ export const TagInput: React.FC<Props> = ({ selectedTags, onChange, availableTag
       onChange([...selectedTags, trimmed]);
     }
     setInputValue('');
-    setSuggestions([]);
   };
 
   const removeTag = (tagToRemove: string) => {
@@ -41,16 +34,14 @@ export const TagInput: React.FC<Props> = ({ selectedTags, onChange, availableTag
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    // Add Tag on Enter or Comma
     if (e.key === 'Enter' || e.key === ',') {
       e.preventDefault();
       addTag(inputValue);
     }
-    // Tab Key: Select first suggestion if available
     else if (e.key === 'Tab') {
       if (showSuggestions && suggestions.length > 0) {
-        e.preventDefault(); // Prevent moving focus to the next button
-        addTag(suggestions[0]); // Select the first match
+        e.preventDefault();
+        addTag(suggestions[0]);
       }
     }
     else if (e.key === 'Backspace' && inputValue === '' && selectedTags.length > 0) {
@@ -83,14 +74,17 @@ export const TagInput: React.FC<Props> = ({ selectedTags, onChange, availableTag
           className="min-w-[120px] flex-1 bg-transparent text-text focus:outline-none"
           placeholder={selectedTags.length === 0 ? "Type tag and press comma..." : ""}
           value={inputValue}
-          onChange={(e) => setInputValue(e.target.value)}
+          onChange={(e) => {
+            setInputValue(e.target.value);
+            setShowSuggestions(true);
+          }}
           onKeyDown={handleKeyDown}
-          onBlur={() => setTimeout(() => setShowSuggestions(false), 200)} // Delay hiding to allow click
+          onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
           onFocus={() => inputValue && setShowSuggestions(true)}
         />
       </div>
 
-      {showSuggestions && (
+      {showSuggestions && suggestions.length > 0 && (
         <ul className="absolute z-10 mt-1 max-h-40 w-full overflow-y-auto rounded border border-gray-600 bg-surface shadow-lg">
           {suggestions.map(suggestion => (
             <li

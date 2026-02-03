@@ -11,6 +11,8 @@ const shortcuts = [
     { key: 't', description: 'Open the tags menu' },
     { key: 'esc', description: 'Close modals or menus' },
     { key: 'backspace', description: 'Clear selected tag' },
+    { key: 'f', description: 'Favorites Dashboard' },
+
 ];
 
 export const KeyboardShortcutsModal: React.FC<Props> = ({ isOpen, onClose }) => {
