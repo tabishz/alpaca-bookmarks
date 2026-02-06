@@ -24,19 +24,18 @@ The application is distributed as a single Docker container that includes:
     * Secure environment variable configuration.
 
 ## ⌨️ Keyboard Shortcuts
-
-The application provides several keyboard shortcuts for quick navigation and actions:
+Keyboard shortcuts for quick navigation and actions:
 
 | Key(s) | Action |
 | :--- | :--- |
 | `/` | Focus the main search bar. |
 | `t` | Toggle the tags filter menu. |
+| `f` | Toggle to Favorites dashboard. |
 | `Esc` | Close any open menu (Tags, Settings) or unfocus the search bar. |
 | `Backspace` | When a tag is selected, this will clear the filter. |
 | `Tab` / `Enter` | When the tags menu is open, this selects the first visible tag. |
 
 ### Tag Input
-
 When adding or editing a bookmark, the tag input field has its own shortcuts:
 
 | Key(s) | Action |
@@ -44,6 +43,13 @@ When adding or editing a bookmark, the tag input field has its own shortcuts:
 | `Enter` or `,` | Add the currently typed text as a new tag. |
 | `Tab` | Autocomplete the tag with the first available suggestion. |
 | `Backspace` | When the input is empty, delete the last added tag. |
+
+### Favorites Dashboard
+| Key(s) | Action |
+| :--- | :--- |
+| `f` | Toggle to Main dashboard. |
+| `h` | Navigate to main page from favorites dashboard. |
+| `Backscape` | Navigate to main page from favorites dashboard. |
 
 ---
 

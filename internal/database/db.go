@@ -17,7 +17,7 @@ func Connect() {
 	// In production (Docker), this path will be /data
 	dbPath := os.Getenv("DB_PATH")
 	if dbPath == "" {
-		dbPath = "./data/data.sqlite" // Default for local dev
+		dbPath = "./data/data.sqlite" // Default Path
 	}
 
 	dir := filepath.Dir(dbPath)

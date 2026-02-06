@@ -48,7 +48,20 @@ export const KeyboardShortcutsModal: React.FC<Props> = ({ isOpen, onClose }) => 
                 </div>
             ))}
         </div>
-
+        <footer className="mt-10 py-4 text-center text-gray-500 text-sm">
+          <p>
+            Alpaca Bookmarks v{__APP_VERSION__} is open source. {' '}
+            <a
+              href="https://github.com/tabishz/alpaca-bookmarks.git"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-400 hover:underline"
+            >
+              GitHub
+            </a>
+            .
+          </p>
+        </footer>
       </div>
     </div>
   );
