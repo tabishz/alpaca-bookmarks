@@ -75,3 +75,40 @@ type TodoItem struct {
 	UpdatedAt  time.Time      `json:"updated_at"`
 	DeletedAt  gorm.DeletedAt `gorm:"index" json:"-"`
 }
+
+// KanbanBoard represents a kanban board for a user
+type KanbanBoard struct {
+	ID          uint           `gorm:"primaryKey" json:"id"`
+	UserID      uint           `gorm:"index" json:"user_id"`
+	Title       string         `json:"title"`
+	Description string         `json:"description"`
+	Columns     []KanbanColumn `gorm:"foreignKey:BoardID;constraint:OnDelete:CASCADE;" json:"columns"`
+	CreatedAt   time.Time      `json:"created_at"`
+	UpdatedAt   time.Time      `json:"updated_at"`
+	DeletedAt   gorm.DeletedAt `gorm:"index" json:"-"`
+}
+
+// KanbanColumn represents a column in a kanban board
+type KanbanColumn struct {
+	ID        uint           `gorm:"primaryKey" json:"id"`
+	BoardID   uint           `gorm:"index" json:"board_id"`
+	Title     string         `json:"title"`
+	Color     string         `json:"color"`
+	Position  int            `json:"position"`
+	Cards     []KanbanCard   `gorm:"foreignKey:ColumnID;constraint:OnDelete:CASCADE;" json:"cards"`
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
+}
+
+// KanbanCard represents a card in a kanban column
+type KanbanCard struct {
+	ID          uint           `gorm:"primaryKey" json:"id"`
+	ColumnID    uint           `gorm:"index" json:"column_id"`
+	Title       string         `json:"title"`
+	Description string         `json:"description"`
+	Position    int            `json:"position"`
+	CreatedAt   time.Time      `json:"created_at"`
+	UpdatedAt   time.Time      `json:"updated_at"`
+	DeletedAt   gorm.DeletedAt `gorm:"index" json:"-"`
+}
