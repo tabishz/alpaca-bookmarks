@@ -36,6 +36,12 @@ const DraggableCard: React.FC<{ card: KanbanCard; onDelete: (cardId: number) => 
     opacity: isDragging ? 0.5 : 1,
   };
 
+  const handleDeleteClick = (e: React.MouseEvent | React.PointerEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    onDelete(card.id);
+  };
+
   return (
     <div
       ref={setNodeRef}
@@ -52,11 +58,10 @@ const DraggableCard: React.FC<{ card: KanbanCard; onDelete: (cardId: number) => 
           )}
         </div>
         <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onDelete(card.id);
-          }}
-          className="opacity-0 group-hover:opacity-100 p-1 text-muted hover:text-red-400 transition-all ml-2"
+          onClick={handleDeleteClick}
+          onPointerDown={handleDeleteClick}
+          className="opacity-0 group-hover:opacity-100 p-1 text-muted hover:text-red-400 transition-all ml-2 pointer-events-auto"
+          data-dndkit-disabled
         >
           <Trash2 size={14} />
         </button>
