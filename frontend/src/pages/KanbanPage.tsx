@@ -584,18 +584,22 @@ export const KanbanPage: React.FC = () => {
       }
     } else if (toast.type === 'card') {
       // Restore card
+      const restoredColumns = (prevBoard: KanbanBoard) => 
+        prevBoard.columns.map((col, idx) =>
+          idx === toast.columnIndex!
+            ? { ...col, cards: [...col.cards.slice(0, toast.cardIndex!), toast.data as KanbanCard, ...col.cards.slice(toast.cardIndex! + 1)] }
+            : col
+        );
+
       setBoards(prev => prev.map(board => 
         board.id === toast.boardId
-          ? {
-              ...board,
-              columns: board.columns.map(col =>
-                col.id === board.columns[toast.columnIndex!].id
-                  ? { ...col, cards: [...col.cards.slice(0, toast.cardIndex!), toast.data as KanbanCard, ...col.cards.slice(toast.cardIndex! + 1)] }
-                  : col
-              )
-            }
+          ? { ...board, columns: restoredColumns(board) }
           : board
       ));
+      
+      if (selectedBoard?.id === toast.boardId) {
+        setSelectedBoard(prev => prev ? { ...prev, columns: restoredColumns(prev) } : null);
+      }
     }
     removeToast(toast.id);
   };
