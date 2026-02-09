@@ -20,8 +20,8 @@ interface UndoToastData {
 }
 
 // Draggable Card Component
-const DraggableCard: React.FC<{ 
-  card: KanbanCard; 
+const DraggableCard: React.FC<{
+  card: KanbanCard;
   onDelete: (cardId: number) => void;
   onUpdate: (cardId: number, title: string) => void;
 }> = ({ card, onDelete, onUpdate }) => {
@@ -32,7 +32,10 @@ const DraggableCard: React.FC<{
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: card.id });
+  } = useSortable({ 
+    id: card.id,
+    disabled: false,
+  });
 
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(card.title);
@@ -74,15 +77,21 @@ const DraggableCard: React.FC<{
     } else if (e.key === 'Escape') {
       handleCancel();
     }
+    // Stop propagation for all keys when editing to prevent dnd-kit interference
+    e.stopPropagation();
+  };
+
+  const handleInputKeyDown = (e: React.KeyboardEvent) => {
+    // Allow spacebar to work normally in the input
+    e.stopPropagation();
   };
 
   return (
     <div
       ref={setNodeRef}
       style={style}
-      className="bg-surface border border-gray-600 rounded-lg p-3 cursor-move hover:shadow-lg transition-shadow group"
-      {...attributes}
-      {...listeners}
+      className={`bg-surface border border-gray-600 rounded-lg p-3 hover:shadow-lg transition-shadow group ${isEditing ? '' : 'cursor-move'}`}
+      {...(isEditing ? {} : { ...attributes, ...listeners })}
     >
       <div className="flex items-start justify-between">
         <div className="flex-1 min-w-0">
@@ -92,7 +101,10 @@ const DraggableCard: React.FC<{
                 type="text"
                 value={editTitle}
                 onChange={(e) => setEditTitle(e.target.value)}
-                onKeyDown={handleKeyDown}
+                onKeyDown={(e) => {
+                  handleKeyDown(e);
+                  handleInputKeyDown(e);
+                }}
                 className="flex-1 bg-background border border-gray-600 rounded px-2 py-1 text-text text-sm"
                 autoFocus
                 onClick={(e) => e.stopPropagation()}
