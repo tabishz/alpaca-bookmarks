@@ -27,14 +27,18 @@ func Connect() {
 
 	// Connect to SQLite
 	var err error
-	DB, err = gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
-	if err != nil {
-		log.Fatal("Failed to connect to database:", err)
-	}
-
-	// Auto-Migrate (Create tables based on structs)
+		DB, err = gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
+		if err != nil {
+			log.Fatal("Failed to connect to database:", err)
+		}
+	
+		// Enable Foreign Keys for SQLite (Important for CASCADE)
+		DB.Exec("PRAGMA foreign_keys = ON;")
+	
+		// Auto-Migrate (Create tables based on structs)
+	
 	log.Println("Migrating database schema...")
-	err = DB.AutoMigrate(&models.User{}, &models.Bookmark{}, &models.Tag{}, &models.UserLayout{})
+	err = DB.AutoMigrate(&models.User{}, &models.Bookmark{}, &models.Tag{}, &models.UserLayout{}, &models.TodoList{}, &models.TodoItem{})
 	if err != nil {
 		log.Fatal("Failed to migrate database:", err)
 	}
