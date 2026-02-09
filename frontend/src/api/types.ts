@@ -40,3 +40,34 @@ export interface TodoList {
   created_at: string;
   updated_at: string;
 }
+
+export interface KanbanCard {
+  id: number;
+  column_id: number;
+  title: string;
+  description: string;
+  position: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface KanbanColumn {
+  id: number;
+  board_id: number;
+  title: string;
+  color: string;
+  position: number;
+  cards: KanbanCard[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface KanbanBoard {
+  id: number;
+  user_id: number;
+  title: string;
+  description: string;
+  columns: KanbanColumn[];
+  created_at: string;
+  updated_at: string;
+}
