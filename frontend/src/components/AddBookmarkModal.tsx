@@ -23,7 +23,17 @@ export const AddBookmarkModal: React.FC<Props> = ({ isOpen, onClose, onSuccess, 
   useEffect(() => {
     if (isOpen && initialData) {
       setUrl(initialData.url || '');
-      setTitle(initialData.title || '');
+      if (initialData.title) {
+        setTitle(initialData.title);
+      } else if (initialData.url) {
+        const fetchAndSetTitle = async () => {
+          const fetchedTitle = await getTitle(initialData.url);
+          if (fetchedTitle) {
+            setTitle(fetchedTitle);
+          }
+        };
+        fetchAndSetTitle();
+      }
     } else if (!isOpen) {
       // Reset when closed
       setUrl('');
@@ -53,6 +63,28 @@ export const AddBookmarkModal: React.FC<Props> = ({ isOpen, onClose, onSuccess, 
       alert("Failed to save bookmark");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const getTitle = async (url: string): Promise<string | undefined> => {
+    try {
+      const response = await fetch(url);
+
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
+      }
+
+      const htmlText = await response.text();
+
+      // Use DOMParser to turn the string into a searchable document
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(htmlText, "text/html");
+      const title = doc.querySelector("title")?.innerText;
+
+      return title || undefined;
+    } catch (error) {
+      console.error("Failed to fetch page title:", error);
+      return undefined;
     }
   };
 

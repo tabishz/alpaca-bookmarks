@@ -1,7 +1,8 @@
 .DS_Store
-data/
+data/data.sqlite
 **/node_modules/
 ca-certs.crt
 frontend/dist
 DockerfileX
 .env
+todo.md
