@@ -683,15 +683,38 @@ export const KanbanPage: React.FC = () => {
       if (targetColumn) {
         // Moving card to a different column
         if (activeCard.column_id !== targetColumn.id) {
+          // Optimistically update UI immediately
+          const updatedColumns = selectedBoard.columns.map(col => {
+            if (col.id === activeCard.column_id) {
+              // Remove from source column
+              return { ...col, cards: col.cards.filter(c => c.id !== activeId) };
+            } else if (col.id === targetColumn.id) {
+              // Add to target column with updated column_id
+              return { 
+                ...col, 
+                cards: [...col.cards, { ...activeCard, column_id: targetColumn.id }]
+              };
+            }
+            return col;
+          });
+
+          setBoards(prev => prev.map(board =>
+            board.id === selectedBoard.id
+              ? { ...board, columns: updatedColumns }
+              : board
+          ));
+          setSelectedBoard(prev => prev ? { ...prev, columns: updatedColumns } : null);
+
           try {
             // Update card to move to new column
             await api.put(`/kanban/cards/${activeCard.id}`, {
               column_id: targetColumn.id,
               position: targetColumn.cards.length
             });
-            fetchBoard(selectedBoard.id);
           } catch (error) {
             console.error('Failed to move card:', error);
+            // Revert on error
+            fetchBoard(selectedBoard.id);
           }
         }
         return;
@@ -722,6 +745,21 @@ export const KanbanPage: React.FC = () => {
 
       const reorderedCards = arrayMove(activeColumn!.cards, oldIndex, newIndex);
 
+      // Optimistically update UI immediately
+      const updatedColumns = selectedBoard.columns.map(col => {
+        if (col.id === activeColumn!.id) {
+          return { ...col, cards: reorderedCards };
+        }
+        return col;
+      });
+
+      setBoards(prev => prev.map(board =>
+        board.id === selectedBoard.id
+          ? { ...board, columns: updatedColumns }
+          : board
+      ));
+      setSelectedBoard(prev => prev ? { ...prev, columns: updatedColumns } : null);
+
       // Update positions in backend
       try {
         await Promise.all(
@@ -729,9 +767,10 @@ export const KanbanPage: React.FC = () => {
             api.put(`/kanban/cards/${card.id}`, { position: index })
           )
         );
-        fetchBoard(selectedBoard.id);
       } catch (error) {
         console.error('Failed to reorder cards:', error);
+        // Revert on error
+        fetchBoard(selectedBoard.id);
       }
     }
   };
