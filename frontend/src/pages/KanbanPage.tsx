@@ -210,6 +210,17 @@ const KanbanColumnComponent: React.FC<{
     }
   };
 
+  // Listen for keyboard shortcut to add card
+  React.useEffect(() => {
+    const handleAddCardEvent = (e: CustomEvent) => {
+      if (e.detail.columnId === column.id) {
+        handleStartAddCard();
+      }
+    };
+    window.addEventListener('kanban-add-card', handleAddCardEvent as EventListener);
+    return () => window.removeEventListener('kanban-add-card', handleAddCardEvent as EventListener);
+  }, [column.id]);
+
   return (
     <div className="bg-surface/50 rounded-lg p-4 min-w-[280px] max-w-[280px]">
       <div className="flex items-center justify-between mb-3">
@@ -322,6 +333,35 @@ export const KanbanPage: React.FC = () => {
       Object.values(timers).forEach(clearTimeout);
     };
   }, []);
+
+  // Keyboard shortcut: 'n' to create new card in left-most column
+  const addingCardColumnRef = useRef<number | null>(null);
+  const setAddingCardColumn = (columnId: number | null) => {
+    addingCardColumnRef.current = columnId;
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Only trigger if 'n' is pressed and no input/textarea is focused
+      if (e.key === 'n' && selectedBoard) {
+        const activeElement = document.activeElement;
+        const isInputFocused = activeElement?.tagName === 'INPUT' ||
+                               activeElement?.tagName === 'TEXTAREA' ||
+                               (activeElement as HTMLElement)?.isContentEditable;
+
+        if (!isInputFocused && selectedBoard.columns.length > 0) {
+          // Get left-most column (first in the sorted array)
+          const leftMostColumn = selectedBoard.columns.sort((a, b) => a.position - b.position)[0];
+          setAddingCardColumn(leftMostColumn.id);
+          // Trigger a custom event to notify columns
+          window.dispatchEvent(new CustomEvent('kanban-add-card', { detail: { columnId: leftMostColumn.id } }));
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedBoard]);
 
   // Handle initial board selection based on URL or localStorage
   useEffect(() => {
