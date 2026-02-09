@@ -448,7 +448,6 @@ export const KanbanPage: React.FC = () => {
       setIsLoading(true);
       setError(null);
       const response = await api.get('/kanban/boards');
-      console.log('Boards fetched:', response.data);
       setBoards(response.data);
     } catch (error) {
       console.error('Failed to fetch boards:', error);
@@ -474,7 +473,6 @@ export const KanbanPage: React.FC = () => {
   const fetchBoard = async (boardId: number) => {
     try {
       const response = await api.get(`/kanban/boards/${boardId}`);
-      console.log('Board fetched:', response.data);
       selectBoard(response.data);
       setBoards(prev => prev.map(board => board.id === boardId ? response.data : board));
     } catch (error) {
@@ -495,7 +493,6 @@ export const KanbanPage: React.FC = () => {
         description: newBoardDescription
       });
       const newBoard = response.data;
-      console.log('Board created:', newBoard);
       setBoards([...boards, newBoard]);
       setNewBoardTitle('');
       setNewBoardDescription('');
@@ -1080,11 +1077,23 @@ export const KanbanPage: React.FC = () => {
         e.preventDefault();
         navigate('/todos');
       }
+
+      // Number keys 1-9 to select boards
+      const numKey = parseInt(e.key);
+      if (!isNaN(numKey) && numKey >= 1 && numKey <= 9) {
+        e.preventDefault();
+        const sortedBoards = [...boards].sort((a, b) => a.position - b.position);
+        const boardIndex = numKey - 1; // Convert to 0-based index
+        if (boardIndex < sortedBoards.length) {
+          const board = sortedBoards[boardIndex];
+          fetchBoard(board.id);
+        }
+      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [navigate]);
+  }, [navigate, boards]);
 
   return (
     <div className="min-h-screen p-6 md:p-10 w-full">
