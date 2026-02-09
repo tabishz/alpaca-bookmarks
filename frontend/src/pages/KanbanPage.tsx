@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import api from '../api/client';
 import { KanbanBoard, KanbanColumn, KanbanCard } from '../api/types';
-import { Plus, Trash2, Edit3, ArrowLeft, Settings } from 'lucide-react';
+import { Plus, Trash2, Edit3, ArrowLeft, Settings, Check, X } from 'lucide-react';
 import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, DragOverEvent, closestCenter, useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
 import { useSortable } from '@dnd-kit/sortable';
@@ -20,7 +20,11 @@ interface UndoToastData {
 }
 
 // Draggable Card Component
-const DraggableCard: React.FC<{ card: KanbanCard; onDelete: (cardId: number) => void }> = ({ card, onDelete }) => {
+const DraggableCard: React.FC<{ 
+  card: KanbanCard; 
+  onDelete: (cardId: number) => void;
+  onUpdate: (cardId: number, title: string) => void;
+}> = ({ card, onDelete, onUpdate }) => {
   const {
     attributes,
     listeners,
@@ -29,6 +33,9 @@ const DraggableCard: React.FC<{ card: KanbanCard; onDelete: (cardId: number) => 
     transition,
     isDragging,
   } = useSortable({ id: card.id });
+
+  const [isEditing, setIsEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState(card.title);
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -42,6 +49,33 @@ const DraggableCard: React.FC<{ card: KanbanCard; onDelete: (cardId: number) => 
     onDelete(card.id);
   };
 
+  const handleEditClick = (e: React.MouseEvent | React.PointerEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setIsEditing(true);
+    setEditTitle(card.title);
+  };
+
+  const handleSave = () => {
+    if (editTitle.trim() && editTitle !== card.title) {
+      onUpdate(card.id, editTitle.trim());
+    }
+    setIsEditing(false);
+  };
+
+  const handleCancel = () => {
+    setEditTitle(card.title);
+    setIsEditing(false);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleSave();
+    } else if (e.key === 'Escape') {
+      handleCancel();
+    }
+  };
+
   return (
     <div
       ref={setNodeRef}
@@ -51,20 +85,63 @@ const DraggableCard: React.FC<{ card: KanbanCard; onDelete: (cardId: number) => 
       {...listeners}
     >
       <div className="flex items-start justify-between">
-        <div className="flex-1">
-          <h4 className="font-medium text-text mb-1">{card.title}</h4>
-          {card.description && (
-            <p className="text-sm text-muted">{card.description}</p>
+        <div className="flex-1 min-w-0">
+          {isEditing ? (
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                onKeyDown={handleKeyDown}
+                className="flex-1 bg-background border border-gray-600 rounded px-2 py-1 text-text text-sm"
+                autoFocus
+                onClick={(e) => e.stopPropagation()}
+                onPointerDown={(e) => e.stopPropagation()}
+              />
+              <button
+                onClick={(e) => { e.stopPropagation(); e.preventDefault(); handleSave(); }}
+                onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
+                className="p-1 text-green-400 hover:text-green-300"
+              >
+                <Check size={14} />
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); e.preventDefault(); handleCancel(); }}
+                onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
+                className="p-1 text-muted hover:text-text"
+              >
+                <X size={14} />
+              </button>
+            </div>
+          ) : (
+            <>
+              <h4 className="font-medium text-text mb-1">{card.title}</h4>
+              {card.description && (
+                <p className="text-sm text-muted">{card.description}</p>
+              )}
+            </>
           )}
         </div>
-        <button
-          onClick={handleDeleteClick}
-          onPointerDown={handleDeleteClick}
-          className="opacity-0 group-hover:opacity-100 p-1 text-muted hover:text-red-400 transition-all ml-2 pointer-events-auto"
-          data-dndkit-disabled
-        >
-          <Trash2 size={14} />
-        </button>
+        {!isEditing && (
+          <div className="flex gap-1 ml-2">
+            <button
+              onClick={handleEditClick}
+              onPointerDown={handleEditClick}
+              className="opacity-0 group-hover:opacity-100 p-1 text-muted hover:text-primary transition-all pointer-events-auto"
+              data-dndkit-disabled
+            >
+              <Edit3 size={14} />
+            </button>
+            <button
+              onClick={handleDeleteClick}
+              onPointerDown={handleDeleteClick}
+              className="opacity-0 group-hover:opacity-100 p-1 text-muted hover:text-red-400 transition-all pointer-events-auto"
+              data-dndkit-disabled
+            >
+              <Trash2 size={14} />
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -77,7 +154,8 @@ const KanbanColumnComponent: React.FC<{
   onDeleteColumn: (columnId: number) => void;
   onUpdateColumn: (columnId: number, title: string) => void;
   onDeleteCard: (cardId: number) => void;
-}> = ({ column, onAddCard, onDeleteColumn, onUpdateColumn, onDeleteCard }) => {
+  onUpdateCard: (cardId: number, title: string) => void;
+}> = ({ column, onAddCard, onDeleteColumn, onUpdateColumn, onDeleteCard, onUpdateCard }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(column.title);
   
@@ -132,7 +210,7 @@ const KanbanColumnComponent: React.FC<{
       >
         <SortableContext items={column.cards.map(card => card.id)} strategy={verticalListSortingStrategy}>
           {column.cards.sort((a, b) => a.position - b.position).map((card) => (
-            <DraggableCard key={card.id} card={card} onDelete={onDeleteCard} />
+            <DraggableCard key={card.id} card={card} onDelete={onDeleteCard} onUpdate={onUpdateCard} />
           ))}
         </SortableContext>
       </div>
@@ -449,6 +527,54 @@ export const KanbanPage: React.FC = () => {
     }, 10000);
 
     undoTimersRef.current[toastId] = timer;
+  };
+
+  const updateCard = async (cardId: number, title: string) => {
+    if (!selectedBoard || !title.trim()) return;
+
+    // Find the card and its column
+    let cardToUpdate: KanbanCard | null = null;
+    let columnIndex: number = -1;
+
+    for (let i = 0; i < selectedBoard.columns.length; i++) {
+      const column = selectedBoard.columns[i];
+      const card = column.cards.find(c => c.id === cardId);
+      if (card) {
+        cardToUpdate = card;
+        columnIndex = i;
+        break;
+      }
+    }
+
+    if (!cardToUpdate || columnIndex === -1) return;
+
+    // Optimistically update UI
+    const updatedColumns = selectedBoard.columns.map((col, idx) =>
+      idx === columnIndex
+        ? { ...col, cards: col.cards.map(c => c.id === cardId ? { ...c, title } : c) }
+        : col
+    );
+
+    setBoards(prev => prev.map(board =>
+      board.id === selectedBoard.id
+        ? { ...board, columns: updatedColumns }
+        : board
+    ));
+    setSelectedBoard(prev => prev ? { ...prev, columns: updatedColumns } : null);
+
+    try {
+      await api.put(`/kanban/cards/${cardId}`, { title });
+    } catch (error) {
+      console.error('Failed to update card:', error);
+      // Revert on error
+      setBoards(prev => prev.map(board =>
+        board.id === selectedBoard.id
+          ? { ...board, columns: selectedBoard.columns }
+          : board
+      ));
+      setSelectedBoard(prev => prev ? { ...prev, columns: selectedBoard.columns } : null);
+      alert('Error: Could not update card on server.');
+    }
   };
 
   const deleteBoard = async (boardId: number) => {
@@ -838,6 +964,7 @@ export const KanbanPage: React.FC = () => {
                           onDeleteColumn={deleteColumn}
                           onUpdateColumn={updateColumn}
                           onDeleteCard={deleteCard}
+                          onUpdateCard={updateCard}
                         />
                       </SortableContext>
                     </div>
