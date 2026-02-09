@@ -950,20 +950,20 @@ export const KanbanPage: React.FC = () => {
         fetchBoard(toast.boardId!);
       }
     } else if (toast.type === 'card') {
-      // Restore card
-      const restoredColumns = (prevBoard: KanbanBoard) => 
+      // Restore card - insert and then sort by position to ensure correct order
+      const restoredColumns = (prevBoard: KanbanBoard) =>
         prevBoard.columns.map((col, idx) =>
           idx === toast.columnIndex!
-            ? { ...col, cards: [...col.cards.slice(0, toast.cardIndex!), toast.data as KanbanCard, ...col.cards.slice(toast.cardIndex! + 1)] }
+            ? { ...col, cards: [...col.cards, toast.data as KanbanCard].sort((a, b) => a.position - b.position) }
             : col
         );
 
-      setBoards(prev => prev.map(board => 
+      setBoards(prev => prev.map(board =>
         board.id === toast.boardId
           ? { ...board, columns: restoredColumns(board) }
           : board
       ));
-      
+
       if (selectedBoard?.id === toast.boardId) {
         setSelectedBoard(prev => prev ? { ...prev, columns: restoredColumns(prev) } : null);
       }
