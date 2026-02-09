@@ -143,6 +143,12 @@ export const Dashboard = () => {
             navigate('/favorites');
           }
           break;
+        case 'd':
+          if (!isTyping) {
+            e.preventDefault();
+            navigate('/todos');
+          }
+          break;
         case 'i':
           if (!isTyping) {
             e.preventDefault();

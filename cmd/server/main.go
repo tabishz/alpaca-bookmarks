@@ -16,7 +16,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-const Version = "0.1.7-beta"
+const Version = "0.1.8-beta"
 
 // Helper function to create initial admin
 func createDefaultAdmin() {
@@ -105,6 +105,15 @@ func main() {
 			protected.PUT("/bookmarks/:id", handlers.UpdateBookmark)
 			protected.DELETE("/bookmarks/:id", handlers.DeleteBookmark)
 			protected.PATCH("/user/password", handlers.UpdatePassword)
+
+			// Todo Routes
+			protected.GET("/todos", handlers.GetTodoLists)
+			protected.POST("/todos", handlers.CreateTodoList)
+			protected.PUT("/todos/:id", handlers.UpdateTodoList)
+			protected.DELETE("/todos/:id", handlers.DeleteTodoList)
+			protected.POST("/todos/:id/items", handlers.CreateTodoItem)
+			protected.PATCH("/todos/items/:itemId", handlers.UpdateTodoItem)
+			protected.DELETE("/todos/items/:itemId", handlers.DeleteTodoItem)
 
 			// System Routes
 			system := protected.Group("/system")

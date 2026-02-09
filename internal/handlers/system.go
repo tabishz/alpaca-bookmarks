@@ -112,6 +112,13 @@ func PurgeData(c *gin.Context) {
 		return
 	}
 
+	// Delete Todo Lists
+	if err := tx.Where("user_id = ?", userID).Delete(&models.TodoList{}).Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete todo lists"})
+		return
+	}
+
 	// Delete THIS USER'S unused tags
 	if err := tx.Where("user_id = ? AND id NOT IN (SELECT tag_id FROM bookmark_tags)", userID).Delete(&models.Tag{}).Error; err != nil {
 		println("Warning: Failed to cleanup unused tags")

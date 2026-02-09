@@ -52,3 +52,26 @@ type UserLayout struct {
 	UserID  uint   `gorm:"uniqueIndex;not null"`
 	Layouts string `gorm:"type:json"` // Store layouts as a JSON string
 }
+
+// TodoList represents a collection of todo items for a user
+type TodoList struct {
+	ID        uint           `gorm:"primaryKey" json:"id"`
+	UserID    uint           `gorm:"index" json:"user_id"`
+	Title     string         `json:"title"`
+	Items     []TodoItem     `gorm:"foreignKey:TodoListID;constraint:OnDelete:CASCADE;" json:"items"`
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
+}
+
+// TodoItem represents a single task in a todo list
+type TodoItem struct {
+	ID         uint           `gorm:"primaryKey" json:"id"`
+	TodoListID uint           `gorm:"index" json:"todo_list_id"`
+	Content    string         `json:"content"`
+	Completed  bool           `gorm:"default:false" json:"completed"`
+	Position   int            `json:"position"`
+	CreatedAt  time.Time      `json:"created_at"`
+	UpdatedAt  time.Time      `json:"updated_at"`
+	DeletedAt  gorm.DeletedAt `gorm:"index" json:"-"`
+}
