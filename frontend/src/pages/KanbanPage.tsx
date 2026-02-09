@@ -117,6 +117,8 @@ export const KanbanPage: React.FC = () => {
   const [isAddingBoard, setIsAddingBoard] = useState(false);
   const [newBoardTitle, setNewBoardTitle] = useState('');
   const [newBoardDescription, setNewBoardDescription] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -125,23 +127,31 @@ export const KanbanPage: React.FC = () => {
 
   const fetchBoards = async () => {
     try {
+      setIsLoading(true);
+      setError(null);
       const response = await api.get('/kanban/boards');
+      console.log('Boards fetched:', response.data);
       setBoards(response.data);
       if (response.data.length > 0 && !selectedBoard) {
         setSelectedBoard(response.data[0]);
       }
     } catch (error) {
       console.error('Failed to fetch boards:', error);
+      setError('Failed to fetch boards');
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const fetchBoard = async (boardId: number) => {
     try {
       const response = await api.get(`/kanban/boards/${boardId}`);
+      console.log('Board fetched:', response.data);
       setSelectedBoard(response.data);
       setBoards(prev => prev.map(board => board.id === boardId ? response.data : board));
     } catch (error) {
       console.error('Failed to fetch board:', error);
+      setError('Failed to fetch board');
     }
   };
 
@@ -149,32 +159,44 @@ export const KanbanPage: React.FC = () => {
     if (!newBoardTitle.trim()) return;
 
     try {
+      setIsLoading(true);
+      setError(null);
+      
       const response = await api.post('/kanban/boards', {
         title: newBoardTitle,
         description: newBoardDescription
       });
-      setBoards([...boards, response.data]);
-      setSelectedBoard(response.data);
+      const newBoard = response.data;
+      console.log('Board created:', newBoard);
+      setBoards([...boards, newBoard]);
       setNewBoardTitle('');
       setNewBoardDescription('');
       setIsAddingBoard(false);
 
-      // Create default columns
-      await createColumn(response.data.id, 'To Do');
-      await createColumn(response.data.id, 'In Progress');
-      await createColumn(response.data.id, 'Done');
+      // Create default columns and wait for all to complete
+      await Promise.all([
+        createColumn(newBoard.id, 'To Do', false),
+        createColumn(newBoard.id, 'In Progress', false),
+        createColumn(newBoard.id, 'Done', false)
+      ]);
+
+      // Now fetch the complete board with columns
+      await fetchBoard(newBoard.id);
     } catch (error) {
       console.error('Failed to create board:', error);
+      setError('Failed to create board');
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const createColumn = async (boardId: number, title: string) => {
+  const createColumn = async (boardId: number, title: string, shouldFetch = true) => {
     try {
       await api.post(`/kanban/boards/${boardId}/columns`, {
         title,
         color: '#' + Math.floor(Math.random()*16777215).toString(16)
       });
-      if (selectedBoard && selectedBoard.id === boardId) {
+      if (shouldFetch && selectedBoard && selectedBoard.id === boardId) {
         fetchBoard(boardId);
       }
     } catch (error) {
@@ -403,7 +425,7 @@ export const KanbanPage: React.FC = () => {
       )}
 
       {/* Kanban Board */}
-      {selectedBoard && (
+      {selectedBoard && !isLoading && (
         <div>
           <div className="mb-6 flex items-center justify-between">
             <div>
@@ -458,23 +480,37 @@ export const KanbanPage: React.FC = () => {
             onDragEnd={handleDragEnd}
           >
             <div className="flex gap-4 overflow-x-auto pb-4">
-              {selectedBoard.columns
-                .sort((a, b) => a.position - b.position)
-                .map((column) => (
-                  <div key={column.id} className="flex-shrink-0">
-                    <SortableContext
-                      items={[column.id, ...column.cards.map(card => card.id)]}
-                      strategy={verticalListSortingStrategy}
-                    >
-                      <KanbanColumnComponent
-                        column={column}
-                        onAddCard={createCard}
-                        onDeleteColumn={deleteColumn}
-                        onUpdateColumn={updateColumn}
-                      />
-                    </SortableContext>
-                  </div>
-                ))}
+              {selectedBoard.columns && selectedBoard.columns.length > 0 ? (
+                selectedBoard.columns
+                  .sort((a, b) => a.position - b.position)
+                  .map((column) => (
+                    <div key={column.id} className="flex-shrink-0">
+                      <SortableContext
+                        items={[column.id, ...column.cards.map(card => card.id)]}
+                        strategy={verticalListSortingStrategy}
+                      >
+                        <KanbanColumnComponent
+                          column={column}
+                          onAddCard={createCard}
+                          onDeleteColumn={deleteColumn}
+                          onUpdateColumn={updateColumn}
+                        />
+                      </SortableContext>
+                    </div>
+                  ))
+              ) : (
+                <div className="text-center py-20 flex-1">
+                  <div className="text-4xl mb-4">📝</div>
+                  <h3 className="text-xl font-bold mb-2">No Columns Yet</h3>
+                  <p className="text-muted mb-4">Add your first column to get started</p>
+                  <button
+                    onClick={() => setIsAddingColumn(true)}
+                    className="bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary/80"
+                  >
+                    Add First Column
+                  </button>
+                </div>
+              )}
             </div>
             <DragOverlay>
               {activeId && selectedBoard && (
@@ -497,7 +533,32 @@ export const KanbanPage: React.FC = () => {
         </div>
       )}
 
-      {boards.length === 0 && !isAddingBoard && (
+      {error && (
+        <div className="text-center py-20">
+          <div className="text-6xl mb-4">⚠️</div>
+          <h2 className="text-2xl font-bold mb-2 text-red-400">Error</h2>
+          <p className="text-muted mb-6">{error}</p>
+          <button
+            onClick={() => {
+              setError(null);
+              fetchBoards();
+            }}
+            className="bg-primary text-white px-6 py-3 rounded-lg hover:bg-primary/80"
+          >
+            Try Again
+          </button>
+        </div>
+      )}
+
+      {isLoading && (
+        <div className="text-center py-20">
+          <div className="text-6xl mb-4">⏳</div>
+          <h2 className="text-2xl font-bold mb-2">Loading...</h2>
+          <p className="text-muted">Please wait while we set up your board</p>
+        </div>
+      )}
+
+      {!error && !isLoading && boards.length === 0 && !isAddingBoard && (
         <div className="text-center py-20">
           <div className="text-6xl mb-4">📋</div>
           <h2 className="text-2xl font-bold mb-2">No Kanban Boards Yet</h2>
