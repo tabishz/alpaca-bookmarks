@@ -881,10 +881,16 @@ export const KanbanPage: React.FC = () => {
 
       const reorderedCards = arrayMove(activeColumn!.cards, oldIndex, newIndex);
 
+      // Update position values to match new order
+      const reorderedCardsWithPositions = reorderedCards.map((card, index) => ({
+        ...card,
+        position: index
+      }));
+
       // Optimistically update UI immediately
       const updatedColumns = selectedBoard.columns.map(col => {
         if (col.id === activeColumn!.id) {
-          return { ...col, cards: reorderedCards };
+          return { ...col, cards: reorderedCardsWithPositions };
         }
         return col;
       });
