@@ -162,7 +162,7 @@ const DraggableCard: React.FC<{
 // Column Component
 const KanbanColumnComponent: React.FC<{
   column: KanbanColumn;
-  onAddCard: (columnId: number) => void;
+  onAddCard: (columnId: number, title: string) => void;
   onDeleteColumn: (columnId: number) => void;
   onUpdateColumn: (columnId: number, title: string) => void;
   onDeleteCard: (cardId: number) => void;
@@ -170,7 +170,9 @@ const KanbanColumnComponent: React.FC<{
 }> = ({ column, onAddCard, onDeleteColumn, onUpdateColumn, onDeleteCard, onUpdateCard }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(column.title);
-  
+  const [isAddingCard, setIsAddingCard] = useState(false);
+  const [newCardTitle, setNewCardTitle] = useState('');
+
   const { setNodeRef, isOver } = useDroppable({
     id: `column-${column.id}`,
   });
@@ -180,6 +182,32 @@ const KanbanColumnComponent: React.FC<{
       onUpdateColumn(column.id, editTitle);
     }
     setIsEditing(false);
+  };
+
+  const handleStartAddCard = () => {
+    setIsAddingCard(true);
+    setNewCardTitle('');
+  };
+
+  const handleSaveNewCard = () => {
+    if (newCardTitle.trim()) {
+      onAddCard(column.id, newCardTitle.trim());
+    }
+    setIsAddingCard(false);
+    setNewCardTitle('');
+  };
+
+  const handleCancelNewCard = () => {
+    setIsAddingCard(false);
+    setNewCardTitle('');
+  };
+
+  const handleNewCardKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleSaveNewCard();
+    } else if (e.key === 'Escape') {
+      handleCancelNewCard();
+    }
   };
 
   return (
@@ -227,12 +255,40 @@ const KanbanColumnComponent: React.FC<{
         </SortableContext>
       </div>
 
-      <button
-        onClick={() => onAddCard(column.id)}
-        className="w-full mt-3 p-2 border-2 border-dashed border-gray-600 rounded-lg text-muted hover:border-primary hover:text-primary transition-colors"
-      >
-        <Plus size={16} className="inline mr-1" /> Add Card
-      </button>
+      {isAddingCard ? (
+        <div className="mt-3 bg-surface border border-gray-600 rounded-lg p-3">
+          <input
+            type="text"
+            value={newCardTitle}
+            onChange={(e) => setNewCardTitle(e.target.value)}
+            onKeyDown={handleNewCardKeyDown}
+            placeholder="Enter card title..."
+            className="w-full bg-background border border-gray-600 rounded px-2 py-1 text-text text-sm mb-2"
+            autoFocus
+          />
+          <div className="flex gap-2">
+            <button
+              onClick={handleSaveNewCard}
+              className="flex-1 px-3 py-1 bg-primary text-white rounded text-sm hover:bg-primary/80"
+            >
+              Add
+            </button>
+            <button
+              onClick={handleCancelNewCard}
+              className="px-3 py-1 text-muted hover:text-text text-sm"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button
+          onClick={handleStartAddCard}
+          className="w-full mt-3 p-2 border-2 border-dashed border-gray-600 rounded-lg text-muted hover:border-primary hover:text-primary transition-colors"
+        >
+          <Plus size={16} className="inline mr-1" /> Add Card
+        </button>
+      )}
     </div>
   );
 };
@@ -397,20 +453,60 @@ export const KanbanPage: React.FC = () => {
     }
   };
 
-  const createCard = async (columnId: number) => {
-    const title = prompt('Enter card title:');
-    if (!title?.trim()) return;
+  const createCard = async (columnId: number, title: string) => {
+    if (!title?.trim() || !selectedBoard) return;
+
+    // Optimistically add card to UI
+    const tempCard: KanbanCard = {
+      id: -Date.now(), // Temporary negative ID
+      column_id: columnId,
+      title: title.trim(),
+      description: '',
+      position: selectedBoard.columns.find(c => c.id === columnId)?.cards.length || 0,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
+    const updatedColumns = selectedBoard.columns.map(col => {
+      if (col.id === columnId) {
+        return { ...col, cards: [...col.cards, tempCard] };
+      }
+      return col;
+    });
+
+    setBoards(prev => prev.map(board =>
+      board.id === selectedBoard.id
+        ? { ...board, columns: updatedColumns }
+        : board
+    ));
+    setSelectedBoard(prev => prev ? { ...prev, columns: updatedColumns } : null);
 
     try {
-      await api.post(`/kanban/columns/${columnId}/cards`, {
-        title,
+      const response = await api.post(`/kanban/columns/${columnId}/cards`, {
+        title: title.trim(),
         description: ''
       });
-      if (selectedBoard) {
-        fetchBoard(selectedBoard.id);
-      }
+      // Replace temp card with real card from server
+      const realCard = response.data;
+      const finalColumns = selectedBoard.columns.map(col => {
+        if (col.id === columnId) {
+          return {
+            ...col,
+            cards: [...col.cards.filter(c => c.id !== tempCard.id), realCard].sort((a, b) => a.position - b.position)
+          };
+        }
+        return col;
+      });
+      setBoards(prev => prev.map(board =>
+        board.id === selectedBoard.id
+          ? { ...board, columns: finalColumns }
+          : board
+      ));
+      setSelectedBoard(prev => prev ? { ...prev, columns: finalColumns } : null);
     } catch (error) {
       console.error('Failed to create card:', error);
+      // Remove temp card on error
+      fetchBoard(selectedBoard.id);
     }
   };
 
