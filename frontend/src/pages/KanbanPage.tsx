@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import api from '../api/client';
 import { KanbanBoard, KanbanColumn, KanbanCard } from '../api/types';
 import { Plus, Trash2, Edit3, ArrowLeft } from 'lucide-react';
-import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, DragOverEvent, closestCenter } from '@dnd-kit/core';
+import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, DragOverEvent, closestCenter, useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -50,6 +50,10 @@ const KanbanColumnComponent: React.FC<{
 }> = ({ column, onAddCard, onDeleteColumn, onUpdateColumn }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(column.title);
+  
+  const { setNodeRef, isOver } = useDroppable({
+    id: `column-${column.id}`,
+  });
 
   const handleSaveTitle = () => {
     if (editTitle.trim() && editTitle !== column.title) {
@@ -90,13 +94,18 @@ const KanbanColumnComponent: React.FC<{
         </div>
       </div>
 
-      <SortableContext items={column.cards.map(card => card.id)} strategy={verticalListSortingStrategy}>
-        <div className="space-y-2 min-h-[100px]">
+      <div 
+        ref={setNodeRef}
+        className={`space-y-2 min-h-[100px] rounded-lg transition-colors ${
+          isOver ? 'bg-primary/20 border-2 border-dashed border-primary' : ''
+        }`}
+      >
+        <SortableContext items={column.cards.map(card => card.id)} strategy={verticalListSortingStrategy}>
           {column.cards.sort((a, b) => a.position - b.position).map((card) => (
             <DraggableCard key={card.id} card={card} />
           ))}
-        </div>
-      </SortableContext>
+        </SortableContext>
+      </div>
 
       <button
         onClick={() => onAddCard(column.id)}
@@ -260,9 +269,9 @@ export const KanbanPage: React.FC = () => {
     if (!over || !selectedBoard) return;
 
     const activeId = active.id as number;
-    const overId = over.id as number;
+    const overId = over.id as string | number;
 
-    // Find the active card
+    // Find the active card and its column
     let activeCard: KanbanCard | null = null;
     let activeColumn: KanbanColumn | null = null;
 
@@ -277,59 +286,64 @@ export const KanbanPage: React.FC = () => {
 
     if (!activeCard) return;
 
-    // Check if we're dropping on a column header (to move to that column)
-    const targetColumn = selectedBoard.columns.find(c => c.id === overId);
+    // Check if we're dropping on a column (column IDs are strings like "column-1")
+    if (typeof overId === 'string' && overId.startsWith('column-')) {
+      const targetColumnId = parseInt(overId.replace('column-', ''));
+      const targetColumn = selectedBoard.columns.find(c => c.id === targetColumnId);
 
-    if (targetColumn) {
-      // Moving card to a different column
-      if (activeCard.column_id !== targetColumn.id) {
-        try {
-          // Update card to move to new column
-          await api.put(`/kanban/cards/${activeCard.id}`, {
-            column_id: targetColumn.id,
-            position: targetColumn.cards.length
-          });
-          fetchBoard(selectedBoard.id);
-        } catch (error) {
-          console.error('Failed to move card:', error);
+      if (targetColumn) {
+        // Moving card to a different column
+        if (activeCard.column_id !== targetColumn.id) {
+          try {
+            // Update card to move to new column
+            await api.put(`/kanban/cards/${activeCard.id}`, {
+              column_id: targetColumn.id,
+              position: targetColumn.cards.length
+            });
+            fetchBoard(selectedBoard.id);
+          } catch (error) {
+            console.error('Failed to move card:', error);
+          }
         }
+        return;
       }
-      return;
     }
 
     // Find over card for reordering within the same column
-    let overCard: KanbanCard | null = null;
-    let overColumn: KanbanColumn | null = null;
+    if (typeof overId === 'number') {
+      let overCard: KanbanCard | null = null;
+      let overColumn: KanbanColumn | null = null;
 
-    for (const column of selectedBoard.columns) {
-      const card = column.cards.find(c => c.id === overId);
-      if (card) {
-        overCard = card;
-        overColumn = column;
-        break;
+      for (const column of selectedBoard.columns) {
+        const card = column.cards.find(c => c.id === overId);
+        if (card) {
+          overCard = card;
+          overColumn = column;
+          break;
+        }
       }
-    }
 
-    if (!overCard || activeCard.column_id !== overCard.column_id) return;
+      if (!overCard || activeCard.column_id !== overCard.column_id) return;
 
-    // Reordering within the same column
-    const oldIndex = activeColumn!.cards.findIndex(c => c.id === activeId);
-    const newIndex = overColumn!.cards.findIndex(c => c.id === overId);
+      // Reordering within the same column
+      const oldIndex = activeColumn!.cards.findIndex(c => c.id === activeId);
+      const newIndex = overColumn!.cards.findIndex(c => c.id === overId);
 
-    if (oldIndex === newIndex) return;
+      if (oldIndex === newIndex) return;
 
-    const reorderedCards = arrayMove(activeColumn!.cards, oldIndex, newIndex);
+      const reorderedCards = arrayMove(activeColumn!.cards, oldIndex, newIndex);
 
-    // Update positions in backend
-    try {
-      await Promise.all(
-        reorderedCards.map((card, index) =>
-          api.put(`/kanban/cards/${card.id}`, { position: index })
-        )
-      );
-      fetchBoard(selectedBoard.id);
-    } catch (error) {
-      console.error('Failed to reorder cards:', error);
+      // Update positions in backend
+      try {
+        await Promise.all(
+          reorderedCards.map((card, index) =>
+            api.put(`/kanban/cards/${card.id}`, { position: index })
+          )
+        );
+        fetchBoard(selectedBoard.id);
+      } catch (error) {
+        console.error('Failed to reorder cards:', error);
+      }
     }
   };
 
@@ -486,7 +500,7 @@ export const KanbanPage: React.FC = () => {
                   .map((column) => (
                     <div key={column.id} className="flex-shrink-0">
                       <SortableContext
-                        items={[column.id, ...column.cards.map(card => card.id)]}
+                        items={[`column-${column.id}`, ...column.cards.map(card => card.id)]}
                         strategy={verticalListSortingStrategy}
                       >
                         <KanbanColumnComponent
