@@ -5,6 +5,7 @@ import { Dashboard } from './pages/Dashboard';
 import { useAuthStore } from './store/authStore';
 import { Admin } from './pages/Admin';
 import { FavoritesDashboard } from './pages/FavoritesDashboard';
+import { TodoListPage } from './pages/TodoListPage';
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
@@ -26,6 +27,11 @@ function App() {
           <Route path="/favorites" element={
             <ProtectedRoute>
               <FavoritesDashboard />
+            </ProtectedRoute>
+          } />
+          <Route path="/todos" element={
+            <ProtectedRoute>
+              <TodoListPage />
             </ProtectedRoute>
           } />
           <Route path="/admin" element={<Admin />} />

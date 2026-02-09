@@ -21,3 +21,22 @@ export interface User {
   theme?: string;
   created_at?: string;
 }
+
+export interface TodoItem {
+  id: number;
+  todo_list_id: number;
+  content: string;
+  completed: boolean;
+  position: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TodoList {
+  id: number;
+  user_id: number;
+  title: string;
+  items: TodoItem[];
+  created_at: string;
+  updated_at: string;
+}

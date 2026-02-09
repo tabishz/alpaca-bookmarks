@@ -87,6 +87,13 @@ func DeleteUser(c *gin.Context) {
 		return
 	}
 
+	// Delete User's Todo Lists (TodoItems will be deleted by Cascade)
+	if err := tx.Where("user_id = ?", idStr).Delete(&models.TodoList{}).Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete todo lists"})
+		return
+	}
+
 	// Finally, Delete the User
 	if err := tx.Delete(&models.User{}, idStr).Error; err != nil {
 		tx.Rollback()

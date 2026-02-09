@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { LayoutGrid, List, Search, LogOut, Tags, Settings, Upload, Download, Sliders, Shield, X, Heart, Info } from 'lucide-react';
+import { LayoutGrid, List, Search, LogOut, Tags, Settings, Upload, Download, Sliders, Shield, X, Heart, Info, ListTodo } from 'lucide-react';
 import { User } from '../api/types';
 
 interface DashboardHeaderProps {
@@ -120,6 +120,11 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
             <Link to="/favorites" className="flex items-center gap-2 p-2 text-sm font-medium focus:outline-none rounded-md border border-transparent bg-surface text-gray-400 hover:text-white">
               <Heart size={20} />
               <span className="hidden md:inline">Favorites</span>
+            </Link>
+
+            <Link to="/todos" className="flex items-center gap-2 p-2 text-sm font-medium focus:outline-none rounded-md border border-transparent bg-surface text-gray-400 hover:text-white">
+              <ListTodo size={20} />
+              <span className="hidden md:inline">Todo List</span>
             </Link>
 
             <div className="relative">
