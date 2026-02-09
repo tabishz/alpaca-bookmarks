@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Home, Plus, Trash2, CheckCircle, Circle, ChevronRight, ChevronDown, ListTodo, Edit2, X, Save } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Home, Plus, Trash2, CheckCircle, Circle, ChevronRight, ChevronDown, ListTodo, Edit2, X, Save, Heart } from 'lucide-react';
 import api from '../api/client';
 import { TodoList, TodoItem } from '../api/types';
 import { useTheme } from '../hooks/useTheme';
 
 export const TodoListPage: React.FC = () => {
   useTheme();
+  const navigate = useNavigate();
   const [todoLists, setTodoLists] = useState<TodoList[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedLists, setExpandedLists] = useState<Set<number>>(new Set());
@@ -32,6 +33,26 @@ export const TodoListPage: React.FC = () => {
   useEffect(() => {
     fetchTodoLists();
   }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      const isTyping = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA';
+
+      if (isTyping) return;
+
+      if (['h', 'Backspace', 'Escape'].includes(e.key)) {
+        e.preventDefault();
+        navigate('/');
+      } else if (e.key === 'f') {
+        e.preventDefault();
+        navigate('/favorites');
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [navigate]);
 
   const toggleListExpansion = (id: number) => {
     const newExpanded = new Set(expandedLists);
@@ -130,10 +151,16 @@ export const TodoListPage: React.FC = () => {
           <ListTodo size={32} className="text-primary" />
           <h1 className="text-3xl font-bold text-text">Todo Lists</h1>
         </div>
-        <Link to="/" className="flex items-center gap-2 rounded-md bg-surface px-4 py-2 text-text hover:bg-primary hover:text-white transition-colors">
-          <Home size={20} />
-          <span className="hidden sm:inline">Dashboard</span>
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link to="/" className="flex items-center gap-2 rounded-md bg-surface px-4 py-2 text-text hover:bg-primary hover:text-white transition-colors">
+            <Home size={20} />
+            <span className="hidden sm:inline">Dashboard</span>
+          </Link>
+          <Link to="/favorites" className="flex items-center gap-2 rounded-md bg-surface px-4 py-2 text-text hover:bg-primary hover:text-white transition-colors">
+            <Heart size={20} />
+            <span className="hidden sm:inline">Favorites</span>
+          </Link>
+        </div>
       </header>
 
       <form onSubmit={handleCreateList} className="mb-8 flex gap-2">
