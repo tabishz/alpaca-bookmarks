@@ -40,6 +40,11 @@ function App() {
               <KanbanPage />
             </ProtectedRoute>
           } />
+          <Route path="/kanban/:boardId" element={
+            <ProtectedRoute>
+              <KanbanPage />
+            </ProtectedRoute>
+          } />
           <Route path="/admin" element={<Admin />} />
         </Routes>
       </div>

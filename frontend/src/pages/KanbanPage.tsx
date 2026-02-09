@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import api from '../api/client';
 import { KanbanBoard, KanbanColumn, KanbanCard } from '../api/types';
 import { Plus, Trash2, Edit3, ArrowLeft, Settings } from 'lucide-react';
@@ -147,6 +147,8 @@ const KanbanColumnComponent: React.FC<{
   );
 };
 
+const LAST_BOARD_KEY = 'kanban_last_board_id';
+
 export const KanbanPage: React.FC = () => {
   const [boards, setBoards] = useState<KanbanBoard[]>([]);
   const [selectedBoard, setSelectedBoard] = useState<KanbanBoard | null>(null);
@@ -162,6 +164,7 @@ export const KanbanPage: React.FC = () => {
   const [undoToasts, setUndoToasts] = useState<UndoToastData[]>([]);
   const undoTimersRef = useRef<{ [key: string]: number }>({});
   const navigate = useNavigate();
+  const { boardId: urlBoardId } = useParams();
 
   useEffect(() => {
     fetchBoards();
@@ -174,6 +177,47 @@ export const KanbanPage: React.FC = () => {
     };
   }, []);
 
+  // Handle initial board selection based on URL or localStorage
+  useEffect(() => {
+    if (boards.length === 0) return;
+
+    if (urlBoardId) {
+      // If URL has boardId, select that board
+      const boardId = parseInt(urlBoardId);
+      const board = boards.find(b => b.id === boardId);
+      if (board) {
+        setSelectedBoard(board);
+        localStorage.setItem(LAST_BOARD_KEY, boardId.toString());
+      } else {
+        // Board not found, navigate to base /kanban
+        navigate('/kanban', { replace: true });
+      }
+    } else {
+      // No boardId in URL, check localStorage
+      const lastBoardId = localStorage.getItem(LAST_BOARD_KEY);
+      if (lastBoardId) {
+        const boardId = parseInt(lastBoardId);
+        const board = boards.find(b => b.id === boardId);
+        if (board) {
+          setSelectedBoard(board);
+          navigate(`/kanban/${boardId}`, { replace: true });
+        } else {
+          // Last board not found, default to first
+          setSelectedBoard(boards[0]);
+          navigate(`/kanban/${boards[0].id}`, { replace: true });
+          localStorage.setItem(LAST_BOARD_KEY, boards[0].id.toString());
+        }
+      } else {
+        // No last board in storage, default to first
+        setSelectedBoard(boards[0]);
+        if (boards.length > 0) {
+          navigate(`/kanban/${boards[0].id}`, { replace: true });
+          localStorage.setItem(LAST_BOARD_KEY, boards[0].id.toString());
+        }
+      }
+    }
+  }, [boards, urlBoardId]);
+
   const fetchBoards = async () => {
     try {
       setIsLoading(true);
@@ -181,9 +225,6 @@ export const KanbanPage: React.FC = () => {
       const response = await api.get('/kanban/boards');
       console.log('Boards fetched:', response.data);
       setBoards(response.data);
-      if (response.data.length > 0 && !selectedBoard) {
-        setSelectedBoard(response.data[0]);
-      }
     } catch (error) {
       console.error('Failed to fetch boards:', error);
       setError('Failed to fetch boards');
@@ -192,11 +233,24 @@ export const KanbanPage: React.FC = () => {
     }
   };
 
+  // Select board by ID and update URL
+  const selectBoard = (board: KanbanBoard | null) => {
+    if (board) {
+      setSelectedBoard(board);
+      localStorage.setItem(LAST_BOARD_KEY, board.id.toString());
+      navigate(`/kanban/${board.id}`, { replace: true });
+    } else {
+      setSelectedBoard(null);
+      localStorage.removeItem(LAST_BOARD_KEY);
+      navigate('/kanban', { replace: true });
+    }
+  };
+
   const fetchBoard = async (boardId: number) => {
     try {
       const response = await api.get(`/kanban/boards/${boardId}`);
       console.log('Board fetched:', response.data);
-      setSelectedBoard(response.data);
+      selectBoard(response.data);
       setBoards(prev => prev.map(board => board.id === boardId ? response.data : board));
     } catch (error) {
       console.error('Failed to fetch board:', error);
