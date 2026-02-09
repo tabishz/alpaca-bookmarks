@@ -1,15 +1,26 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/client';
 import { KanbanBoard, KanbanColumn, KanbanCard } from '../api/types';
-import { Plus, Trash2, Edit3, ArrowLeft } from 'lucide-react';
+import { Plus, Trash2, Edit3, ArrowLeft, Settings } from 'lucide-react';
 import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, DragOverEvent, closestCenter, useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { UndoToast } from '../components/UndoToast';
+
+interface UndoToastData {
+  id: string;
+  message: string;
+  type: 'board' | 'column' | 'card';
+  data: KanbanBoard | KanbanColumn | KanbanCard;
+  boardId?: number;
+  columnIndex?: number;
+  cardIndex?: number;
+}
 
 // Draggable Card Component
-const DraggableCard: React.FC<{ card: KanbanCard }> = ({ card }) => {
+const DraggableCard: React.FC<{ card: KanbanCard; onDelete: (cardId: number) => void }> = ({ card, onDelete }) => {
   const {
     attributes,
     listeners,
@@ -29,14 +40,27 @@ const DraggableCard: React.FC<{ card: KanbanCard }> = ({ card }) => {
     <div
       ref={setNodeRef}
       style={style}
-      className="bg-surface border border-gray-600 rounded-lg p-3 cursor-move hover:shadow-lg transition-shadow"
+      className="bg-surface border border-gray-600 rounded-lg p-3 cursor-move hover:shadow-lg transition-shadow group"
       {...attributes}
       {...listeners}
     >
-      <h4 className="font-medium text-text mb-1">{card.title}</h4>
-      {card.description && (
-        <p className="text-sm text-muted">{card.description}</p>
-      )}
+      <div className="flex items-start justify-between">
+        <div className="flex-1">
+          <h4 className="font-medium text-text mb-1">{card.title}</h4>
+          {card.description && (
+            <p className="text-sm text-muted">{card.description}</p>
+          )}
+        </div>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete(card.id);
+          }}
+          className="opacity-0 group-hover:opacity-100 p-1 text-muted hover:text-red-400 transition-all ml-2"
+        >
+          <Trash2 size={14} />
+        </button>
+      </div>
     </div>
   );
 };
@@ -47,7 +71,8 @@ const KanbanColumnComponent: React.FC<{
   onAddCard: (columnId: number) => void;
   onDeleteColumn: (columnId: number) => void;
   onUpdateColumn: (columnId: number, title: string) => void;
-}> = ({ column, onAddCard, onDeleteColumn, onUpdateColumn }) => {
+  onDeleteCard: (cardId: number) => void;
+}> = ({ column, onAddCard, onDeleteColumn, onUpdateColumn, onDeleteCard }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(column.title);
   
@@ -102,7 +127,7 @@ const KanbanColumnComponent: React.FC<{
       >
         <SortableContext items={column.cards.map(card => card.id)} strategy={verticalListSortingStrategy}>
           {column.cards.sort((a, b) => a.position - b.position).map((card) => (
-            <DraggableCard key={card.id} card={card} />
+            <DraggableCard key={card.id} card={card} onDelete={onDeleteCard} />
           ))}
         </SortableContext>
       </div>
@@ -128,10 +153,20 @@ export const KanbanPage: React.FC = () => {
   const [newBoardDescription, setNewBoardDescription] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isBoardMenuOpen, setIsBoardMenuOpen] = useState(false);
+  const [undoToasts, setUndoToasts] = useState<UndoToastData[]>([]);
+  const undoTimersRef = useRef<{ [key: string]: number }>({});
   const navigate = useNavigate();
 
   useEffect(() => {
     fetchBoards();
+  }, []);
+
+  useEffect(() => {
+    const timers = undoTimersRef.current;
+    return () => {
+      Object.values(timers).forEach(clearTimeout);
+    };
   }, []);
 
   const fetchBoards = async () => {
@@ -244,14 +279,171 @@ export const KanbanPage: React.FC = () => {
   const deleteColumn = async (columnId: number) => {
     if (!confirm('Are you sure you want to delete this column and all its cards?')) return;
 
-    try {
-      await api.delete(`/kanban/columns/${columnId}`);
-      if (selectedBoard) {
-        fetchBoard(selectedBoard.id);
+    // Find column and its index before deletion
+    const columnIndex = selectedBoard?.columns.findIndex(c => c.id === columnId);
+    const columnToDelete = selectedBoard?.columns.find(c => c.id === columnId);
+
+    if (!selectedBoard || !columnToDelete || columnIndex === -1) return;
+
+    // Remove from UI immediately - update both boards and selectedBoard
+    const updatedColumns = selectedBoard.columns.filter(c => c.id !== columnId);
+    setBoards(prev => prev.map(board =>
+      board.id === selectedBoard.id
+        ? { ...board, columns: updatedColumns }
+        : board
+    ));
+    setSelectedBoard(prev => prev ? { ...prev, columns: updatedColumns } : null);
+
+    const toastId = `column-undo-${Date.now()}`;
+    const newToast: UndoToastData = {
+      id: toastId,
+      message: `Deleted column "${columnToDelete.title}" and its cards`,
+      type: 'column',
+      data: columnToDelete,
+      boardId: selectedBoard.id,
+      columnIndex
+    };
+    setUndoToasts(prev => [...prev, newToast]);
+
+    const timer = window.setTimeout(() => {
+      api.delete(`/kanban/columns/${columnId}`).catch(error => {
+        console.error("Failed to permanently delete column", error);
+        // Show error and restore from undo
+        setBoards(prev => prev.map(board =>
+          board.id === selectedBoard.id
+            ? { ...board, columns: [...board.columns.slice(0, columnIndex), columnToDelete, ...board.columns.slice(columnIndex)] }
+            : board
+        ));
+        setSelectedBoard(prev => prev ? { ...prev, columns: [...prev.columns.slice(0, columnIndex), columnToDelete, ...prev.columns.slice(columnIndex)] } : null);
+        alert("Error: Could not delete column from server.");
+      });
+      removeToast(toastId);
+    }, 10000);
+
+    undoTimersRef.current[toastId] = timer;
+  };
+
+  const deleteCard = async (cardId: number) => {
+    if (!selectedBoard) return;
+
+    // Find card and its column/index before deletion
+    let cardToDelete: KanbanCard | null = null;
+    let columnIndex: number = -1;
+    let cardIndex: number = -1;
+
+    for (const column of selectedBoard.columns) {
+      const card = column.cards.find(c => c.id === cardId);
+      if (card) {
+        cardToDelete = card;
+        columnIndex = selectedBoard.columns.findIndex(c => c.id === column.id);
+        cardIndex = column.cards.findIndex(c => c.id === cardId);
+        break;
       }
-    } catch (error) {
-      console.error('Failed to delete column:', error);
     }
+
+    if (!cardToDelete || columnIndex === -1) return;
+
+    // Remove from UI immediately - update both boards and selectedBoard
+    const updatedColumns = selectedBoard.columns.map((col, idx) =>
+      idx === columnIndex
+        ? { ...col, cards: col.cards.filter(c => c.id !== cardId) }
+        : col
+    );
+
+    setBoards(prev => prev.map(board =>
+      board.id === selectedBoard.id
+        ? { ...board, columns: updatedColumns }
+        : board
+    ));
+    setSelectedBoard(prev => prev ? { ...prev, columns: updatedColumns } : null);
+
+    const toastId = `card-undo-${Date.now()}`;
+    const newToast: UndoToastData = {
+      id: toastId,
+      message: `Deleted card "${cardToDelete.title}"`,
+      type: 'card',
+      data: cardToDelete,
+      boardId: selectedBoard.id,
+      columnIndex,
+      cardIndex
+    };
+    setUndoToasts(prev => [...prev, newToast]);
+
+    const timer = window.setTimeout(() => {
+      api.delete(`/kanban/cards/${cardId}`).catch(error => {
+        console.error("Failed to permanently delete card", error);
+        // Show error and restore from undo
+        const restoredColumns = selectedBoard.columns.map((col, idx) =>
+          idx === columnIndex
+            ? { ...col, cards: [...col.cards.slice(0, cardIndex), cardToDelete, ...col.cards.slice(cardIndex + 1)] }
+            : col
+        );
+        setBoards(prev => prev.map(board =>
+          board.id === selectedBoard.id
+            ? { ...board, columns: restoredColumns }
+            : board
+        ));
+        setSelectedBoard(prev => prev ? { ...prev, columns: restoredColumns } : null);
+        alert("Error: Could not delete card from server.");
+      });
+      removeToast(toastId);
+    }, 10000);
+
+    undoTimersRef.current[toastId] = timer;
+  };
+
+  const deleteBoard = async (boardId: number) => {
+    const boardToDelete = boards.find(b => b.id === boardId);
+    if (!boardToDelete) return;
+
+    if (!confirm(`Are you sure you want to delete the board "${boardToDelete.title}" and all its Data?`)) return;
+
+    // Find Board index
+    const boardIndex = boards.findIndex(b => b.id === boardId);
+    if (boardIndex === -1) return;
+
+    // Remove from UI immediately
+    setBoards(prev => prev.filter(b => b.id !== boardId));
+    
+    // If deleted board was selected, select a different board
+    if (selectedBoard?.id === boardId) {
+      const remainingBoards = boards.filter(b => b.id !== boardId);
+      setSelectedBoard(remainingBoards.length > 0 ? remainingBoards[0] : null);
+    }
+
+    const toastId = `board-undo-${Date.now()}`;
+    const newToast: UndoToastData = {
+      id: toastId,
+      message: `Deleted board "${boardToDelete.title}"`,
+      type: 'board',
+      data: boardToDelete,
+      boardId
+    };
+    setUndoToasts(prev => [...prev, newToast]);
+
+    const timer = window.setTimeout(() => {
+      api.delete(`/kanban/boards/${boardId}`).catch(error => {
+        console.error("Failed to permanently delete board", error);
+        // Restore from undo
+        setBoards(prev => {
+          const newBoards = [...prev];
+          // Insert at original index, or at end if index is out of bounds
+          if (boardIndex >= newBoards.length) {
+            newBoards.push(boardToDelete);
+          } else {
+            newBoards.splice(boardIndex, 0, boardToDelete);
+          }
+          return newBoards;
+        });
+        if (selectedBoard?.id === boardId || !selectedBoard) {
+          setSelectedBoard(boardToDelete);
+        }
+        alert("Error: Could not delete board from server.");
+      });
+      removeToast(toastId);
+    }, 10000);
+
+    undoTimersRef.current[toastId] = timer;
   };
 
   const handleDragStart = (event: DragStartEvent) => {
@@ -355,6 +547,54 @@ export const KanbanPage: React.FC = () => {
     setIsAddingColumn(false);
   };
 
+  // Undo toast functions
+  const removeToast = (toastId: string) => {
+    setUndoToasts(currentToasts => currentToasts.filter(t => t.id !== toastId));
+    if (undoTimersRef.current[toastId]) {
+      clearTimeout(undoTimersRef.current[toastId]);
+      delete undoTimersRef.current[toastId];
+    }
+  };
+
+  const handleUndoDelete = (toast: UndoToastData) => {
+    if (toast.type === 'board') {
+      // Restore board
+      const boardIndex = boards.findIndex(b => b.id === toast.boardId!);
+      setBoards(prev => [...prev.slice(0, boardIndex!), toast.data as KanbanBoard, ...prev.slice(boardIndex!)]);
+      if (selectedBoard?.id === toast.boardId) {
+        setSelectedBoard(toast.data as KanbanBoard);
+      }
+    } else if (toast.type === 'column') {
+      // Restore column
+      setBoards(prev => prev.map(board => 
+        board.id === toast.boardId
+          ? {
+              ...board,
+              columns: [...board.columns.slice(0, toast.columnIndex!), toast.data as KanbanColumn, ...board.columns.slice(toast.columnIndex! + 1)]
+            }
+          : board
+      ));
+      if (selectedBoard?.id === toast.boardId) {
+        fetchBoard(toast.boardId!);
+      }
+    } else if (toast.type === 'card') {
+      // Restore card
+      setBoards(prev => prev.map(board => 
+        board.id === toast.boardId
+          ? {
+              ...board,
+              columns: board.columns.map(col =>
+                col.id === board.columns[toast.columnIndex!].id
+                  ? { ...col, cards: [...col.cards.slice(0, toast.cardIndex!), toast.data as KanbanCard, ...col.cards.slice(toast.cardIndex! + 1)] }
+                  : col
+              )
+            }
+          : board
+      ));
+    }
+    removeToast(toast.id);
+  };
+
   return (
     <div className="min-h-screen p-6 md:p-10 w-full">
       <div className="mb-8">
@@ -448,12 +688,38 @@ export const KanbanPage: React.FC = () => {
                 <p className="text-muted">{selectedBoard.description}</p>
               )}
             </div>
-            <button
-              onClick={() => setIsAddingColumn(true)}
-              className="flex items-center gap-2 px-4 py-2 border border-gray-600 rounded-lg hover:border-primary hover:text-primary"
-            >
-              <Plus size={16} /> Add Column
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setIsAddingColumn(true)}
+                className="flex items-center gap-2 px-4 py-2 border border-gray-600 rounded-lg hover:border-primary hover:text-primary"
+              >
+                <Plus size={16} /> Add Column
+              </button>
+              <div className="relative">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsBoardMenuOpen(!isBoardMenuOpen);
+                  }}
+                  className="p-2 rounded-lg border border-gray-600 hover:border-primary hover:text-primary"
+                >
+                  <Settings size={16} />
+                </button>
+                {isBoardMenuOpen && (
+                  <div className="absolute right-0 top-full mt-2 w-48 bg-surface rounded-lg border border-gray-700 shadow-xl z-50">
+                    <button
+                      onClick={() => {
+                        setIsBoardMenuOpen(false);
+                        deleteBoard(selectedBoard.id);
+                      }}
+                      className="w-full text-left px-4 py-3 text-sm text-red-400 hover:bg-red-400/10 flex items-center gap-2"
+                    >
+                      <Trash2 size={16} /> Delete Board
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
 
           {/* New Column Input */}
@@ -508,6 +774,7 @@ export const KanbanPage: React.FC = () => {
                           onAddCard={createCard}
                           onDeleteColumn={deleteColumn}
                           onUpdateColumn={updateColumn}
+                          onDeleteCard={deleteCard}
                         />
                       </SortableContext>
                     </div>
@@ -585,6 +852,19 @@ export const KanbanPage: React.FC = () => {
           </button>
         </div>
       )}
+
+      <div className="fixed bottom-10 right-10 z-50 flex flex-col gap-3">
+        {undoToasts.map(toast => (
+          <UndoToast
+            key={toast.id}
+            id={toast.id}
+            message={toast.message}
+            duration={10000}
+            onUndo={() => handleUndoDelete(toast)}
+            onDismiss={() => removeToast(toast.id)}
+          />
+        ))}
+      </div>
     </div>
   );
 };
