@@ -149,6 +149,12 @@ export const Dashboard = () => {
             navigate('/todos');
           }
           break;
+        case 'k':
+          if (!isTyping) {
+            e.preventDefault();
+            navigate('/kanban');
+          }
+          break;
         case 'i':
           if (!isTyping) {
             e.preventDefault();
