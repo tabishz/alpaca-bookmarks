@@ -13,7 +13,7 @@ func GetKanbanBoards(c *gin.Context) {
 	userID := c.MustGet("userID").(uint)
 	var boards []models.KanbanBoard
 
-	if err := database.DB.Where("user_id = ?", userID).Preload("Columns.Cards").Find(&boards).Error; err != nil {
+	if err := database.DB.Where("user_id = ?", userID).Order("position").Preload("Columns.Cards").Find(&boards).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch kanban boards"})
 		return
 	}
@@ -34,10 +34,15 @@ func CreateKanbanBoard(c *gin.Context) {
 		return
 	}
 
+	// Get the maximum position for this user
+	var maxPosition int
+	database.DB.Model(&models.KanbanBoard{}).Where("user_id = ?", userID).Select("COALESCE(MAX(position), -1)").Scan(&maxPosition)
+
 	board := models.KanbanBoard{
 		UserID:      userID,
 		Title:       input.Title,
 		Description: input.Description,
+		Position:    maxPosition + 1,
 	}
 
 	if err := database.DB.Create(&board).Error; err != nil {
@@ -77,6 +82,7 @@ func UpdateKanbanBoard(c *gin.Context) {
 	var input struct {
 		Title       *string `json:"title"`
 		Description *string `json:"description"`
+		Position    *int    `json:"position"`
 	}
 
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -89,6 +95,9 @@ func UpdateKanbanBoard(c *gin.Context) {
 	}
 	if input.Description != nil {
 		board.Description = *input.Description
+	}
+	if input.Position != nil {
+		board.Position = *input.Position
 	}
 
 	if err := database.DB.Save(&board).Error; err != nil {

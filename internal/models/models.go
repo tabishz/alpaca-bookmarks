@@ -82,6 +82,7 @@ type KanbanBoard struct {
 	UserID      uint           `gorm:"index" json:"user_id"`
 	Title       string         `json:"title"`
 	Description string         `json:"description"`
+	Position    int            `json:"position"`
 	Columns     []KanbanColumn `gorm:"foreignKey:BoardID;constraint:OnDelete:CASCADE;" json:"columns"`
 	CreatedAt   time.Time      `json:"created_at"`
 	UpdatedAt   time.Time      `json:"updated_at"`

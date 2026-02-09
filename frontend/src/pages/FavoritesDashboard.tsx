@@ -203,7 +203,7 @@ export const FavoritesDashboard = () => {
   return (
     <div className="p-4 bg-background min-h-screen">
       <header className="mb-4 flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-text">Favorites Dashboard</h1>
+        <h1 className="text-2xl font-bold text-text">Alpaca Favorites</h1>
         <div className="flex items-center gap-2">
           <Link to="/" className="flex items-center gap-2 rounded-md bg-surface px-4 py-2 text-text hover:bg-primary hover:text-white transition-colors">
             <Home size={20} />

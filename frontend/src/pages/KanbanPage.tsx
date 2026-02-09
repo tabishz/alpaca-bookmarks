@@ -4,7 +4,7 @@ import api from '../api/client';
 import { KanbanBoard, KanbanColumn, KanbanCard } from '../api/types';
 import { Plus, Trash2, Edit3, Home, Settings, Check, X, Heart, ListTodo } from 'lucide-react';
 import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, DragOverEvent, closestCenter, useDroppable } from '@dnd-kit/core';
-import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
+import { SortableContext, verticalListSortingStrategy, horizontalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { UndoToast } from '../components/UndoToast';
@@ -19,6 +19,45 @@ interface UndoToastData {
   cardIndex?: number;
 }
 
+// Draggable Board Button Component
+const DraggableBoardButton: React.FC<{
+  board: KanbanBoard;
+  isSelected: boolean;
+  onClick: () => void;
+}> = ({ board, isSelected, onClick }) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: `board-${board.id}` });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <button
+      ref={setNodeRef}
+      style={style}
+      onClick={onClick}
+      className={`px-4 py-2 rounded-lg transition-colors cursor-move ${
+        isSelected
+          ? 'bg-primary text-white'
+          : 'bg-surface text-muted hover:text-text'
+      }`}
+      {...attributes}
+      {...listeners}
+    >
+      {board.title}
+    </button>
+  );
+};
+
 // Draggable Card Component
 const DraggableCard: React.FC<{
   card: KanbanCard;
@@ -32,7 +71,7 @@ const DraggableCard: React.FC<{
     transform,
     transition,
     isDragging,
-  } = useSortable({ 
+  } = useSortable({
     id: card.id,
     disabled: false,
   });
@@ -253,7 +292,7 @@ const KanbanColumnComponent: React.FC<{
         </div>
       </div>
 
-      <div 
+      <div
         ref={setNodeRef}
         className={`space-y-2 min-h-[100px] rounded-lg transition-colors ${
           isOver ? 'bg-primary/20 border-2 border-dashed border-primary' : ''
@@ -450,7 +489,7 @@ export const KanbanPage: React.FC = () => {
     try {
       setIsLoading(true);
       setError(null);
-      
+
       const response = await api.post('/kanban/boards', {
         title: newBoardTitle,
         description: newBoardDescription
@@ -737,7 +776,7 @@ export const KanbanPage: React.FC = () => {
 
     // Remove from UI immediately
     setBoards(prev => prev.filter(b => b.id !== boardId));
-    
+
     // If deleted board was selected, select a different board
     if (selectedBoard?.id === boardId) {
       const remainingBoards = boards.filter(b => b.id !== boardId);
@@ -777,6 +816,52 @@ export const KanbanPage: React.FC = () => {
     }, 10000);
 
     undoTimersRef.current[toastId] = timer;
+  };
+
+  const handleBoardDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (!over) return;
+
+    const activeId = String(active.id);
+    const overId = String(over.id);
+
+    // Check if we're dragging a board
+    if (!activeId.startsWith('board-') || !overId.startsWith('board-')) return;
+
+    const activeBoardId = parseInt(activeId.replace('board-', ''));
+    const overBoardId = parseInt(overId.replace('board-', ''));
+
+    if (activeBoardId === overBoardId) return;
+
+    const oldIndex = boards.findIndex(b => b.id === activeBoardId);
+    const newIndex = boards.findIndex(b => b.id === overBoardId);
+
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    // Reorder boards locally
+    const reorderedBoards = arrayMove(boards, oldIndex, newIndex);
+
+    // Update position values to match new order
+    const reorderedBoardsWithPositions = reorderedBoards.map((board, index) => ({
+      ...board,
+      position: index
+    }));
+
+    setBoards(reorderedBoardsWithPositions);
+
+    // Update positions in backend
+    try {
+      await Promise.all(
+        reorderedBoardsWithPositions.map((board, index) =>
+          api.put(`/kanban/boards/${board.id}`, { position: index })
+        )
+      );
+    } catch (error) {
+      console.error('Failed to reorder boards:', error);
+      // Revert on error
+      fetchBoards();
+    }
   };
 
   const handleDragStart = (event: DragStartEvent) => {
@@ -826,8 +911,8 @@ export const KanbanPage: React.FC = () => {
               return { ...col, cards: col.cards.filter(c => c.id !== activeId) };
             } else if (col.id === targetColumn.id) {
               // Add to target column with updated column_id
-              return { 
-                ...col, 
+              return {
+                ...col,
                 cards: [...col.cards, { ...activeCard, column_id: targetColumn.id }]
               };
             }
@@ -944,7 +1029,7 @@ export const KanbanPage: React.FC = () => {
       }
     } else if (toast.type === 'column') {
       // Restore column
-      setBoards(prev => prev.map(board => 
+      setBoards(prev => prev.map(board =>
         board.id === toast.boardId
           ? {
               ...board,
@@ -1004,7 +1089,7 @@ export const KanbanPage: React.FC = () => {
   return (
     <div className="min-h-screen p-6 md:p-10 w-full">
       <header className="mb-8 flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Kanban Boards</h1>
+        <h1 className="text-3xl font-bold">Alpaca Kanban</h1>
         <div className="flex items-center gap-2">
           <Link to="/" className="flex items-center gap-2 rounded-md bg-surface px-4 py-2 text-text hover:bg-primary hover:text-white transition-colors">
             <Home size={20} />
@@ -1030,21 +1115,26 @@ export const KanbanPage: React.FC = () => {
       {/* Board Selection */}
       {boards.length > 0 && (
         <div className="mb-6">
-          <div className="flex gap-2 flex-wrap">
-            {boards.map((board) => (
-              <button
-                key={board.id}
-                onClick={() => fetchBoard(board.id)}
-                className={`px-4 py-2 rounded-lg transition-colors ${
-                  selectedBoard?.id === board.id
-                    ? 'bg-primary text-white'
-                    : 'bg-surface text-muted hover:text-text'
-                }`}
-              >
-                {board.title}
-              </button>
-            ))}
-          </div>
+          <DndContext
+            collisionDetection={closestCenter}
+            onDragEnd={handleBoardDragEnd}
+          >
+            <SortableContext
+              items={boards.map(board => `board-${board.id}`)}
+              strategy={horizontalListSortingStrategy}
+            >
+              <div className="flex gap-2 flex-wrap">
+                {boards.sort((a, b) => a.position - b.position).map((board) => (
+                  <DraggableBoardButton
+                    key={board.id}
+                    board={board}
+                    isSelected={selectedBoard?.id === board.id}
+                    onClick={() => fetchBoard(board.id)}
+                  />
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
         </div>
       )}
 
@@ -1114,7 +1204,7 @@ export const KanbanPage: React.FC = () => {
                   }}
                   className="p-2 rounded-lg border border-gray-600 hover:border-primary hover:text-primary"
                 >
-                  <Settings size={16} />
+                  <Settings size={24} />
                 </button>
                 {isBoardMenuOpen && (
                   <div className="absolute right-0 top-full mt-2 w-48 bg-surface rounded-lg border border-gray-700 shadow-xl z-50">

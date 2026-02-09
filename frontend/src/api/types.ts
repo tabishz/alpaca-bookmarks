@@ -67,6 +67,7 @@ export interface KanbanBoard {
   user_id: number;
   title: string;
   description: string;
+  position: number;
   columns: KanbanColumn[];
   created_at: string;
   updated_at: string;

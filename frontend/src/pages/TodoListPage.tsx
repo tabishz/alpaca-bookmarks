@@ -152,7 +152,7 @@ export const TodoListPage: React.FC = () => {
       <header className="mb-8 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <ListTodo size={32} className="text-primary" />
-          <h1 className="text-3xl font-bold text-text">Todo Lists</h1>
+          <h1 className="text-3xl font-bold text-text">Alpaca Todo Lists</h1>
         </div>
         <div className="flex items-center gap-2">
           <Link to="/" className="flex items-center gap-2 rounded-md bg-surface px-4 py-2 text-text hover:bg-primary hover:text-white transition-colors">
@@ -194,13 +194,13 @@ export const TodoListPage: React.FC = () => {
           ) : (
             todoLists.map(list => (
               <div key={list.id} className="rounded-lg bg-surface shadow-md overflow-hidden border border-gray-700">
-                <div 
+                <div
                   className="flex items-center justify-between p-4 cursor-pointer hover:bg-white/5 transition-colors"
                   onClick={() => toggleListExpansion(list.id)}
                 >
                   <div className="flex items-center gap-3 flex-1 min-w-0" onClick={e => e.stopPropagation()}>
                     {expandedLists.has(list.id) ? <ChevronDown size={20} className="text-gray-500" /> : <ChevronRight size={20} className="text-gray-500" />}
-                    
+
                     {editingListId === list.id ? (
                       <div className="flex items-center gap-2 flex-1">
                         <input
@@ -217,7 +217,7 @@ export const TodoListPage: React.FC = () => {
                         <button onClick={() => setEditingListId(null)} className="text-red-500 hover:text-red-400"><X size={18} /></button>
                       </div>
                     ) : (
-                      <h2 
+                      <h2
                         className="text-xl font-bold text-text truncate"
                         onClick={() => toggleListExpansion(list.id)}
                       >
@@ -228,15 +228,15 @@ export const TodoListPage: React.FC = () => {
                       </h2>
                     )}
                   </div>
-                  
+
                   <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
-                    <button 
+                    <button
                       onClick={() => { setEditingListId(list.id); setEditingListTitle(list.title); }}
                       className="p-2 text-gray-500 hover:text-primary transition-colors"
                     >
                       <Edit2 size={18} />
                     </button>
-                    <button 
+                    <button
                       onClick={() => handleDeleteList(list.id)}
                       className="p-2 text-gray-500 hover:text-red-500 transition-colors"
                     >
@@ -250,7 +250,7 @@ export const TodoListPage: React.FC = () => {
                     <div className="space-y-2 mb-4">
                       {list.items && list.items.sort((a,b) => a.position - b.position).map(item => (
                         <div key={item.id} className="flex items-center gap-3 group">
-                          <button 
+                          <button
                             onClick={() => handleToggleItem(item)}
                             className={`shrink-0 transition-colors ${item.completed ? 'text-green-500' : 'text-gray-500 hover:text-primary'}`}
                           >
@@ -259,7 +259,7 @@ export const TodoListPage: React.FC = () => {
                           <span className={`flex-1 text-text ${item.completed ? 'line-through text-gray-500' : ''}`}>
                             {item.content}
                           </span>
-                          <button 
+                          <button
                             onClick={() => handleDeleteItem(item.id, list.id)}
                             className="opacity-0 group-hover:opacity-100 p-1 text-gray-500 hover:text-red-500 transition-all"
                           >
@@ -268,7 +268,7 @@ export const TodoListPage: React.FC = () => {
                         </div>
                       ))}
                     </div>
-                    
+
                     <TodoItemInput onAdd={(content) => handleCreateItem(list.id, content)} />
                   </div>
                 )}
@@ -301,8 +301,8 @@ const TodoItemInput: React.FC<{ onAdd: (content: string) => void }> = ({ onAdd }
         value={content}
         onChange={e => setContent(e.target.value)}
       />
-      <button 
-        type="submit" 
+      <button
+        type="submit"
         className="bg-gray-700 text-white px-3 py-1.5 rounded-md text-sm font-bold hover:bg-primary transition-colors"
       >
         Add
