@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import api from '../api/client';
 import { Bookmark } from '../api/types';
 import { Responsive as ResponsiveGridLayout, type Layout, type LayoutItem } from 'react-grid-layout';
-import { Home, Edit, Save, Info, ListTodo } from 'lucide-react';
+import { Home, Edit, Save, Info, ListTodo, Layout as LucideLayout } from 'lucide-react';
 import { FavoriteBookmarkCard } from '../components/FavoriteBookmarkCard';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
@@ -142,6 +142,10 @@ export const FavoritesDashboard = () => {
         e.preventDefault();
         navigate('/todos');
       }
+      if (e.key === 'k' && !isTyping) {
+        e.preventDefault();
+        navigate('/kanban');
+      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
@@ -209,6 +213,11 @@ export const FavoritesDashboard = () => {
           <Link to="/todos" className="flex items-center gap-2 rounded-md bg-surface px-4 py-2 text-text hover:bg-primary hover:text-white transition-colors">
             <ListTodo size={20} />
             <span>Todo List</span>
+          </Link>
+
+          <Link to="/kanban" className="flex items-center gap-2 rounded-md bg-surface px-4 py-2 text-text hover:bg-primary hover:text-white transition-colors">
+            <LucideLayout size={20} />
+            <span>Kanban</span>
           </Link>
 
           {isEditMode ? (

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Home, Plus, Trash2, CheckCircle, Circle, ChevronRight, ChevronDown, ListTodo, Edit2, X, Save, Heart } from 'lucide-react';
+import { Home, Plus, Trash2, CheckCircle, Circle, ChevronRight, ChevronDown, ListTodo, Edit2, X, Save, Heart, Layout } from 'lucide-react';
 import api from '../api/client';
 import { TodoList, TodoItem } from '../api/types';
 import { useTheme } from '../hooks/useTheme';
@@ -47,6 +47,9 @@ export const TodoListPage: React.FC = () => {
       } else if (e.key === 'f') {
         e.preventDefault();
         navigate('/favorites');
+      } else if (e.key === 'k') {
+        e.preventDefault();
+        navigate('/kanban');
       }
     };
 
@@ -159,6 +162,10 @@ export const TodoListPage: React.FC = () => {
           <Link to="/favorites" className="flex items-center gap-2 rounded-md bg-surface px-4 py-2 text-text hover:bg-primary hover:text-white transition-colors">
             <Heart size={20} />
             <span className="hidden sm:inline">Favorites</span>
+          </Link>
+          <Link to="/kanban" className="flex items-center gap-2 rounded-md bg-surface px-4 py-2 text-text hover:bg-primary hover:text-white transition-colors">
+            <Layout size={20} />
+            <span className="hidden sm:inline">Kanban</span>
           </Link>
         </div>
       </header>
