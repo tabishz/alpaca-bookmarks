@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import api from '../api/client';
 import { Bookmark } from '../api/types';
 import { Responsive as ResponsiveGridLayout, type Layout, type LayoutItem } from 'react-grid-layout';
-import { Home, Edit, Save, Info } from 'lucide-react';
+import { Home, Edit, Save, Info, ListTodo } from 'lucide-react';
 import { FavoriteBookmarkCard } from '../components/FavoriteBookmarkCard';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
@@ -138,6 +138,10 @@ export const FavoritesDashboard = () => {
         if (isInfoModalOpen) { setIsInfoModalOpen(false); }
         else { setIsInfoModalOpen(true); }
       }
+      if (e.key === 'd' && !isTyping) {
+        e.preventDefault();
+        navigate('/todos');
+      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
@@ -200,6 +204,11 @@ export const FavoritesDashboard = () => {
           <Link to="/" className="flex items-center gap-2 rounded-md bg-surface px-4 py-2 text-text hover:bg-primary hover:text-white transition-colors">
             <Home size={20} />
             <span>Dashboard</span>
+          </Link>
+
+          <Link to="/todos" className="flex items-center gap-2 rounded-md bg-surface px-4 py-2 text-text hover:bg-primary hover:text-white transition-colors">
+            <ListTodo size={20} />
+            <span>Todo List</span>
           </Link>
 
           {isEditMode ? (
