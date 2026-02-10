@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Home, Plus, Trash2, CheckCircle, Circle, ChevronRight, ChevronDown, ListTodo, Edit2, X, Save, Heart, Layout } from 'lucide-react';
+import { Home, Plus, Trash2, CheckCircle, Circle, ChevronRight, ChevronDown, ListTodo, Edit2, X, Save, Heart, Layout, Info } from 'lucide-react';
 import api from '../api/client';
 import { TodoList, TodoItem } from '../api/types';
 import { useTheme } from '../hooks/useTheme';
+import { KeyboardShortcutsModal } from '../components/KeyboardShortcutsModal';
 
 export const TodoListPage: React.FC = () => {
   useTheme();
@@ -14,6 +15,7 @@ export const TodoListPage: React.FC = () => {
   const [newListTitle, setNewListTitle] = useState('');
   const [editingListId, setEditingListId] = useState<number | null>(null);
   const [editingListTitle, setEditingListTitle] = useState('');
+  const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
 
   const fetchTodoLists = async () => {
     try {
@@ -41,7 +43,7 @@ export const TodoListPage: React.FC = () => {
 
       if (isTyping) return;
 
-      if (['h', 'Backspace', 'Escape'].includes(e.key)) {
+      if (['h', 'Backspace'].includes(e.key)) {
         e.preventDefault();
         navigate('/');
       } else if (e.key === 'f') {
@@ -50,12 +52,19 @@ export const TodoListPage: React.FC = () => {
       } else if (e.key === 'k') {
         e.preventDefault();
         navigate('/kanban');
+      } else if (e.key === 'i') {
+        e.preventDefault();
+        setIsInfoModalOpen(prev => !prev);
+      } else if (e.key === 'Escape') {
+        if (isInfoModalOpen) {
+          setIsInfoModalOpen(false);
+        }
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [navigate]);
+  }, [navigate, isInfoModalOpen]);
 
   const toggleListExpansion = (id: number) => {
     const newExpanded = new Set(expandedLists);
@@ -167,6 +176,12 @@ export const TodoListPage: React.FC = () => {
             <Layout size={20} />
             <span className="hidden sm:inline">Kanban</span>
           </Link>
+          <button
+            onClick={(e) => { e.stopPropagation(); setIsInfoModalOpen(true); }}
+            className="p-2 rounded-md text-gray-400 hover:text-white transition-colors"
+          >
+            <Info size={28} />
+          </button>
         </div>
       </header>
 
@@ -277,6 +292,7 @@ export const TodoListPage: React.FC = () => {
           )}
         </div>
       )}
+      <KeyboardShortcutsModal isOpen={isInfoModalOpen} onClose={() => setIsInfoModalOpen(false)} />
     </div>
   );
 };

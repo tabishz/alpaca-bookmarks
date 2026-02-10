@@ -2,12 +2,13 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import api from '../api/client';
 import { KanbanBoard, KanbanColumn, KanbanCard } from '../api/types';
-import { Plus, Trash2, Edit3, Home, Settings, Check, X, Heart, ListTodo } from 'lucide-react';
+import { Plus, Trash2, Edit3, Home, Settings, Check, X, Heart, ListTodo, Info } from 'lucide-react';
 import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, DragOverEvent, closestCenter, useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, horizontalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { UndoToast } from '../components/UndoToast';
+import { KeyboardShortcutsModal } from '../components/KeyboardShortcutsModal';
 
 interface UndoToastData {
   id: string;
@@ -358,6 +359,7 @@ export const KanbanPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [isBoardMenuOpen, setIsBoardMenuOpen] = useState(false);
   const [undoToasts, setUndoToasts] = useState<UndoToastData[]>([]);
+  const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
   const undoTimersRef = useRef<{ [key: string]: number }>({});
   const navigate = useNavigate();
   const { boardId: urlBoardId } = useParams();
@@ -1089,11 +1091,22 @@ export const KanbanPage: React.FC = () => {
           fetchBoard(board.id);
         }
       }
+
+      // Toggle info modal with 'i' key
+      if (e.key === 'i') {
+        e.preventDefault();
+        setIsInfoModalOpen(prev => !prev);
+      }
+
+      // Close modal with Escape key
+      if (e.key === 'Escape' && isInfoModalOpen) {
+        setIsInfoModalOpen(false);
+      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [navigate, boards]);
+  }, [navigate, boards, isInfoModalOpen]);
 
   return (
     <div className="min-h-screen p-6 md:p-10 w-full">
@@ -1117,6 +1130,12 @@ export const KanbanPage: React.FC = () => {
             className="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary/80"
           >
             <Plus size={20} /> New Board
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); setIsInfoModalOpen(true); }}
+            className="p-2 rounded-md text-gray-400 hover:text-white transition-colors"
+          >
+            <Info size={28} />
           </button>
         </div>
       </header>
@@ -1376,6 +1395,8 @@ export const KanbanPage: React.FC = () => {
           />
         ))}
       </div>
+
+      <KeyboardShortcutsModal isOpen={isInfoModalOpen} onClose={() => setIsInfoModalOpen(false)} />
     </div>
   );
 };

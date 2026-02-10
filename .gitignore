@@ -5,4 +5,5 @@ ca-certs.crt
 frontend/dist
 DockerfileX
 .env
-todo.md
+*.md
+!README.md
