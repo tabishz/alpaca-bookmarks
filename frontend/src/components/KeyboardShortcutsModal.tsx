@@ -13,6 +13,8 @@ const shortcuts = [
     { key: 'backspace', description: 'Clear selected tag' },
     { key: 'f', description: 'Favorites Dashboard' },
     { key: 'd', description: 'To Do Lists' },
+    { key: 'k', description: 'Kanban Board' },
+    { key: '1-9', description: 'Switch Kanban Boards 1-9' },
     { key: 'i', description: 'Opens (this) shortcuts list' },
 
 ];
