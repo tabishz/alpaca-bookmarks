@@ -16,7 +16,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-const Version = "0.1.8-beta"
+const Version = "0.2.0-beta"
 
 // Helper function to create initial admin
 func createDefaultAdmin() {
@@ -114,6 +114,19 @@ func main() {
 			protected.POST("/todos/:id/items", handlers.CreateTodoItem)
 			protected.PATCH("/todos/items/:itemId", handlers.UpdateTodoItem)
 			protected.DELETE("/todos/items/:itemId", handlers.DeleteTodoItem)
+
+			// Kanban Routes
+			protected.GET("/kanban/boards", handlers.GetKanbanBoards)
+			protected.POST("/kanban/boards", handlers.CreateKanbanBoard)
+			protected.GET("/kanban/boards/:id", handlers.GetKanbanBoard)
+			protected.PUT("/kanban/boards/:id", handlers.UpdateKanbanBoard)
+			protected.DELETE("/kanban/boards/:id", handlers.DeleteKanbanBoard)
+			protected.POST("/kanban/boards/:id/columns", handlers.CreateKanbanColumn)
+			protected.PUT("/kanban/columns/:id", handlers.UpdateKanbanColumn)
+			protected.DELETE("/kanban/columns/:id", handlers.DeleteKanbanColumn)
+			protected.POST("/kanban/columns/:id/cards", handlers.CreateKanbanCard)
+			protected.PUT("/kanban/cards/:id", handlers.UpdateKanbanCard)
+			protected.DELETE("/kanban/cards/:id", handlers.DeleteKanbanCard)
 
 			// System Routes
 			system := protected.Group("/system")
