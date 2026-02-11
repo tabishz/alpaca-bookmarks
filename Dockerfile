@@ -25,18 +25,19 @@ RUN CGO_ENABLED=1 GOOS=linux go build -a -installsuffix cgo -o alpaca-bookmarks 
 
 # Stage 3: Final Production Image
 FROM alpine:latest
-# Caddy for web server, curl for healthcheck
-RUN apk add --no-cache caddy ca-certificates curl
-# 2. Create a non-root user and group
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+# Caddy for web server, curl for healthcheck, and libc6-compat for Go CGO
+RUN apk add --no-cache caddy ca-certificates curl libc6-compat
+# 2. Create a non-root user and group with fixed IDs
+RUN addgroup -g 1000 -S appgroup && \
+    adduser -u 1000 -S appuser -G appgroup
 # 3. Setup Directories and Permissions
-WORKDIR /srv
+WORKDIR /app
 # Create data directory and set ownership
-RUN mkdir -p /data && chown -R appuser:appgroup /data
+RUN mkdir -p /data && chown -R appuser:appgroup /data && chmod 775 /data
 # 4. Copy Go Binary from backend-builder
 COPY --from=backend-builder --chown=appuser:appgroup /app/alpaca-bookmarks /usr/local/bin/
 # 5. Copy React Build from frontend-builder
-COPY --from=frontend-builder --chown=appuser:appgroup /app/dist /srv/dist
+COPY --from=frontend-builder --chown=appuser:appgroup /app/dist /app/dist
 # 6. Copy Caddyfile
 COPY --chown=appuser:appgroup Caddyfile /etc/caddy/Caddyfile
 # 7. Set User and Environment
