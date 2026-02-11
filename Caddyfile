@@ -13,7 +13,7 @@
     # 3. Frontend Assets (The "Catch-All")
     # This block only runs if the previous blocks didn't match.
     handle {
-        root * /srv/dist
+        root * /app/dist
         encode gzip
 
         # If the file exists, serve it. If not, serve index.html
