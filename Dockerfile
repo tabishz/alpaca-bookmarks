@@ -33,7 +33,9 @@ RUN addgroup -g 1000 -S appgroup && \
 # 3. Setup Directories and Permissions
 WORKDIR /app
 # Create data directory and set ownership
-RUN mkdir -p /data && chown -R appuser:appgroup /data && chmod 775 /data
+RUN mkdir -p /data && chown -R appuser:appgroup /data && chmod 777 /data
+# Ensure /app is owned by appuser
+RUN chown -R appuser:appgroup /app
 # 4. Copy Go Binary from backend-builder
 COPY --from=backend-builder --chown=appuser:appgroup /app/alpaca-bookmarks /usr/local/bin/
 # 5. Copy React Build from frontend-builder
@@ -46,7 +48,7 @@ ENV GIN_MODE=release
 ENV DB_PATH=/data/data.sqlite
 ENV PORT=8080
 # 8. Expose port, define volume
-EXPOSE 80
+EXPOSE 8081
 VOLUME ["/data"]
 
 # 9. Add Health Check for the Go backend
