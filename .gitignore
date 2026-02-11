@@ -1,0 +1,9 @@
+.DS_Store
+data/data.sqlite
+**/node_modules/
+ca-certs.crt
+frontend/dist
+DockerfileX
+.env
+*.md
+!README.md

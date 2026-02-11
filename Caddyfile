@@ -1,0 +1,23 @@
+:8081 {
+    # 1. API Requests -> Go Backend
+    # This block is checked first. If matched, it stops here.
+    handle /api/* {
+        reverse_proxy localhost:8080
+    }
+
+    # 2. Swagger Docs -> Go Backend
+    handle /swagger/* {
+        reverse_proxy localhost:8080
+    }
+
+    # 3. Frontend Assets (The "Catch-All")
+    # This block only runs if the previous blocks didn't match.
+    handle {
+        root * /app/dist
+        encode gzip
+
+        # If the file exists, serve it. If not, serve index.html
+        try_files {path} /index.html
+        file_server
+    }
+}

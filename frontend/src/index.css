@@ -1,0 +1,96 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body, #root {
+  width: 100%;
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  /* Default to Dracula if nothing is set */
+  --bg-primary: #282a36;
+  --bg-secondary: #44475a;
+  --text-primary: #f8f8f2;
+  --text-muted: #d1d5db;
+  --accent-primary: #bd93f9;
+
+  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+}
+
+/* Andromeda (Dark Teal/Purple) */
+[data-theme='andromeda'] {
+  --bg-primary: #23262E;
+  --bg-secondary: #2C303A;
+  --text-primary: #D5CED9;
+  --text-muted: #d1d5db;
+  --accent-primary: #00E8C6; /* Bright Teal */
+}
+
+/* GitHub Dark */
+[data-theme='github-dark'] {
+  --bg-primary: #0d1117;
+  --bg-secondary: #161b22;
+  --text-primary: #c9d1d9;
+  --text-muted: #d1d5db;
+  --accent-primary: #58a6ff; /* Blue */
+}
+
+/* SynthWave '84 (Cyberpunk/Neon) */
+[data-theme='synthwave'] {
+  --bg-primary: #2b213a;
+  --bg-secondary: #241b2f; /* Darker purple */
+  --text-primary: #fffbf3; /* Soft glow white */
+  --text-muted: #d1d5db;
+  --accent-primary: #ff7edb; /* Neon Pink */
+}
+
+/* Cute Pink (Pastel) */
+[data-theme='cute-pink'] {
+  --bg-primary: #fff0f5; /* Lavender Blush */
+  --bg-secondary: #ffe4e1; /* Misty Rose */
+  --text-primary: #3c1c3c; /* Dark Plum */
+  --text-muted: #d17098;
+  --accent-primary: #ff69b4; /* Hot Pink */
+}
+
+/* Snazzy Light */
+[data-theme='snazzy-light'] {
+  --bg-primary: #fafafa;
+  --bg-secondary: #eff0f2;
+  --text-primary: #242527;
+  --text-muted: #6f7f89;
+  --accent-primary: #287bde; /* Blue */
+}
+
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.text-muted {
+  color: var(--text-muted);
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-primary);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--bg-secondary);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-primary);
+}
+
+.drag-handle-active {
+  cursor: move;
+}

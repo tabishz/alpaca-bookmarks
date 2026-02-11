@@ -1,0 +1,20 @@
+{
+  "short_name": "Alpaca Bookmarks",
+  "name": "Alpaca Bookmarks",
+  "icons": [
+    {
+      "src": "alpaca-bookmarks.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "alpaca-bookmarks.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#000000",
+  "background_color": "#ffffff"
+}
