@@ -1,19 +1,18 @@
-version: "3.8"
-
 services:
   alpaca-bookmarks:
     build: .
     container_name: alpaca-bookmarks
     ports:
-      # Map host port 8080 to container port 80 (which Caddy listens on)
-      - "3014:80"
+      # Map host port 8081 to container port 8081 (which Caddy listens on)
+      - "${ALPACA_PORT:-8081}:8081"
     volumes:
       # Use a named volume to persist the SQLite database
-      - ./data:/data
-      - ./Caddyfile:/etc/caddy/Caddyfile
+      - alpaca_data:/data
+      # - ./Caddyfile:/etc/caddy/Caddyfile
     restart: unless-stopped
     environment:
-      - TZ=America/Edmonton
+      - TZ=${TZ:-America/Edmonton}
+      # openssl rand -hex 32
       - JWT_SECRET=someSecret
     healthcheck:
       # This healthcheck pings the Go backend directly, which runs on port 8080 inside the container.
@@ -28,3 +27,6 @@ services:
       options:
         max-size: "1m"
         max-file: "3"
+
+volumes:
+  alpaca_data:

@@ -1,7 +1,7 @@
 {
   "name": "alpaca-bookmarks-web",
   "private": true,
-  "version": "0.2.1-beta",
+  "version": "0.2.3-beta",
   "type": "module",
   "scripts": {
     "dev": "vite",

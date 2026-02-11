@@ -16,7 +16,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-const Version = "0.2.1-beta"
+const Version = "0.2.3-beta"
 
 // Helper function to create initial admin
 func createDefaultAdmin() {
@@ -37,7 +37,7 @@ func createDefaultAdmin() {
 		if err := database.DB.Create(&admin).Error; err != nil {
 			log.Fatal("Failed to create default admin:", err)
 		}
-		fmt.Println("Default admin created: admin / admin123")
+		fmt.Println("Default admin created: admin / admin")
 	}
 }
 
