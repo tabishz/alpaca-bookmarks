@@ -61,18 +61,55 @@ This is the recommended way to run the application.
 You can start the application with a single command. This will persist your data to a local `data` folder.
 
 ```bash
-# Create a local data folder if it doesn't exist
-mkdir -p $(pwd)/data
+# Create a local docker volume if it doesn't exist
+docker volume create alpaca_data
 
 # Run the container
 docker run -d \
   --name alpaca \
   --restart unless-stopped \
   -p 3000:80 \
-  -v $(pwd)/data:/data \
+  -v alpaca_data:/data \
   -e JWT_SECRET=$(openssl rand -hex 32) \
   tabishz/alpaca-bookmarks:latest
 ```
+
+#### With Docker Compose
+```yaml
+services:
+  alpaca-bookmarks:
+    image: tabishz/alpaca-bookmarks:latest
+    container_name: alpaca-bookmarks
+    ports:
+      # Map host port 8081 to container port 8081 (which Caddy listens on)
+      - "${ALPACA_PORT:-8081}:8081"
+    volumes:
+      # Use a named volume to persist the SQLite database
+      - alpaca_data:/data
+      # - ./Caddyfile:/etc/caddy/Caddyfile
+    restart: unless-stopped
+    environment:
+      - TZ=${TZ:-America/Edmonton}
+      # openssl rand -hex 32
+      - JWT_SECRET=someSecret
+    healthcheck:
+      # This healthcheck pings the Go backend directly, which runs on port 8080 inside the container.
+      # It mirrors the healthcheck defined in the Dockerfile.
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/api/v1/ping"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "1m"
+        max-file: "3"
+
+volumes:
+  alpaca_data:
+```
+
 
 ### 2. Access the App
 Open your browser and navigate to:
