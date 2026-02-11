@@ -30,7 +30,9 @@ Keyboard shortcuts for quick navigation and actions:
 | :--- | :--- |
 | `/` | Focus the main search bar. |
 | `t` | Toggle the tags filter menu. |
-| `f` | Toggle to Favorites dashboard. |
+| `f` | Navigate to Favorites dashboard. |
+| `d` | Todo List dashboard. |
+| `k` | Kanban board. |
 | `Esc` | Close any open menu (Tags, Settings) or unfocus the search bar. |
 | `Backspace` | When a tag is selected, this will clear the filter. |
 | `Tab` / `Enter` | When the tags menu is open, this selects the first visible tag. |
@@ -51,6 +53,21 @@ When adding or editing a bookmark, the tag input field has its own shortcuts:
 | `h` | Navigate to main page from favorites dashboard. |
 | `Backscape` | Navigate to main page from favorites dashboard. |
 
+### Todo List
+| Key(s) | Action |
+| :--- | :--- |
+| `f` | Navigate to Favorites dashboard. |
+| `k` | Navigate to Kanban Board. |
+| `h` | Navigate to main page from favorites dashboard. |
+
+### Kanban Board
+| Key(s) | Action |
+| :--- | :--- |
+| `1-9` | Switch between Kanban boards left to right. |
+| `f` | Navigate to Favorites dashboard. |
+| `d` | Navigate to Todo List. |
+| `h` | Navigate to main page from favorites dashboard. |
+
 ---
 
 ## 🚀 Getting Started (Docker)
@@ -68,7 +85,7 @@ docker volume create alpaca_data
 docker run -d \
   --name alpaca \
   --restart unless-stopped \
-  -p 3000:80 \
+  -p 3000:8081 \
   -v alpaca_data:/data \
   -e JWT_SECRET=$(openssl rand -hex 32) \
   tabishz/alpaca-bookmarks:latest
@@ -162,7 +179,7 @@ If you want to build the Docker image yourself (for example, if you have modifie
 docker build -t alpaca-bookmarks .
 
 # Run your custom image
-docker run -d -p 3000:80 -v $(pwd)/data:/data -e JWT_SECRET="mysecret" alpaca-bookmarks
+docker run -d -p 3000:8081 -v $(pwd)/data:/data -e JWT_SECRET="mysecret" alpaca-bookmarks
 ```
 
 ### Local Development (Non-Docker)
