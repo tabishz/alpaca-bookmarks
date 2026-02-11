@@ -40,13 +40,17 @@ RUN chown -R appuser:appgroup /app
 COPY --from=backend-builder --chown=appuser:appgroup /app/alpaca-bookmarks /usr/local/bin/
 # 5. Copy React Build from frontend-builder
 COPY --from=frontend-builder --chown=appuser:appgroup /app/dist /app/dist
-# 6. Copy Caddyfile
+# 6. Copy Caddyfile and start script
 COPY --chown=appuser:appgroup Caddyfile /etc/caddy/Caddyfile
+COPY --chown=appuser:appgroup start.sh /usr/local/bin/start.sh
+RUN chmod +x /usr/local/bin/start.sh
+
 # 7. Set User and Environment
 USER appuser
 ENV GIN_MODE=release
 ENV DB_PATH=/data/data.sqlite
 ENV PORT=8080
+
 # 8. Expose port, define volume
 EXPOSE 8081
 VOLUME ["/data"]
@@ -54,7 +58,7 @@ VOLUME ["/data"]
 # 9. Add Health Check for the Go backend
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD curl --fail http://localhost:8080/api/v1/ping || exit 1
+
 # 10. Entrypoint
-# This starts the Go backend in the background and Caddy in the foreground
-# Caddy will act as the main process for the container
-CMD ["sh", "-c", "/usr/local/bin/alpaca-bookmarks & caddy run --config /etc/caddy/Caddyfile --adapter caddyfile"]
+ENTRYPOINT ["/usr/local/bin/start.sh"]
+
