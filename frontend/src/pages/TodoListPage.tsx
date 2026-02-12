@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Home, Plus, Trash2, CheckCircle, Circle, ChevronRight, ChevronDown, ListTodo, Edit2, X, Save, Heart, Layout, Info } from 'lucide-react';
 import api from '../api/client';
@@ -16,6 +16,7 @@ export const TodoListPage: React.FC = () => {
   const [editingListId, setEditingListId] = useState<number | null>(null);
   const [editingListTitle, setEditingListTitle] = useState('');
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
+  const newListInputRef = useRef<HTMLInputElement>(null);
 
   const fetchTodoLists = async () => {
     try {
@@ -39,7 +40,7 @@ export const TodoListPage: React.FC = () => {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
-      const isTyping = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA';
+      const isTyping = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
 
       if (isTyping) return;
 
@@ -52,6 +53,25 @@ export const TodoListPage: React.FC = () => {
       } else if (e.key === 'k') {
         e.preventDefault();
         navigate('/kanban');
+      } else if (e.key === 't') {
+        e.preventDefault();
+        newListInputRef.current?.focus();
+      } else if (e.key === 'n') {
+        if (todoLists.length > 0) {
+          e.preventDefault();
+          const firstListId = todoLists[0].id;
+          // Ensure the list is expanded so the input is visible
+          setExpandedLists(prev => {
+            if (prev.has(firstListId)) return prev;
+            const next = new Set(prev);
+            next.add(firstListId);
+            return next;
+          });
+          // Small delay to allow expansion if it was collapsed
+          setTimeout(() => {
+            window.dispatchEvent(new CustomEvent('todo-add-item', { detail: { listId: firstListId } }));
+          }, 10);
+        }
       } else if (e.key === 'i') {
         e.preventDefault();
         setIsInfoModalOpen(prev => !prev);
@@ -64,7 +84,7 @@ export const TodoListPage: React.FC = () => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [navigate, isInfoModalOpen]);
+  }, [navigate, isInfoModalOpen, todoLists]);
 
   const toggleListExpansion = (id: number) => {
     const newExpanded = new Set(expandedLists);
@@ -187,6 +207,7 @@ export const TodoListPage: React.FC = () => {
 
       <form onSubmit={handleCreateList} className="mb-8 flex gap-2">
         <input
+          ref={newListInputRef}
           type="text"
           placeholder="New list title..."
           className="flex-1 rounded-md bg-surface p-3 text-text focus:outline-none focus:ring-2 focus:ring-primary"
@@ -284,7 +305,7 @@ export const TodoListPage: React.FC = () => {
                       ))}
                     </div>
 
-                    <TodoItemInput onAdd={(content) => handleCreateItem(list.id, content)} />
+                    <TodoItemInput listId={list.id} onAdd={(content) => handleCreateItem(list.id, content)} />
                   </div>
                 )}
               </div>
@@ -297,8 +318,19 @@ export const TodoListPage: React.FC = () => {
   );
 };
 
-const TodoItemInput: React.FC<{ onAdd: (content: string) => void }> = ({ onAdd }) => {
+const TodoItemInput: React.FC<{ listId: number; onAdd: (content: string) => void }> = ({ listId, onAdd }) => {
   const [content, setContent] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const handleFocusEvent = (e: CustomEvent) => {
+      if (e.detail.listId === listId) {
+        inputRef.current?.focus();
+      }
+    };
+    window.addEventListener('todo-add-item', handleFocusEvent as EventListener);
+    return () => window.removeEventListener('todo-add-item', handleFocusEvent as EventListener);
+  }, [listId]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -311,6 +343,7 @@ const TodoItemInput: React.FC<{ onAdd: (content: string) => void }> = ({ onAdd }
   return (
     <form onSubmit={handleSubmit} className="flex gap-2">
       <input
+        ref={inputRef}
         type="text"
         placeholder="Add a task..."
         className="flex-1 bg-background border border-gray-700 rounded-md px-3 py-1.5 text-sm text-text focus:outline-none focus:border-primary"
