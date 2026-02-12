@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -235,7 +236,8 @@ func UpdateBookmarkIconFromURL(c *gin.Context) {
 	// Fetch from custom URL
 	icon, err := downloadAndEncodeIcon(input.IconURL)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to download icon: " + err.Error()})
+		log.Printf("Icon update failed for bookmark %s: %v", id, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -243,7 +245,7 @@ func UpdateBookmarkIconFromURL(c *gin.Context) {
 	bookmark.IconLastFetched = time.Now()
 
 	if err := database.DB.Save(&bookmark).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update bookmark icon"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update database record"})
 		return
 	}
 
@@ -252,28 +254,46 @@ func UpdateBookmarkIconFromURL(c *gin.Context) {
 
 func downloadAndEncodeIcon(iconURL string) (string, error) {
 	client := http.Client{
-		Timeout: 10 * time.Second,
+		Timeout: 15 * time.Second,
 	}
-	resp, err := client.Get(iconURL)
+	req, err := http.NewRequest("GET", iconURL, nil)
 	if err != nil {
-		return "", fmt.Errorf("fetch failed: %w", err)
+		return "", fmt.Errorf("invalid URL: %w", err)
+	}
+	// Add User-Agent to avoid being blocked by some CDNs/servers
+	req.Header.Set("User-Agent", "Alpaca-Bookmarks/1.0")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("connection failed: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("fetch failed: status code %d", resp.StatusCode)
+		return "", fmt.Errorf("server returned status %d", resp.StatusCode)
 	}
 
 	iconBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return "", fmt.Errorf("read failed: %w", err)
+		return "", fmt.Errorf("failed to read data: %w", err)
 	}
 
 	if len(iconBytes) == 0 {
-		return "", fmt.Errorf("icon is empty")
+		return "", fmt.Errorf("file is empty")
 	}
 
 	mimeType := http.DetectContentType(iconBytes)
+	// Strip charset from mimeType if present (e.g. "text/plain; charset=utf-8")
+	if idx := strings.Index(mimeType, ";"); idx != -1 {
+		mimeType = mimeType[:idx]
+	}
+
+	// Manual override for common SVG cases where detection returns text/plain or text/xml
+	lowerURL := strings.ToLower(iconURL)
+	if strings.HasSuffix(lowerURL, ".svg") || strings.Contains(lowerURL, ".svg?") || strings.HasPrefix(strings.TrimSpace(string(iconBytes)), "<svg") {
+		mimeType = "image/svg+xml"
+	}
+
 	base64Encoding := "data:" + mimeType + ";base64," + base64.StdEncoding.EncodeToString(iconBytes)
 
 	return base64Encoding, nil
