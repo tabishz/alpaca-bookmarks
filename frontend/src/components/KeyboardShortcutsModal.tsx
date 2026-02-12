@@ -23,6 +23,8 @@ const todoShortcuts: Shortcut[] = [
   { key: 'h', description: 'Go to Dashboard'},
   { key: 'f', description: 'Go to Favorites'},
   { key: 'k', description: 'Go to Kanban Boards'},
+  { key: 't', description: 'Create new todo list'},
+  { key: 'n', description: 'Create new task in top-most list'},
   { key: 'i', description: 'Toggle shortcuts list'},
 ];
 
