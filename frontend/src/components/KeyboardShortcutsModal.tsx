@@ -1,25 +1,64 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { X, Keyboard } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
 
 interface Props {
   isOpen: boolean;
   onClose: () => void;
 }
 
-const shortcuts = [
-    { key: '/', description: 'Focus the search bar' },
-    { key: 't', description: 'Open the tags menu' },
-    { key: 'esc', description: 'Close modals or menus' },
-    { key: 'backspace', description: 'Clear selected tag' },
-    { key: 'f', description: 'Favorites Dashboard' },
-    { key: 'd', description: 'To Do Lists' },
-    { key: 'k', description: 'Kanban Board' },
-    { key: '1-9', description: 'Switch Kanban Boards 1-9' },
-    { key: 'i', description: 'Opens (this) shortcuts list' },
+interface Shortcut {
+  key: string;
+  description: string;
+}
 
+const favoritesShortcuts: Shortcut[] = [
+  { key: 'h', description: 'Go to Dashboard'},
+  { key: 'd', description: 'Go to Todo Lists'},
+  { key: 'k', description: 'Go to Kanban Boards'},
+  { key: 'i', description: 'Toggle shortcuts list'},
+];
+
+const todoShortcuts: Shortcut[] = [
+  { key: 'h', description: 'Go to Dashboard'},
+  { key: 'f', description: 'Go to Favorites'},
+  { key: 'k', description: 'Go to Kanban Boards'},
+  { key: 't', description: 'Create new todo list'},
+  { key: 'n', description: 'Create new task in top-most list'},
+  { key: 'i', description: 'Toggle shortcuts list'},
+];
+
+const kanbanShortcuts: Shortcut[] = [
+  { key: 'h', description: 'Go to Dashboard'},
+  { key: 'f', description: 'Go to Favorites'},
+  { key: 'd', description: 'Go to Todo Lists'},
+  { key: 'n', description: 'Create new card in left-most column'},
+  { key: '1-9', description: 'Switch Kanban Boards 1-9'},
+  { key: 'i', description: 'Toggle shortcuts list'},
+];
+
+const mainShortcuts: Shortcut[] = [
+  { key: '/', description: 'Focus the search bar'},
+  { key: 't', description: 'Open the tags menu'},
+  { key: 'backspace', description: 'Clear selected tag'},
+  { key: 'f', description: 'Go to Favorites'},
+  { key: 'd', description: 'Go to Todo Lists'},
+  { key: 'k', description: 'Go to Kanban Boards'},
+  { key: 'i', description: 'Toggle shortcuts list'},
+  { key: 'esc', description: 'Close modals or menus'},
 ];
 
 export const KeyboardShortcutsModal: React.FC<Props> = ({ isOpen, onClose }) => {
+  const location = useLocation();
+
+  const visibleShortcuts = useMemo(() => {
+    if (location.pathname === '/') return mainShortcuts;
+    if (location.pathname === '/favorites') return favoritesShortcuts;
+    if (location.pathname === '/todos') return todoShortcuts;
+    if (location.pathname.startsWith('/kanban')) return kanbanShortcuts;
+    return mainShortcuts;
+  }, [location.pathname]);
+
   if (!isOpen) return null;
 
   return (
@@ -41,17 +80,18 @@ export const KeyboardShortcutsModal: React.FC<Props> = ({ isOpen, onClose }) => 
           </button>
         </div>
 
-        <div className="space-y-3">
-            {shortcuts.map((shortcut) => (
-                <div key={shortcut.key} className="flex items-center justify-between bg-black/20 p-3 rounded-lg border border-gray-700/50">
-                    <p className="text-sm text-gray-300">{shortcut.description}</p>
-                    <kbd className="px-2 py-1.5 text-xs font-sans font-semibold text-gray-400 bg-gray-800 border border-gray-700 rounded-md">
-                        {shortcut.key}
-                    </kbd>
-                </div>
-            ))}
+        <div className="space-y-3 overflow-y-auto pr-2 custom-scrollbar">
+          {visibleShortcuts.map((shortcut) => (
+            <div key={shortcut.key} className="flex items-center justify-between bg-black/20 p-3 rounded-lg border border-gray-700/50">
+              <p className="text-sm text-gray-300">{shortcut.description}</p>
+              <kbd className="px-2 py-1.5 text-xs font-sans font-semibold text-gray-400 bg-gray-800 border border-gray-700 rounded-md shadow-inner min-w-[2.5rem] text-center">
+                {shortcut.key === 'backspace' ? '←' : shortcut.key === 'esc' ? 'Esc' : shortcut.key}
+              </kbd>
+            </div>
+          ))}
         </div>
-        <footer className="mt-10 py-4 text-center text-gray-500 text-sm">
+
+        <footer className="mt-6 pt-4 border-t border-gray-700/50 text-center text-gray-500 text-xs">
           <p>
             Alpaca Bookmarks v{__APP_VERSION__} is open source. {' '}
             <a
