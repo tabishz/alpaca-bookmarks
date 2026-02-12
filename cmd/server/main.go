@@ -96,6 +96,8 @@ func main() {
 			protected.PATCH("/user/preferences", handlers.UpdatePreferences)
 			protected.GET("/user/layout", handlers.GetUserLayout)
 			protected.PUT("/user/layout", handlers.SaveUserLayout)
+			protected.GET("/user/export", handlers.ExportUserData)
+			protected.POST("/user/import", handlers.ImportUserData)
 			// Bookmarks CRUD
 			protected.POST("/bookmarks", handlers.CreateBookmark)
 			protected.GET("/bookmarks", handlers.GetBookmarks)
