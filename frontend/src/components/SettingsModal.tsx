@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { X, Save, Palette, Lock, Check, AlertCircle, Tags, Trash2, ArrowLeft } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { X, Save, Palette, Lock, Check, AlertCircle, Tags, Trash2, ArrowLeft, Download, Upload } from 'lucide-react';
 import { Theme } from '../hooks/useTheme';
 import api from '../api/client';
 import { AxiosError } from 'axios';
@@ -28,6 +28,11 @@ export const SettingsModal: React.FC<Props> = ({ isOpen, onClose, currentLimit, 
   const [newPass, setNewPass] = useState('');
   const [confirmPass, setConfirmPass] = useState('');
   const [passMessage, setPassMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+
+  // Data Management State
+  const [isExporting, setIsExporting] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // View State
   const [view, setView] = useState<'settings' | 'tags'>('settings');
@@ -97,6 +102,53 @@ export const SettingsModal: React.FC<Props> = ({ isOpen, onClose, currentLimit, 
     } catch (error: unknown) {
       const axiosError = error as AxiosError<{ error: string }>;
       setPassMessage({ type: 'error', text: axiosError.response?.data?.error || 'Failed to update password' });
+    }
+  };
+
+  const handleExport = async () => {
+    setIsExporting(true);
+    try {
+      const response = await api.get('/user/export', { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'alpaca-takeout.json');
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (error) {
+      console.error("Export failed:", error);
+      alert("Export failed");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!confirm("Importing data will add new bookmarks, tags, todos, and boards. Existing items will not be deleted. Continue?")) {
+      e.target.value = '';
+      return;
+    }
+
+    setIsImporting(true);
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      await api.post('/user/import', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      alert("Data imported successfully! Please refresh the page to see changes.");
+      window.location.reload();
+    } catch (error) {
+      console.error("Import failed:", error);
+      alert("Import failed. Please ensure the file is a valid Alpaca JSON takeout.");
+    } finally {
+      setIsImporting(false);
+      e.target.value = '';
     }
   };
 
@@ -191,6 +243,36 @@ export const SettingsModal: React.FC<Props> = ({ isOpen, onClose, currentLimit, 
               <span className="flex items-center gap-2 font-medium"><Tags size={18} className="text-blue-400" /> Organize Tags</span>
               <span className="text-xs text-gray-500 group-hover:text-muted">Manage & Delete</span>
             </button>
+
+            {/* Data Management Section */}
+            <div className="mb-6">
+              <label className="mb-3 block text-sm font-medium text-gray-400 uppercase tracking-wider">Data Takeout</label>
+              <div className="flex gap-3">
+                <button
+                  onClick={handleExport}
+                  disabled={isExporting}
+                  className="flex-1 flex items-center justify-center gap-2 bg-gray-700/30 hover:bg-gray-700/50 p-3 rounded-lg transition-colors border border-gray-600/30 text-sm font-medium"
+                >
+                  <Download size={18} className="text-green-400" />
+                  {isExporting ? 'Exporting...' : 'Export JSON'}
+                </button>
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isImporting}
+                  className="flex-1 flex items-center justify-center gap-2 bg-gray-700/30 hover:bg-gray-700/50 p-3 rounded-lg transition-colors border border-gray-600/30 text-sm font-medium"
+                >
+                  <Upload size={18} className="text-orange-400" />
+                  {isImporting ? 'Importing...' : 'Import JSON'}
+                </button>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleImport}
+                  accept=".json"
+                  className="hidden"
+                />
+              </div>
+            </div>
 
             {/* Password Section */}
             <div>
