@@ -14,6 +14,9 @@ import (
 )
 
 /**
+// Run every day at midnight. Cron syntax: "0 0 * * *"
+export BACKUP_SCHEDULE = "0 0 * * *"
+
 For AWS S3:
 export AWS_ACCESS_KEY_ID=your_key_id
 export AWS_SECRET_ACCESS_KEY=your_secret_key

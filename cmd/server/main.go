@@ -16,7 +16,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-const Version = "0.2.6-beta"
+const Version = "0.2.7-beta"
 
 // Helper function to create initial admin
 func createDefaultAdmin() {
@@ -49,7 +49,6 @@ func main() {
 	// Backup Scheduling
 	c := cron.New()
 	// Run every day at midnight. Cron syntax: "0 0 * * *"
-	// For testing, you can use "@every 1m" to see it work immediately
 	schedule := os.Getenv("BACKUP_SCHEDULE")
 	if schedule == "" {
 		schedule = "@daily"
