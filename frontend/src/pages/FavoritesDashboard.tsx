@@ -200,6 +200,24 @@ export const FavoritesDashboard = () => {
     }
   };
 
+  const handleRemoveFavorite = async (id: number) => {
+    const bookmark = favorites.find(f => f.id === id);
+    if (!bookmark) return;
+
+    const newTags = bookmark.tags.filter(t => t.name !== 'Favorites').map(t => t.name);
+
+    try {
+      await api.put(`/bookmarks/${id}`, {
+        ...bookmark,
+        tags: newTags
+      });
+      setFavorites(prev => prev.filter(f => f.id !== id));
+    } catch (error) {
+      console.error("Failed to remove from favorites", error);
+      alert("Failed to remove from favorites");
+    }
+  };
+
   return (
     <div className="p-4 bg-background min-h-screen">
       <header className="mb-4 flex items-center justify-between">
@@ -265,6 +283,7 @@ export const FavoritesDashboard = () => {
                     width={layoutItem?.w || 2}
                     height={layoutItem?.h || 1}
                     isEditMode={isEditMode}
+                    onRemoveFavorite={handleRemoveFavorite}
                   />
                 </div>
               );
