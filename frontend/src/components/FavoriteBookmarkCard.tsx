@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Bookmark } from '../api/types';
-import { Globe, Image as ImageIcon, Check, X } from 'lucide-react';
+import { Globe, Image as ImageIcon, Check, X, Trash2 } from 'lucide-react';
 import api from '../api/client';
 import { failedIconCache, iconCache, inFlightRequests } from '../utils/cache';
 
@@ -10,9 +10,10 @@ interface Props {
   width: number;
   height: number;
   isEditMode: boolean;
+  onRemoveFavorite?: (id: number) => void;
 }
 
-export const FavoriteBookmarkCard: React.FC<Props> = ({ bookmark, width, height, isEditMode }) => {
+export const FavoriteBookmarkCard: React.FC<Props> = ({ bookmark, width, height, isEditMode, onRemoveFavorite }) => {
   const isSmall = width === 1 && height === 1;
   const [iconSrc, setIconSrc] = useState<string | null>(() => iconCache.get(bookmark.id) || null);
   const [iconError, setIconError] = useState(failedIconCache.has(bookmark.id));
@@ -171,7 +172,7 @@ export const FavoriteBookmarkCard: React.FC<Props> = ({ bookmark, width, height,
   const menuPortal = showMenu && createPortal(
     <div
       ref={menuRef}
-      className="fixed z-[9999] bg-surface border border-gray-700 rounded-lg shadow-2xl py-1 w-48 animate-in fade-in zoom-in duration-150"
+      className="fixed z-[9999] bg-surface border border-gray-700 rounded-lg shadow-2xl py-1 w-56 animate-in fade-in zoom-in duration-150"
       style={{ top: menuPos.y, left: menuPos.x }}
       onMouseDown={(e) => e.stopPropagation()}
       onPointerDown={(e) => e.stopPropagation()}
@@ -185,6 +186,17 @@ export const FavoriteBookmarkCard: React.FC<Props> = ({ bookmark, width, height,
       >
         <ImageIcon size={16} />
         Provide custom icon
+      </button>
+      <div className="border-t border-gray-700 my-1"></div>
+      <button
+        onClick={() => {
+          setShowMenu(false);
+          if (onRemoveFavorite) onRemoveFavorite(bookmark.id);
+        }}
+        className="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-red-400/10 flex items-center gap-3 transition-colors"
+      >
+        <Trash2 size={16} />
+        Remove from favorites
       </button>
     </div>,
     document.body
