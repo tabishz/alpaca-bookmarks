@@ -212,6 +212,73 @@ func DeleteBookmark(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Bookmark deleted"})
 }
 
+// POST /api/v1/bookmarks/:id/icon
+func UpdateBookmarkIconFromURL(c *gin.Context) {
+	userID := c.MustGet("userID").(uint)
+	id := c.Param("id")
+
+	var input struct {
+		IconURL string `json:"icon_url" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "icon_url is required"})
+		return
+	}
+
+	var bookmark models.Bookmark
+	if err := database.DB.Where("id = ? AND user_id = ?", id, userID).First(&bookmark).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Bookmark not found"})
+		return
+	}
+
+	// Fetch from custom URL
+	icon, err := downloadAndEncodeIcon(input.IconURL)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to download icon: " + err.Error()})
+		return
+	}
+
+	bookmark.Icon = icon
+	bookmark.IconLastFetched = time.Now()
+
+	if err := database.DB.Save(&bookmark).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update bookmark icon"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Icon updated successfully"})
+}
+
+func downloadAndEncodeIcon(iconURL string) (string, error) {
+	client := http.Client{
+		Timeout: 10 * time.Second,
+	}
+	resp, err := client.Get(iconURL)
+	if err != nil {
+		return "", fmt.Errorf("fetch failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("fetch failed: status code %d", resp.StatusCode)
+	}
+
+	iconBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("read failed: %w", err)
+	}
+
+	if len(iconBytes) == 0 {
+		return "", fmt.Errorf("icon is empty")
+	}
+
+	mimeType := http.DetectContentType(iconBytes)
+	base64Encoding := "data:" + mimeType + ";base64," + base64.StdEncoding.EncodeToString(iconBytes)
+
+	return base64Encoding, nil
+}
+
 // GET /api/v1/bookmarks/:id/icon
 func GetBookmarkIcon(c *gin.Context) {
 	userID := c.MustGet("userID").(uint)

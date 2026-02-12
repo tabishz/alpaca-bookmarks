@@ -102,6 +102,7 @@ func main() {
 			protected.POST("/bookmarks", handlers.CreateBookmark)
 			protected.GET("/bookmarks", handlers.GetBookmarks)
 			protected.GET("/bookmarks/:id/icon", handlers.GetBookmarkIcon)
+			protected.POST("/bookmarks/:id/icon", handlers.UpdateBookmarkIconFromURL)
 			protected.GET("/tags", handlers.GetAllTags)
 			protected.DELETE("/tags/:id", handlers.DeleteTag)
 			protected.PUT("/bookmarks/:id", handlers.UpdateBookmark)
