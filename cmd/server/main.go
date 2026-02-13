@@ -66,7 +66,11 @@ func main() {
 	c.Start()
 	// --------------------------
 
-	r := gin.Default()
+	r := gin.New()
+	r.Use(gin.Recovery())
+	r.Use(gin.LoggerWithConfig(gin.LoggerConfig{
+		SkipPaths: []string{"/api/v1/ping"},
+	}))
 
 	api := r.Group("/api/v1")
 	{
