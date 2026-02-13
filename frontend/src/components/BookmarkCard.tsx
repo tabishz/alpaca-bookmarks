@@ -10,6 +10,7 @@ interface Props {
   onEdit: (bookmark: Bookmark) => void;
   onTagClick: (tagName: string) => void;
   onToggleFavorite: (bookmark: Bookmark, isFavorite: boolean) => void;
+  showUrl?: boolean;
 }
 
 const Icon: React.FC<{ bookmark: Bookmark; className: string }> = ({ bookmark, className }) => {
@@ -57,7 +58,7 @@ const Icon: React.FC<{ bookmark: Bookmark; className: string }> = ({ bookmark, c
   );
 }
 
-export const BookmarkCard: React.FC<Props> = ({ bookmark, viewMode, onDelete, onEdit, onTagClick, onToggleFavorite }) => {
+export const BookmarkCard: React.FC<Props> = ({ bookmark, viewMode, onDelete, onEdit, onTagClick, onToggleFavorite, showUrl = true }) => {
 
   const handleTagClick = (e: React.MouseEvent, tagName: string) => {
     e.preventDefault(); e.stopPropagation();
@@ -66,13 +67,19 @@ export const BookmarkCard: React.FC<Props> = ({ bookmark, viewMode, onDelete, on
 
   const tags = useMemo(() => bookmark.tags || [], [bookmark.tags]);
   const isFavorite = useMemo(() => tags.some(t => t.name.toLowerCase() === 'favorites'), [tags]);
-  
+
   const truncateUrl = (url: string, length: number) => {
     if (url.length <= length) {
       return url;
     }
     return url.substring(0, length) + '...';
   };
+
+  const displayDescription = useMemo(() => {
+    if (bookmark.description) return bookmark.description;
+    if (showUrl) return truncateUrl(bookmark.url, 100);
+    return '';
+  }, [bookmark.description, bookmark.url, showUrl]);
 
   if (viewMode === 'list') {
     return (
@@ -122,9 +129,13 @@ export const BookmarkCard: React.FC<Props> = ({ bookmark, viewMode, onDelete, on
       </div>
 
       <h3 className="mb-2 text-lg font-bold text-text break-words" title={bookmark.title}>{bookmark.title || 'Untitled'}</h3>
-      <p className="mb-4 flex-1 text-sm text-gray-400 break-words">{bookmark.description || truncateUrl(bookmark.url, 100)}</p>
+      {displayDescription && (
+        <p className="mb-4 text-sm text-gray-400 break-words">{displayDescription}</p>
+      )}
 
-      <div className="mb-3 flex flex-wrap gap-2">
+      <div className="flex-1"></div>
+
+      <div className="flex flex-wrap gap-2">
         {/* SAFE MAP */}
         {tags.map((tag) => (
           <button key={tag.id} onClick={(e) => handleTagClick(e, tag.name)} className="flex items-center rounded bg-background px-2 py-1 text-xs text-primary hover:bg-primary hover:text-white transition-colors cursor-pointer">
@@ -133,7 +144,7 @@ export const BookmarkCard: React.FC<Props> = ({ bookmark, viewMode, onDelete, on
         ))}
       </div>
 
-      <a href={bookmark.url} target="_blank" rel="noopener noreferrer" className="mt-auto flex items-center justify-center rounded bg-background py-2 text-sm font-semibold text-primary hover:bg-opacity-80">
+      <a href={bookmark.url} target="_blank" rel="noopener noreferrer" className="mt-3 flex items-center justify-center rounded bg-background py-2 text-sm font-semibold text-primary hover:bg-opacity-80">
         Visit <ExternalLink size={14} className="ml-2" />
       </a>
     </div>
