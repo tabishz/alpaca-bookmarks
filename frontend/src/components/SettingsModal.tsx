@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Save, Palette, Lock, Check, AlertCircle, Tags, Trash2, ArrowLeft } from 'lucide-react';
 import { Theme } from '../hooks/useTheme';
 import api from '../api/client';
