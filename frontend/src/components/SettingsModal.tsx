@@ -10,17 +10,19 @@ interface Props {
   currentLimit: number;
   currentTheme: Theme;
   currentTileSize: number;
-  onSave: (newLimit: number, newTheme: Theme, newTileSize: number) => void;
+  currentShowUrl: boolean;
+  onSave: (newLimit: number, newTheme: Theme, newTileSize: number, newShowUrl: boolean) => void;
   onTagsUpdate?: () => void;
   initialView?: 'settings' | 'tags';
 }
 
 interface TagObj { id: number; name: string }
 
-export const SettingsModal: React.FC<Props> = ({ isOpen, onClose, currentLimit, currentTheme, currentTileSize, onSave, onTagsUpdate, initialView = 'settings' }) => {
+export const SettingsModal: React.FC<Props> = ({ isOpen, onClose, currentLimit, currentTheme, currentTileSize, currentShowUrl, onSave, onTagsUpdate, initialView = 'settings' }) => {
   const [limit, setLimit] = useState(50);
   const [selectedTheme, setSelectedTheme] = useState<Theme>('dracula');
   const [tileSize, setTileSize] = useState(280);
+  const [showUrl, setShowUrl] = useState(true);
 
   // Password State
   const [showPasswordForm, setShowPasswordForm] = useState(false);
@@ -60,6 +62,7 @@ export const SettingsModal: React.FC<Props> = ({ isOpen, onClose, currentLimit, 
     setLimit(currentLimit);
     setSelectedTheme(currentTheme);
     setTileSize(currentTileSize);
+    setShowUrl(currentShowUrl);
     if (isOpen) {
       setView(initialView);
       setShowPasswordForm(false);
@@ -68,11 +71,11 @@ export const SettingsModal: React.FC<Props> = ({ isOpen, onClose, currentLimit, 
       setNewPass('');
       setConfirmPass('');
     }
-  }, [currentLimit, currentTheme, currentTileSize, isOpen, initialView]);
+  }, [currentLimit, currentTheme, currentTileSize, currentShowUrl, isOpen, initialView]);
 
   const handleMainSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSave(limit, selectedTheme, tileSize);
+    onSave(limit, selectedTheme, tileSize, showUrl);
     onClose();
   };
 
@@ -226,6 +229,22 @@ export const SettingsModal: React.FC<Props> = ({ isOpen, onClose, currentLimit, 
                   </div>
                   <input type="range" min="200" max="450" step="10" value={tileSize} onChange={(e) => setTileSize(parseInt(e.target.value))} className="w-full h-2 cursor-pointer appearance-none rounded-lg bg-gray-700 accent-primary" />
                 </div>
+              </div>
+
+              <div className="border-t border-gray-600/30"></div>
+
+              {/* Display Options */}
+              <div>
+                <label className="mb-3 block text-sm font-medium text-gray-400 uppercase tracking-wider">Display Options</label>
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={showUrl}
+                    onChange={(e) => setShowUrl(e.target.checked)}
+                    className="h-4 w-4 rounded border-gray-600 bg-gray-700 text-primary focus:ring-primary focus:ring-offset-0"
+                  />
+                  <span className="text-sm text-text">Show URL in bookmark tiles</span>
+                </label>
               </div>
 
               <button type="submit" className="w-full flex justify-center items-center gap-2 rounded-lg bg-primary px-6 py-3 font-bold text-white shadow-lg hover:opacity-90 transition-all">

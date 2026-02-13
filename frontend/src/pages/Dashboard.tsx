@@ -48,6 +48,10 @@ export const Dashboard = () => {
     const saved = localStorage.getItem('tile_size');
     return saved ? parseInt(saved) : 280;
   });
+  const [showUrl, setShowUrl] = useState(() => {
+    const saved = localStorage.getItem('show_url');
+    return saved ? saved === 'true' : true;
+  });
   const [settingsStartView, setSettingsStartView] = useState<'settings' | 'tags'>('settings');
   const [highlightedTagIndex, setHighlightedTagIndex] = useState(0);
 
@@ -201,12 +205,14 @@ export const Dashboard = () => {
     }
   };
 
-  const handleConfigSave = async (newLimit: number, newTheme: Theme, newTileSize: number) => {
+  const handleConfigSave = async (newLimit: number, newTheme: Theme, newTileSize: number, newShowUrl: boolean) => {
     localStorage.setItem('bookmarks_limit', newLimit.toString());
     localStorage.setItem('tile_size', newTileSize.toString());
+    localStorage.setItem('show_url', newShowUrl.toString());
     setLimit(newLimit);
     setTheme(newTheme);
     setTileSize(newTileSize);
+    setShowUrl(newShowUrl);
     try {
       await api.patch('/user/preferences', { theme: newTheme });
       if (user) {
@@ -413,6 +419,7 @@ export const Dashboard = () => {
                 onEdit={setEditingBookmark}
                 onTagClick={handleTagSelect}
                 onToggleFavorite={handleToggleFavorite}
+                showUrl={showUrl}
               />
             ))
           )}
@@ -445,6 +452,7 @@ export const Dashboard = () => {
         currentLimit={limit}
         currentTheme={theme}
         currentTileSize={tileSize}
+        currentShowUrl={showUrl}
         onSave={handleConfigSave}
         onTagsUpdate={() => fetchBookmarks(1, true)}
         initialView={settingsStartView}
