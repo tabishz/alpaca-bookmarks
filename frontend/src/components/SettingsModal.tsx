@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Save, Palette, Lock, Check, AlertCircle, Tags, Trash2, ArrowLeft, Download, Upload } from 'lucide-react';
+import { X, Save, Palette, Lock, Check, AlertCircle, Tags, Trash2, ArrowLeft } from 'lucide-react';
 import { Theme } from '../hooks/useTheme';
 import api from '../api/client';
 import { AxiosError } from 'axios';
@@ -10,17 +10,19 @@ interface Props {
   currentLimit: number;
   currentTheme: Theme;
   currentTileSize: number;
-  onSave: (newLimit: number, newTheme: Theme, newTileSize: number) => void;
+  currentShowUrl: boolean;
+  onSave: (newLimit: number, newTheme: Theme, newTileSize: number, newShowUrl: boolean) => void;
   onTagsUpdate?: () => void;
   initialView?: 'settings' | 'tags';
 }
 
 interface TagObj { id: number; name: string }
 
-export const SettingsModal: React.FC<Props> = ({ isOpen, onClose, currentLimit, currentTheme, currentTileSize, onSave, onTagsUpdate, initialView = 'settings' }) => {
+export const SettingsModal: React.FC<Props> = ({ isOpen, onClose, currentLimit, currentTheme, currentTileSize, currentShowUrl, onSave, onTagsUpdate, initialView = 'settings' }) => {
   const [limit, setLimit] = useState(50);
   const [selectedTheme, setSelectedTheme] = useState<Theme>('dracula');
   const [tileSize, setTileSize] = useState(280);
+  const [showUrl, setShowUrl] = useState(true);
 
   // Password State
   const [showPasswordForm, setShowPasswordForm] = useState(false);
@@ -29,10 +31,7 @@ export const SettingsModal: React.FC<Props> = ({ isOpen, onClose, currentLimit, 
   const [confirmPass, setConfirmPass] = useState('');
   const [passMessage, setPassMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
-  // Data Management State
-  const [isExporting, setIsExporting] = useState(false);
-  const [isImporting, setIsImporting] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+
 
   // View State
   const [view, setView] = useState<'settings' | 'tags'>('settings');
@@ -60,6 +59,7 @@ export const SettingsModal: React.FC<Props> = ({ isOpen, onClose, currentLimit, 
     setLimit(currentLimit);
     setSelectedTheme(currentTheme);
     setTileSize(currentTileSize);
+    setShowUrl(currentShowUrl);
     if (isOpen) {
       setView(initialView);
       setShowPasswordForm(false);
@@ -68,11 +68,11 @@ export const SettingsModal: React.FC<Props> = ({ isOpen, onClose, currentLimit, 
       setNewPass('');
       setConfirmPass('');
     }
-  }, [currentLimit, currentTheme, currentTileSize, isOpen, initialView]);
+  }, [currentLimit, currentTheme, currentTileSize, currentShowUrl, isOpen, initialView]);
 
   const handleMainSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSave(limit, selectedTheme, tileSize);
+    onSave(limit, selectedTheme, tileSize, showUrl);
     onClose();
   };
 
@@ -102,53 +102,6 @@ export const SettingsModal: React.FC<Props> = ({ isOpen, onClose, currentLimit, 
     } catch (error: unknown) {
       const axiosError = error as AxiosError<{ error: string }>;
       setPassMessage({ type: 'error', text: axiosError.response?.data?.error || 'Failed to update password' });
-    }
-  };
-
-  const handleExport = async () => {
-    setIsExporting(true);
-    try {
-      const response = await api.get('/user/export', { responseType: 'blob' });
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', 'alpaca-takeout.json');
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-    } catch (error) {
-      console.error("Export failed:", error);
-      alert("Export failed");
-    } finally {
-      setIsExporting(false);
-    }
-  };
-
-  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (!confirm("Importing data will add new bookmarks, tags, todos, and boards. Existing items will not be deleted. Continue?")) {
-      e.target.value = '';
-      return;
-    }
-
-    setIsImporting(true);
-    const formData = new FormData();
-    formData.append('file', file);
-
-    try {
-      await api.post('/user/import', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-      alert("Data imported successfully! Please refresh the page to see changes.");
-      window.location.reload();
-    } catch (error) {
-      console.error("Import failed:", error);
-      alert("Import failed. Please ensure the file is a valid Alpaca JSON takeout.");
-    } finally {
-      setIsImporting(false);
-      e.target.value = '';
     }
   };
 
@@ -228,6 +181,22 @@ export const SettingsModal: React.FC<Props> = ({ isOpen, onClose, currentLimit, 
                 </div>
               </div>
 
+              <div className="border-t border-gray-600/30"></div>
+
+              {/* Display Options */}
+              <div>
+                <label className="mb-3 block text-sm font-medium text-gray-400 uppercase tracking-wider">Display Options</label>
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={showUrl}
+                    onChange={(e) => setShowUrl(e.target.checked)}
+                    className="h-4 w-4 rounded border-gray-600 bg-gray-700 text-primary focus:ring-primary focus:ring-offset-0"
+                  />
+                  <span className="text-sm text-text">Show URL in bookmark tiles</span>
+                </label>
+              </div>
+
               <button type="submit" className="w-full flex justify-center items-center gap-2 rounded-lg bg-primary px-6 py-3 font-bold text-white shadow-lg hover:opacity-90 transition-all">
                 <Save size={18} /> Save Preferences
               </button>
@@ -243,36 +212,6 @@ export const SettingsModal: React.FC<Props> = ({ isOpen, onClose, currentLimit, 
               <span className="flex items-center gap-2 font-medium"><Tags size={18} className="text-blue-400" /> Organize Tags</span>
               <span className="text-xs text-gray-500 group-hover:text-muted">Manage & Delete</span>
             </button>
-
-            {/* Data Management Section */}
-            <div className="mb-6">
-              <label className="mb-3 block text-sm font-medium text-gray-400 uppercase tracking-wider">Data Takeout</label>
-              <div className="flex gap-3">
-                <button
-                  onClick={handleExport}
-                  disabled={isExporting}
-                  className="flex-1 flex items-center justify-center gap-2 bg-gray-700/30 hover:bg-gray-700/50 p-3 rounded-lg transition-colors border border-gray-600/30 text-sm font-medium"
-                >
-                  <Download size={18} className="text-green-400" />
-                  {isExporting ? 'Exporting...' : 'Export JSON'}
-                </button>
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={isImporting}
-                  className="flex-1 flex items-center justify-center gap-2 bg-gray-700/30 hover:bg-gray-700/50 p-3 rounded-lg transition-colors border border-gray-600/30 text-sm font-medium"
-                >
-                  <Upload size={18} className="text-orange-400" />
-                  {isImporting ? 'Importing...' : 'Import JSON'}
-                </button>
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={handleImport}
-                  accept=".json"
-                  className="hidden"
-                />
-              </div>
-            </div>
 
             {/* Password Section */}
             <div>

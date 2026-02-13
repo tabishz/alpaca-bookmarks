@@ -11,6 +11,10 @@ export default {
         surface: "var(--bg-secondary)",
         text: "var(--text-primary)",
         primary: "var(--accent-primary)",
+      },
+      screens: {
+        'sm': '840px',
+        'md': '960px',
       }
     },
   },
