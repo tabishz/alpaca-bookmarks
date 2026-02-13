@@ -6,6 +6,7 @@ import { BookmarkCard } from '../components/BookmarkCard';
 import { AddBookmarkModal } from '../components/AddBookmarkModal';
 import { EditBookmarkModal } from '../components/EditBookmarkModal';
 import { SettingsModal } from '../components/SettingsModal';
+import { DataImportExportModal } from '../components/DataImportExportModal';
 import { KeyboardShortcutsModal } from '../components/KeyboardShortcutsModal';
 import { UndoToast } from '../components/UndoToast';
 import { DashboardHeader } from '../components/DashboardHeader';
@@ -40,6 +41,7 @@ export const Dashboard = () => {
 
   const [isSettingsMenuOpen, setIsSettingsMenuOpen] = useState(false);
   const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
+  const [isDataImportExportModalOpen, setIsDataImportExportModalOpen] = useState(false);
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingBookmark, setEditingBookmark] = useState<Bookmark | null>(null);
@@ -59,7 +61,6 @@ export const Dashboard = () => {
   const undoTimersRef = useRef<{ [key: string]: number }>({});
 
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const observerTarget = useRef<HTMLDivElement>(null);
   const highlightedTagRef = useRef<HTMLButtonElement>(null);
 
@@ -224,25 +225,7 @@ export const Dashboard = () => {
     }
   };
 
-  const handleImportClick = () => { fileInputRef.current?.click(); setIsSettingsMenuOpen(false); };
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]; if (!file) return;
-    if (!confirm(`Import "${file.name}"?`)) { e.target.value = ''; return; }
-    const formData = new FormData(); formData.append('file', file);
-    try {
-      await api.post('/system/import', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
-      alert('Import successful!');
-      fetchTags();
-      setPage(1);
-      fetchBookmarks(1, true);
-    } catch { alert('Failed'); } finally { e.target.value = ''; }
-  };
-
-  const handleExport = async () => {
-    setIsSettingsMenuOpen(false);
-    try { const response = await api.get('/system/export', { responseType: 'blob' }); const url = window.URL.createObjectURL(new Blob([response.data])); const link = document.createElement('a'); link.href = url; link.setAttribute('download', 'bookmarks.html'); document.body.appendChild(link); link.click(); link.remove(); } catch { alert("Failed"); }
-  };
 
   // Undo Toast Logic
   const removeToast = (toastId: string) => {
@@ -363,8 +346,6 @@ export const Dashboard = () => {
 
   return (
     <div className="min-h-screen p-6 md:p-10 w-full flex flex-col" onClick={() => { setIsTagMenuOpen(false); setIsSettingsMenuOpen(false); }} onDragOver={handleDragOver} onDrop={handleDrop}>
-      <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".html" />
-
       <DashboardHeader
         bookmarksCount={bookmarks.length}
         totalCount={totalCount}
@@ -388,9 +369,8 @@ export const Dashboard = () => {
         setIsSettingsMenuOpen={setIsSettingsMenuOpen}
         setIsInfoModalOpen={setIsInfoModalOpen}
         setIsConfigModalOpen={setIsConfigModalOpen}
+        setIsDataImportExportModalOpen={setIsDataImportExportModalOpen}
         setSettingsStartView={setSettingsStartView}
-        handleImportClick={handleImportClick}
-        handleExport={handleExport}
         logout={logout}
         user={user}
         searchInputRef={searchInputRef}
@@ -458,6 +438,15 @@ export const Dashboard = () => {
         initialView={settingsStartView}
       />
       <KeyboardShortcutsModal isOpen={isInfoModalOpen} onClose={() => setIsInfoModalOpen(false)} />
+      <DataImportExportModal
+        isOpen={isDataImportExportModalOpen}
+        onClose={() => setIsDataImportExportModalOpen(false)}
+        onImportSuccess={() => {
+          fetchTags();
+          setPage(1);
+          fetchBookmarks(1, true);
+        }}
+      />
 
       <div className="fixed bottom-10 right-10 z-50 flex flex-col gap-3">
         {undoToasts.map(toast => (
