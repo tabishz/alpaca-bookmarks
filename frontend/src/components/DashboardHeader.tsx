@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { LayoutGrid, List, Search, LogOut, Tags, Settings, Upload, Download, Sliders, Shield, X, Heart, Info, ListTodo, Kanban } from 'lucide-react';
+import { LayoutGrid, List, Search, LogOut, Tags, Settings, ArrowRightLeft, Sliders, Shield, X, Heart, Info, ListTodo, Kanban } from 'lucide-react';
 import { User } from '../api/types';
 
 interface DashboardHeaderProps {
@@ -30,9 +30,8 @@ interface DashboardHeaderProps {
   setIsSettingsMenuOpen: (val: boolean) => void;
   setIsInfoModalOpen: (val: boolean) => void;
   setIsConfigModalOpen: (val: boolean) => void;
+  setIsDataImportExportModalOpen: (val: boolean) => void;
   setSettingsStartView: (val: 'settings' | 'tags') => void;
-  handleImportClick: () => void;
-  handleExport: () => void;
   logout: () => void;
   user: User | null;
 
@@ -62,9 +61,8 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
   setIsSettingsMenuOpen,
   setIsInfoModalOpen,
   setIsConfigModalOpen,
+  setIsDataImportExportModalOpen,
   setSettingsStartView,
-  handleImportClick,
-  handleExport,
   logout,
   user,
   searchInputRef
@@ -239,9 +237,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
               {isSettingsMenuOpen && (
                 <div className="absolute right-0 top-full z-20 mt-2 w-56 overflow-hidden rounded-md border border-gray-600 bg-surface shadow-xl">
                   <button onClick={() => { setSettingsStartView('settings'); setIsConfigModalOpen(true); setIsSettingsMenuOpen(false); }} className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-muted hover:bg-primary hover:text-white"><Sliders size={16} /> Preferences</button>
-                  <div className="my-1 border-t border-gray-700"></div>
-                  <button onClick={handleImportClick} className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-muted hover:bg-primary hover:text-white"><Upload size={16} /> Import Bookmarks</button>
-                  <button onClick={handleExport} className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-muted hover:bg-primary hover:text-white"><Download size={16} /> Export Bookmarks</button>
+                  <button onClick={() => { setIsDataImportExportModalOpen(true); setIsSettingsMenuOpen(false); }} className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-muted hover:bg-primary hover:text-white"><ArrowRightLeft size={16} /> Data Import / Export</button>
                   <button
                     onClick={() => {
                       setSettingsStartView('tags');

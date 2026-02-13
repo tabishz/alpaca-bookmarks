@@ -14,13 +14,24 @@ import (
 )
 
 /**
+// Run every day at midnight. Cron syntax: "0 0 * * *"
+export BACKUP_SCHEDULE = "0 0 * * *"
+
+For AWS S3:
 export AWS_ACCESS_KEY_ID=your_key_id
 export AWS_SECRET_ACCESS_KEY=your_secret_key
 export AWS_REGION=us-east-1
 export S3_BUCKET_NAME=your-unique-bucket-name
+
+For Garage S3 (or other compatible services):
+export AWS_ACCESS_KEY_ID=your_key_id
+export AWS_SECRET_ACCESS_KEY=your_secret_key
+export AWS_REGION=garage
+export S3_BUCKET_NAME=your-unique-bucket-name
+export S3_ENDPOINT_URL=https://your-garage-s3-endpoint.com
 **/
 
-// PerformBackup creates a hot backup of SQLite and uploads it to S3
+// PerformBackup creates a hot backup of SQLite and uploads it to an S3-compatible object store
 func PerformBackup() error {
 	bucket := os.Getenv("S3_BUCKET_NAME")
 	if bucket == "" {
@@ -39,12 +50,25 @@ func PerformBackup() error {
 	}
 	defer os.Remove(tempPath) // Cleanup temp file after upload
 
-	// Initialize S3 Client
+	// Initialize S3 Client with support for custom endpoints
 	cfg, err := config.LoadDefaultConfig(context.TODO())
 	if err != nil {
 		return fmt.Errorf("failed to load AWS config: %v", err)
 	}
-	client := s3.NewFromConfig(cfg)
+
+	var client *s3.Client
+	endpointURL := os.Getenv("S3_ENDPOINT_URL")
+
+	if endpointURL != "" {
+		// Logic for S3-compatible services like Garage S3
+		client = s3.NewFromConfig(cfg, func(o *s3.Options) {
+			o.EndpointResolver = s3.EndpointResolverFromURL(endpointURL)
+			o.UsePathStyle = true // IMPORTANT: Use path-style addressing for S3-compatible services
+		})
+	} else {
+		// Original logic for AWS S3
+		client = s3.NewFromConfig(cfg)
+	}
 
 	// Open the file
 	f, err := os.Open(tempPath)

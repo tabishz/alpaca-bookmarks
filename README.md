@@ -32,6 +32,7 @@ Keyboard shortcuts for quick navigation and actions:
 | `t` | Toggle the tags filter menu. |
 | `f` | Navigate to Favorites dashboard. |
 | `d` | Todo List dashboard. |
+| `i` | Open keyboard shortcuts info panel. |
 | `k` | Kanban board. |
 | `Esc` | Close any open menu (Tags, Settings) or unfocus the search bar. |
 | `Backspace` | When a tag is selected, this will clear the filter. |
@@ -51,6 +52,7 @@ When adding or editing a bookmark, the tag input field has its own shortcuts:
 | :--- | :--- |
 | `f` | Toggle to Main dashboard. |
 | `h` | Navigate to main page from favorites dashboard. |
+| `i` | Open keyboard shortcuts info panel. |
 | `Backscape` | Navigate to main page from favorites dashboard. |
 
 ### Todo List
@@ -59,6 +61,7 @@ When adding or editing a bookmark, the tag input field has its own shortcuts:
 | `f` | Navigate to Favorites dashboard. |
 | `k` | Navigate to Kanban Board. |
 | `h` | Navigate to main page from favorites dashboard. |
+| `i` | Open keyboard shortcuts info panel. |
 
 ### Kanban Board
 | Key(s) | Action |
@@ -67,6 +70,7 @@ When adding or editing a bookmark, the tag input field has its own shortcuts:
 | `f` | Navigate to Favorites dashboard. |
 | `d` | Navigate to Todo List. |
 | `h` | Navigate to main page from favorites dashboard. |
+| `i` | Open keyboard shortcuts info panel. |
 
 ---
 
@@ -108,7 +112,12 @@ services:
     environment:
       - TZ=${TZ:-America/Edmonton}
       # openssl rand -hex 32
-      - JWT_SECRET=someSecret
+      - JWT_SECRET=${JWT_SECRET:=someSecret}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_REGION=${AWS_REGION:=garage}
+      - S3_BUCKET_NAME=your-%{S3_BUCKET_NAME}
+      - S3_ENDPOINT_URL=${S3_ENDPOINT_URL}
     healthcheck:
       # This healthcheck pings the Go backend directly, which runs on port 8080 inside the container.
       # It mirrors the healthcheck defined in the Dockerfile.
@@ -165,6 +174,7 @@ To enable automated nightly backups, provide the following credentials.
 | `AWS_SECRET_ACCESS_KEY` | AWS Secret Access Key | `wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY` |
 | `AWS_REGION` | AWS Region where the bucket exists | `us-east-1` |
 | `S3_BUCKET_NAME` | The name of your S3 bucket | `my-bookmarks-backup` |
+| `S3_ENDPOINT_URL` | S3 endpoint URL for non-AWS | `https://s3.domain.com` |
 | `BACKUP_SCHEDULE` | Cron syntax for backup frequency | `0 0 * * *` (Midnight daily) |
 
 ---
