@@ -1,5 +1,5 @@
 .DS_Store
-data/data.sqlite
+data/
 **/node_modules/
 ca-certs.crt
 frontend/dist
