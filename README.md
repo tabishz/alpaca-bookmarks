@@ -226,6 +226,45 @@ curl http://localhost:3000/api/v1/ping
 * **Database:** `./data/data.sqlite`
 * **Backups:** Local backups are stored in `./data/backups/` before being uploaded to S3.
 
+## API Structure
+```
+/api/v1/
+├── ping            # GET: Health check & version
+├── auth/           # Authentication
+│   ├── register    # POST: Create new account
+│   └── login       # POST: Authenticate user
+├── user/           # User settings & data
+│   ├── me          # GET: Current user ID
+│   ├── preferences # PATCH: Update theme/display settings
+│   ├── password    # PATCH: Update account password
+│   ├── layout      # GET/PUT: Dashboard tile positions
+│   ├── export      # GET: Full account JSON export
+│   └── import      # POST: Full account JSON import
+├── bookmarks/      # Bookmark management
+│   ├── (root)      # GET/POST: List & Create
+│   ├── :id         # PUT/DELETE: Update & Remove
+│   └── :id/icon    # GET/POST: Fetch or Update custom icon
+├── tags/           # Tag management
+│   ├── (root)      # GET: All user tags
+│   └── :id         # DELETE: Remove tag
+├── todos/          # Todo list management
+│   ├── (root)      # GET/POST: List & Create
+│   ├── :id         # PUT/DELETE: Update & Remove list
+│   ├── :id/items   # POST: Add item to list
+│   └── items/:itemId # PATCH/DELETE: Update/Remove item
+├── kanban/         # Kanban board management
+│   ├── boards/     # GET/POST/PUT/DELETE: Board CRUD
+│   ├── columns/    # POST/PUT/DELETE: Column CRUD
+│   └── cards/      # POST/PUT/DELETE: Card CRUD
+├── system/         # Bulk operations
+│   ├── import      # POST: Import bookmarks (Netscape format)
+│   ├── export      # GET: Export bookmarks (Netscape format)
+│   └── purge       # DELETE: Wipe all user data
+└── admin/          # Admin-only operations
+    ├── backup      # POST: Trigger system backup
+    └── users/      # CRUD for system users & password resets
+```
+
 ## 📜 License
 
 This project is licensed under the GNU AGPL v3.0 License - see the [LICENSE](LICENSE) file for details.
