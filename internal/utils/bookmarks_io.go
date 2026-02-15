@@ -24,10 +24,12 @@ func ParseBookmarksHTML(r io.Reader, userID uint) ([]models.Bookmark, error) {
 		// Handle Link (A) - Save it with current tags
 		if n.Type == html.ElementNode && n.Data == "a" {
 			var url string
+			var icon string
 			for _, attr := range n.Attr {
 				if attr.Key == "href" {
 					url = attr.Val
-					break
+				} else if attr.Key == "icon" {
+					icon = attr.Val
 				}
 			}
 
@@ -47,6 +49,7 @@ func ParseBookmarksHTML(r io.Reader, userID uint) ([]models.Bookmark, error) {
 					UserID: userID,
 					URL:    url,
 					Title:  title,
+					Icon:   icon,
 					Tags:   tags,
 				})
 			}
@@ -117,7 +120,11 @@ func GenerateBookmarksHTML(bookmarks []models.Bookmark) string {
 			tagNames = append(tagNames, t.Name)
 		}
 		tagsStr := strings.Join(tagNames, ",")
-		builder.WriteString("    <DT><A HREF=\"" + b.URL + "\" TAGS=\"" + tagsStr + "\">" + b.Title + "</A>\n")
+		iconAttr := ""
+		if b.Icon != "" {
+			iconAttr = " ICON=\"" + b.Icon + "\""
+		}
+		builder.WriteString("    <DT><A HREF=\"" + b.URL + "\"" + iconAttr + " TAGS=\"" + tagsStr + "\">" + b.Title + "</A>\n")
 	}
 	builder.WriteString("</DL><p>\n")
 	return builder.String()
