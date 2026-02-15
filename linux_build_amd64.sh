@@ -21,7 +21,8 @@ echo "Detected Version: $VERSION"
 echo "Building Image: $IMAGE_TAG"
 
 # 2. Build for linux/amd64
-# Note: Added --push to fulfill the requirement of pushing to the registry
-docker buildx build --platform linux/amd64 -t "$IMAGE_TAG" --push .
+# Load the image locally first, then push it to the registry
+docker buildx build --platform linux/amd64 -t "$IMAGE_TAG" --load .
+docker push "$IMAGE_TAG"
 
 echo "Successfully built and pushed $IMAGE_TAG"
