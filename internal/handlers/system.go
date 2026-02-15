@@ -6,6 +6,7 @@ import (
 	"alpaca-bookmarks/internal/services"
 	"alpaca-bookmarks/internal/utils"
 	"net/http"
+	"log"
 
 	"github.com/gin-gonic/gin"
 )
@@ -82,10 +83,9 @@ func ExportBookmarks(c *gin.Context) {
 
 // POST /api/v1/system/backup
 func TriggerBackup(c *gin.Context) {
-	// Only Admins should ideally trigger this, but we'll leave it as is for now
 	go func() {
 		if err := services.PerformBackup(); err != nil {
-			println("Backup failed:", err.Error())
+			log.Printf("Backup failed: %v", err)
 		}
 	}()
 

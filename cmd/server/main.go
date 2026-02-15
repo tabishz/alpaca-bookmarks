@@ -16,7 +16,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-const Version = "0.2.9-beta"
+const Version = "0.3.0-beta"
 
 // Helper function to create initial admin
 func createDefaultAdmin() {
@@ -66,7 +66,11 @@ func main() {
 	c.Start()
 	// --------------------------
 
-	r := gin.Default()
+	r := gin.New()
+	r.Use(gin.Recovery())
+	r.Use(gin.LoggerWithConfig(gin.LoggerConfig{
+		SkipPaths: []string{"/api/v1/ping"},
+	}))
 
 	api := r.Group("/api/v1")
 	{
