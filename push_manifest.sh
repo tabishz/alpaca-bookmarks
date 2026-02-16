@@ -11,17 +11,13 @@ cd "$(dirname "$0")"
 
 # Load .env file if it exists and export variables
 if [ -f .env ]; then
-    export $(grep -v '^#' .env | xargs)
+    set -a
+    source .env
+    set +a
 fi
 
 if [ -n "$ALPACA_VERSION" ]; then
     echo "Using ALPACA_VERSION from environment/.env"
-elif [ -f .env ]; then
-    # Try to get from .env file
-    ALPACA_VERSION=$(grep '^ALPACA_VERSION=' .env | cut -d'=' -f2 | tr -d ' \'\"")
-    if [ -n "$ALPACA_VERSION" ]; then
-        echo "Using ALPACA_VERSION from .env file"
-    fi
 fi
 
 # Fallback to package.json if not found
@@ -38,22 +34,25 @@ fi
 
 echo "Detected Version: $ALPACA_VERSION"
 
-# 2. Create and push versioned manifest
+# Determine docker buildx command based on OS
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    DOCKER_BUILDX="docker-buildx"
+else
+    DOCKER_BUILDX="docker buildx"
+fi
+
+# 2. Create and push versioned manifest using buildx imagetools
 echo "Creating manifest for version $ALPACA_VERSION..."
-docker manifest create tabishz/alpaca-bookmarks:$ALPACA_VERSION \
-    --amend tabishz/alpaca-bookmarks:amd64-$ALPACA_VERSION \
-    --amend tabishz/alpaca-bookmarks:arm64-$ALPACA_VERSION
+$DOCKER_BUILDX imagetools create \
+    -t tabishz/alpaca-bookmarks:$ALPACA_VERSION \
+    tabishz/alpaca-bookmarks:amd64-$ALPACA_VERSION \
+    tabishz/alpaca-bookmarks:arm64-$ALPACA_VERSION
 
-echo "Pushing manifest for version $ALPACA_VERSION..."
-docker manifest push tabishz/alpaca-bookmarks:$ALPACA_VERSION
-
-# 3. Create and push latest manifest
+# 3. Create and push latest manifest using buildx imagetools
 echo "Creating manifest for latest..."
-docker manifest create tabishz/alpaca-bookmarks:latest \
-    --amend tabishz/alpaca-bookmarks:amd64-$ALPACA_VERSION \
-    --amend tabishz/alpaca-bookmarks:arm64-$ALPACA_VERSION
-
-echo "Pushing manifest for latest..."
-docker manifest push tabishz/alpaca-bookmarks:latest
+$DOCKER_BUILDX imagetools create \
+    -t tabishz/alpaca-bookmarks:latest \
+    tabishz/alpaca-bookmarks:amd64-$ALPACA_VERSION \
+    tabishz/alpaca-bookmarks:arm64-$ALPACA_VERSION
 
 echo "Successfully created and pushed multi-arch manifests for version $ALPACA_VERSION and latest"
