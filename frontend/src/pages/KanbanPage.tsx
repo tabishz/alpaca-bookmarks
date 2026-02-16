@@ -122,7 +122,14 @@ export const KanbanPage: React.FC = () => {
         setSelectedBoard(board);
         localStorage.setItem(LAST_BOARD_KEY, boardId.toString());
       } else {
-        navigate('/kanban', { replace: true });
+        // Board not found, redirect to first available board
+        const sortedBoards = [...boards].sort((a, b) => a.position - b.position);
+        if (sortedBoards.length > 0) {
+          const firstBoard = sortedBoards[0];
+          setSelectedBoard(firstBoard);
+          navigate(`/kanban/${firstBoard.id}`, { replace: true });
+          localStorage.setItem(LAST_BOARD_KEY, firstBoard.id.toString());
+        }
       }
     } else {
       const lastBoardId = localStorage.getItem(LAST_BOARD_KEY);
