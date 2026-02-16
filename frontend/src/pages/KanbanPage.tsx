@@ -519,12 +519,10 @@ export const KanbanPage: React.FC = () => {
       setNewBoardDescription('');
       setIsAddingBoard(false);
 
-      // Create default columns and wait for all to complete
-      await Promise.all([
-        createColumn(newBoard.id, 'To Do', false),
-        createColumn(newBoard.id, 'In Progress', false),
-        createColumn(newBoard.id, 'Done', false)
-      ]);
+      // Create default columns sequentially to ensure correct order
+      await createColumn(newBoard.id, 'To Do', false);
+      await createColumn(newBoard.id, 'In Progress', false);
+      await createColumn(newBoard.id, 'Done', false);
 
       // Now fetch the complete board with columns
       await fetchBoard(newBoard.id);
