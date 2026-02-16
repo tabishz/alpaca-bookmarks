@@ -1,9 +1,11 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Bookmark } from '../api/types';
-import { Globe, Image as ImageIcon, Check, X, Trash2 } from 'lucide-react';
+import { Globe, Image as ImageIcon, Check, X, Trash2, Search } from 'lucide-react';
 import api from '../api/client';
 import { failedIconCache, iconCache, inFlightRequests } from '../utils/cache';
+import { IconSelectionModal } from './IconSelectionModal';
+import { useSystemStore } from '../store/systemStore';
 
 interface Props {
   bookmark: Bookmark;
@@ -22,11 +24,14 @@ export const FavoriteBookmarkCard: React.FC<Props> = ({ bookmark, width, height,
   const [showMenu, setShowMenu] = useState(false);
   const [menuPos, setMenuPos] = useState({ x: 0, y: 0 });
   const [isInputMode, setIsInputMode] = useState(false);
+  const [isIconModalOpen, setIsIconModalOpen] = useState(false);
   const [customIconUrl, setCustomIconUrl] = useState('');
   const [isUpdating, setIsUpdating] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const touchTimer = useRef<number | null>(null);
+
+  const { isIconsEnabled, iconsEndpoint, iconsLocation } = useSystemStore();
 
   useEffect(() => {
     const fetchIcon = async () => {
@@ -142,11 +147,12 @@ export const FavoriteBookmarkCard: React.FC<Props> = ({ bookmark, width, height,
     }
   };
 
-  const handleUpdateIcon = async () => {
-    if (!customIconUrl.trim()) return;
+  const handleUpdateIcon = async (urlToUse?: string) => {
+    const finalUrl = urlToUse || customIconUrl;
+    if (!finalUrl.trim()) return;
     setIsUpdating(true);
     try {
-      await api.post(`/bookmarks/${bookmark.id}/icon`, { icon_url: customIconUrl });
+      await api.post(`/bookmarks/${bookmark.id}/icon`, { icon_url: finalUrl.trim() });
       // Refresh icon
       const response = await api.get(`/bookmarks/${bookmark.id}/icon`, {
         responseType: 'blob',
@@ -159,6 +165,7 @@ export const FavoriteBookmarkCard: React.FC<Props> = ({ bookmark, width, height,
         failedIconCache.delete(bookmark.id);
       }
       setIsInputMode(false);
+      setIsIconModalOpen(false);
       setCustomIconUrl('');
     } catch (err: any) {
       console.error("Failed to update icon", err);
@@ -185,8 +192,20 @@ export const FavoriteBookmarkCard: React.FC<Props> = ({ bookmark, width, height,
         className="w-full text-left px-4 py-2 text-sm text-text hover:bg-primary hover:text-white flex items-center gap-3 transition-colors"
       >
         <ImageIcon size={16} />
-        Provide custom icon
+        Provide custom icon URL
       </button>
+      {isIconsEnabled && (
+        <button
+          onClick={() => {
+            setShowMenu(false);
+            setIsIconModalOpen(true);
+          }}
+          className="w-full text-left px-4 py-2 text-sm text-text hover:bg-primary hover:text-white flex items-center gap-3 transition-colors"
+        >
+          <Search size={16} />
+          Select from collection
+        </button>
+      )}
       <div className="border-t border-gray-700 my-1"></div>
       <button
         onClick={() => {
@@ -237,7 +256,7 @@ export const FavoriteBookmarkCard: React.FC<Props> = ({ bookmark, width, height,
             }}
           />
           <button
-            onClick={handleUpdateIcon}
+            onClick={() => handleUpdateIcon()}
             disabled={isUpdating}
             className="px-4 py-2 bg-primary text-white rounded-lg font-bold hover:opacity-90 disabled:opacity-50 transition-opacity"
           >
@@ -247,6 +266,17 @@ export const FavoriteBookmarkCard: React.FC<Props> = ({ bookmark, width, height,
         <p className="text-xs text-gray-500 mt-3">The system will download and store this icon for your bookmark.</p>
       </div>
     </div>,
+    document.body
+  );
+
+  const iconModalPortal = isIconModalOpen && createPortal(
+    <IconSelectionModal
+      isOpen={isIconModalOpen}
+      onClose={() => setIsIconModalOpen(false)}
+      onSelect={(url) => handleUpdateIcon(url)}
+      endpoint={iconsEndpoint!}
+      location={iconsLocation!}
+    />,
     document.body
   );
 
@@ -277,6 +307,7 @@ export const FavoriteBookmarkCard: React.FC<Props> = ({ bookmark, width, height,
 
       {menuPortal}
       {inputPortal}
+      {iconModalPortal}
     </div>
   );
 };

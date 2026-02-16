@@ -101,6 +101,7 @@ func main() {
 			protected.PUT("/user/layout", handlers.SaveUserLayout)
 			protected.GET("/user/export", handlers.ExportUserData)
 			protected.POST("/user/import", handlers.ImportUserData)
+			protected.GET("/system/config", handlers.GetSystemConfig)
 			// Bookmarks CRUD
 			protected.POST("/bookmarks", handlers.CreateBookmark)
 			protected.GET("/bookmarks", handlers.GetBookmarks)

@@ -7,9 +7,18 @@ import (
 	"alpaca-bookmarks/internal/utils"
 	"net/http"
 	"log"
+	"os"
 
 	"github.com/gin-gonic/gin"
 )
+
+// GET /api/v1/system/config
+func GetSystemConfig(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{
+		"icons_endpoint": os.Getenv("ICONS_ENDPOINT"),
+		"icons_location": os.Getenv("ICONS_LOCATION"),
+	})
+}
 
 // POST /api/v1/system/import
 func ImportBookmarks(c *gin.Context) {
