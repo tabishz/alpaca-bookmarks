@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Search, Loader2, Image as ImageIcon, ChevronRight } from 'lucide-react';
-import axios from 'axios';
+import PocketBase from 'pocketbase';
 
 interface IconRecord {
   id: string;
@@ -28,28 +28,39 @@ export const IconSelectionModal: React.FC<Props> = ({ isOpen, onClose, onSelect,
   const [hasMore, setHasMore] = useState(false);
 
   const searchTimeout = useRef<number | null>(null);
+  const pbRef = useRef<PocketBase | null>(null);
+
+  // Initialize PocketBase client
+  useEffect(() => {
+    if (endpoint) {
+      pbRef.current = new PocketBase(endpoint);
+    }
+  }, [endpoint]);
 
   const fetchIcons = async (pageNum: number, searchQuery: string) => {
-    if (!endpoint || !collection) return;
+    if (!pbRef.current || !collection) return;
     setLoading(true);
     try {
-      // PocketBase List/Search API: /api/collections/<collection>/records
-      const apiUrl = `${endpoint}/api/collections/${collection}/records`;
-      
+      // Using PocketBase SDK for searching and pagination
       const filter = searchQuery
         ? `(name ~ "${searchQuery}" || tags ~ "${searchQuery}" || description ~ "${searchQuery}")`
         : '';
 
-      const response = await axios.get(apiUrl, {
-        params: {
-          page: pageNum,
-          perPage: 12,
-          filter: filter,
-          sort: '-created'
-        }
+      const resultList = await pbRef.current.collection(collection).getList(pageNum, 12, {
+        filter: filter,
+        sort: '-created',
+        // PocketBase SDK returns record models, we need to map them or cast
+        requestKey: null, // disable auto-cancellation if needed, or keep it for better performance
       });
 
-      const { items, totalItems: total } = response.data;
+      // Map PB records to our interface (PB records have more fields but they are compatible)
+      const items = resultList.items.map(item => ({
+        id: item.id,
+        name: item.getString('name') || item.get('name') || '',
+        filename: item.getString('filename') || item.get('filename') || '',
+        tags: item.getString('tags') || item.get('tags') || '',
+        description: item.getString('description') || item.get('description') || '',
+      } as IconRecord));
 
       if (pageNum === 1) {
         setIcons(items);
@@ -57,21 +68,24 @@ export const IconSelectionModal: React.FC<Props> = ({ isOpen, onClose, onSelect,
         setIcons(prev => [...prev, ...items]);
       }
 
-      setTotalItems(total);
-      setHasMore(items.length === 12 && (pageNum * 12) < total);
+      setTotalItems(resultList.totalItems);
+      setHasMore(items.length === 12 && (pageNum * 12) < resultList.totalItems);
     } catch (err) {
-      console.error("Failed to fetch icons from collection:", err);
+      // PB SDK throws an error on cancellation, which we can ignore
+      if (err instanceof Error && err.name !== 'ClientResponseError') {
+        console.error("Failed to fetch icons from collection:", err);
+      }
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    if (isOpen && endpoint && collection) {
+    if (isOpen && pbRef.current && collection) {
       setPage(1);
       fetchIcons(1, search);
     }
-  }, [isOpen, endpoint, collection]);
+  }, [isOpen, collection]); // Re-fetch when modal opens or collection changes
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -94,6 +108,7 @@ export const IconSelectionModal: React.FC<Props> = ({ isOpen, onClose, onSelect,
   };
 
   const loadMore = () => {
+    if (loading) return;
     const nextPage = page + 1;
     setPage(nextPage);
     fetchIcons(nextPage, search);
@@ -108,7 +123,7 @@ export const IconSelectionModal: React.FC<Props> = ({ isOpen, onClose, onSelect,
           <X size={24} />
         </button>
 
-        <h2 className="mb-6 text-2xl font-bold flex items-center gap-2">
+        <h2 className="mb-6 text-2xl font-bold flex items-center gap-2 text-text">
           <ImageIcon className="text-primary" /> Select Icon from Collection
         </h2>
 

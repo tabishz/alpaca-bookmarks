@@ -22,7 +22,7 @@ export const EditBookmarkModal: React.FC<Props> = ({ bookmark, onClose, onSucces
   const [loading, setLoading] = useState(false);
   const [isIconModalOpen, setIsIconModalOpen] = useState(false);
 
-  const { isIconsEnabled, iconsEndpoint, iconsLocation } = useSystemStore();
+  const { isIconsEnabled, iconsEndpoint, iconsLocation, iconsCollection } = useSystemStore();
 
   useEffect(() => {
     if (bookmark) {

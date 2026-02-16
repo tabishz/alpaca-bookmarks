@@ -31,7 +31,7 @@ export const FavoriteBookmarkCard: React.FC<Props> = ({ bookmark, width, height,
   const inputRef = useRef<HTMLInputElement>(null);
   const touchTimer = useRef<number | null>(null);
 
-  const { isIconsEnabled, iconsEndpoint, iconsLocation } = useSystemStore();
+  const { isIconsEnabled, iconsEndpoint, iconsLocation, iconsCollection } = useSystemStore();
 
   useEffect(() => {
     const fetchIcon = async () => {
@@ -275,6 +275,7 @@ export const FavoriteBookmarkCard: React.FC<Props> = ({ bookmark, width, height,
       onClose={() => setIsIconModalOpen(false)}
       onSelect={(url) => handleUpdateIcon(url)}
       endpoint={iconsEndpoint!}
+      collection={iconsCollection!}
       location={iconsLocation!}
     />,
     document.body
