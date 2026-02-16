@@ -226,15 +226,37 @@ const KanbanColumnComponent: React.FC<{
   onUpdateColumn: (columnId: number, title: string) => void;
   onDeleteCard: (cardId: number) => void;
   onUpdateCard: (cardId: number, title: string) => void;
-}> = ({ column, onAddCard, onDeleteColumn, onUpdateColumn, onDeleteCard, onUpdateCard }) => {
+  onDragStart?: (event: DragStartEvent) => void;
+  onDragOver?: (event: DragOverEvent) => void;
+  onDragEnd?: (event: DragEndEvent) => void;
+  activeId?: number | null;
+}> = ({ column, onAddCard, onDeleteColumn, onUpdateColumn, onDeleteCard, onUpdateCard, onDragStart, onDragOver, onDragEnd, activeId }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(column.title);
   const [isAddingCard, setIsAddingCard] = useState(false);
   const [newCardTitle, setNewCardTitle] = useState('');
 
-  const { setNodeRef, isOver } = useDroppable({
+  const {
+    attributes,
+    listeners,
+    setNodeRef: setSortableRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
+    id: `col-${column.id}`,
+    disabled: isEditing || isAddingCard,
+  });
+
+  const { setNodeRef: setDroppableRef, isOver } = useDroppable({
     id: `column-${column.id}`,
   });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
 
   const handleSaveTitle = () => {
     if (editTitle.trim() && editTitle !== column.title) {
@@ -281,7 +303,12 @@ const KanbanColumnComponent: React.FC<{
   }, [column.id]);
 
   return (
-    <div className="bg-surface/50 rounded-lg p-4 min-w-[280px] max-w-[280px]">
+    <div
+      ref={setSortableRef}
+      style={style}
+      className="bg-surface/50 rounded-lg p-4 min-w-[280px] max-w-[280px]"
+      {...attributes}
+    >
       <div className="flex items-center justify-between mb-3">
         {isEditing ? (
           <input
@@ -296,7 +323,7 @@ const KanbanColumnComponent: React.FC<{
         ) : (
           <h3 className="font-semibold text-text flex-1">{column.title}</h3>
         )}
-        <div className="flex gap-1">
+        <div className="flex gap-1 items-center">
           <button
             onClick={() => setIsEditing(!isEditing)}
             className="p-1 text-muted hover:text-text"
@@ -309,21 +336,60 @@ const KanbanColumnComponent: React.FC<{
           >
             <Trash2 size={16} />
           </button>
+          <div
+            className="p-1 cursor-move text-muted hover:text-text"
+            {...listeners}
+          >
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
+              <circle cx="2" cy="2" r="1.5" />
+              <circle cx="6" cy="2" r="1.5" />
+              <circle cx="10" cy="2" r="1.5" />
+              <circle cx="2" cy="6" r="1.5" />
+              <circle cx="6" cy="6" r="1.5" />
+              <circle cx="10" cy="6" r="1.5" />
+              <circle cx="2" cy="10" r="1.5" />
+              <circle cx="6" cy="10" r="1.5" />
+              <circle cx="10" cy="10" r="1.5" />
+            </svg>
+          </div>
         </div>
       </div>
 
-      <div
-        ref={setNodeRef}
-        className={`space-y-2 min-h-[100px] rounded-lg transition-colors ${
-          isOver ? 'bg-primary/20 border-2 border-dashed border-primary' : ''
-        }`}
+      {/* Card DnD Context - separate from column DnD */}
+      <DndContext
+        collisionDetection={closestCenter}
+        onDragStart={onDragStart}
+        onDragOver={onDragOver}
+        onDragEnd={onDragEnd}
       >
-        <SortableContext items={column.cards.map(card => card.id)} strategy={verticalListSortingStrategy}>
-          {column.cards.sort((a, b) => a.position - b.position).map((card) => (
-            <DraggableCard key={card.id} card={card} onDelete={onDeleteCard} onUpdate={onUpdateCard} />
-          ))}
-        </SortableContext>
-      </div>
+        <div
+          ref={setDroppableRef}
+          className={`space-y-2 min-h-[100px] rounded-lg transition-colors ${
+            isOver ? 'bg-primary/20 border-2 border-dashed border-primary' : ''
+          }`}
+        >
+          <SortableContext items={column.cards.map(card => card.id)} strategy={verticalListSortingStrategy}>
+            {column.cards.sort((a, b) => a.position - b.position).map((card) => (
+              <DraggableCard key={card.id} card={card} onDelete={onDeleteCard} onUpdate={onUpdateCard} />
+            ))}
+          </SortableContext>
+        </div>
+        <DragOverlay>
+          {activeId && (
+            (() => {
+              const card = column.cards.find(c => c.id === activeId);
+              return card ? (
+                <div className="bg-surface border border-primary rounded-lg p-3 opacity-90">
+                  <h4 className="font-medium text-text mb-1">{card.title}</h4>
+                  {card.description && (
+                    <p className="text-sm text-muted">{card.description}</p>
+                  )}
+                </div>
+              ) : null;
+            })()
+          )}
+        </DragOverlay>
+      </DndContext>
 
       {isAddingCard ? (
         <div className="mt-3 bg-surface border border-gray-600 rounded-lg p-3">
@@ -369,6 +435,7 @@ export const KanbanPage: React.FC = () => {
   const [boards, setBoards] = useState<KanbanBoard[]>([]);
   const [selectedBoard, setSelectedBoard] = useState<KanbanBoard | null>(null);
   const [activeId, setActiveId] = useState<number | null>(null);
+  const [activeColumnId, setActiveColumnId] = useState<string | null>(null);
   const [isAddingColumn, setIsAddingColumn] = useState(false);
   const [newColumnTitle, setNewColumnTitle] = useState('');
   const [isAddingBoard, setIsAddingBoard] = useState(false);
@@ -880,11 +947,69 @@ export const KanbanPage: React.FC = () => {
     }
   };
 
+  const handleColumnDragStart = (event: DragStartEvent) => {
+    setActiveColumnId(event.active.id as string);
+  };
+
+  const handleColumnDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveColumnId(null);
+
+    if (!over || !selectedBoard) return;
+
+    const activeId = String(active.id);
+    const overId = String(over.id);
+
+    // Check if we're dragging a column
+    if (!activeId.startsWith('col-') || !overId.startsWith('col-')) return;
+
+    const activeColumnIdNum = parseInt(activeId.replace('col-', ''));
+    const overColumnIdNum = parseInt(overId.replace('col-', ''));
+
+    if (activeColumnIdNum === overColumnIdNum) return;
+
+    // Find column indices
+    const sortedColumns = [...selectedBoard.columns].sort((a, b) => a.position - b.position);
+    const oldIndex = sortedColumns.findIndex(c => c.id === activeColumnIdNum);
+    const newIndex = sortedColumns.findIndex(c => c.id === overColumnIdNum);
+
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    // Reorder columns locally
+    const reorderedColumns = arrayMove(sortedColumns, oldIndex, newIndex);
+
+    // Update position values to match new order
+    const reorderedColumnsWithPositions = reorderedColumns.map((column, index) => ({
+      ...column,
+      position: index
+    }));
+
+    // Optimistically update UI
+    const updatedBoard = { ...selectedBoard, columns: reorderedColumnsWithPositions };
+    setSelectedBoard(updatedBoard);
+    setBoards(prev => prev.map(board =>
+      board.id === selectedBoard.id
+        ? updatedBoard
+        : board
+    ));
+
+    // Update positions in backend
+    try {
+      await api.put(`/kanban/columns/${activeColumnIdNum}`, { position: newIndex });
+    } catch (error) {
+      console.error('Failed to reorder column:', error);
+      // Revert on error
+      if (selectedBoard) {
+        fetchBoard(selectedBoard.id);
+      }
+    }
+  };
+
   const handleDragStart = (event: DragStartEvent) => {
     setActiveId(event.active.id as number);
   };
 
-  const handleDragOver = (_event: DragOverEvent) => {
+  const handleDragOver = () => {
     // Handle drag over logic if needed
   };
 
@@ -1298,62 +1423,65 @@ export const KanbanPage: React.FC = () => {
             </div>
           )}
 
-          {/* Kanban Board */}
+          {/* Kanban Board - Separate DndContext for columns */}
           <DndContext
             collisionDetection={closestCenter}
-            onDragStart={handleDragStart}
-            onDragOver={handleDragOver}
-            onDragEnd={handleDragEnd}
+            onDragStart={handleColumnDragStart}
+            onDragEnd={handleColumnDragEnd}
           >
-            <div className="flex gap-4 overflow-x-auto pb-4">
-              {selectedBoard.columns && selectedBoard.columns.length > 0 ? (
-                selectedBoard.columns
-                  .sort((a, b) => a.position - b.position)
-                  .map((column) => (
-                    <div key={column.id} className="flex-shrink-0">
-                      <SortableContext
-                        items={[`column-${column.id}`, ...column.cards.map(card => card.id)]}
-                        strategy={verticalListSortingStrategy}
-                      >
-                        <KanbanColumnComponent
-                          column={column}
-                          onAddCard={createCard}
-                          onDeleteColumn={deleteColumn}
-                          onUpdateColumn={updateColumn}
-                          onDeleteCard={deleteCard}
-                          onUpdateCard={updateCard}
-                        />
-                      </SortableContext>
-                    </div>
-                  ))
-              ) : (
-                <div className="text-center py-20 flex-1">
-                  <div className="text-4xl mb-4">📝</div>
-                  <h3 className="text-xl font-bold mb-2">No Columns Yet</h3>
-                  <p className="text-muted mb-4">Add your first column to get started</p>
-                  <button
-                    onClick={() => setIsAddingColumn(true)}
-                    className="bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary/80"
-                  >
-                    Add First Column
-                  </button>
-                </div>
-              )}
-            </div>
+            <SortableContext
+              items={selectedBoard.columns
+                .sort((a, b) => a.position - b.position)
+                .map(column => `col-${column.id}`)}
+              strategy={horizontalListSortingStrategy}
+            >
+              <div className="flex gap-4 overflow-x-auto pb-4">
+                {selectedBoard.columns && selectedBoard.columns.length > 0 ? (
+                  selectedBoard.columns
+                    .sort((a, b) => a.position - b.position)
+                    .map((column) => (
+                      <KanbanColumnComponent
+                        key={column.id}
+                        column={column}
+                        onAddCard={createCard}
+                        onDeleteColumn={deleteColumn}
+                        onUpdateColumn={updateColumn}
+                        onDeleteCard={deleteCard}
+                        onUpdateCard={updateCard}
+                        onDragStart={handleDragStart}
+                        onDragOver={handleDragOver}
+                        onDragEnd={handleDragEnd}
+                        activeId={activeId}
+                      />
+                    ))
+                ) : (
+                  <div className="text-center py-20 flex-1">
+                    <div className="text-4xl mb-4">📝</div>
+                    <h3 className="text-xl font-bold mb-2">No Columns Yet</h3>
+                    <p className="text-muted mb-4">Add your first column to get started</p>
+                    <button
+                      onClick={() => setIsAddingColumn(true)}
+                      className="bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary/80"
+                    >
+                      Add First Column
+                    </button>
+                  </div>
+                )}
+              </div>
+            </SortableContext>
             <DragOverlay>
-              {activeId && selectedBoard && (
+              {activeColumnId && selectedBoard && (
                 (() => {
-                  const card = selectedBoard.columns
-                    .flatMap(col => col.cards)
-                    .find(c => c.id === activeId);
-                  return card ? (
-                    <div className="bg-surface border border-primary rounded-lg p-3 opacity-90">
-                      <h4 className="font-medium text-text mb-1">{card.title}</h4>
-                      {card.description && (
-                        <p className="text-sm text-muted">{card.description}</p>
-                      )}
-                    </div>
-                  ) : null;
+                  const columnId = parseInt(activeColumnId.replace('col-', ''));
+                  const column = selectedBoard.columns.find(c => c.id === columnId);
+                  if (column) {
+                    return (
+                      <div className="bg-surface/50 rounded-lg p-4 min-w-[280px] max-w-[280px] opacity-90 border-2 border-primary">
+                        <h3 className="font-semibold text-text">{column.title}</h3>
+                      </div>
+                    );
+                  }
+                  return null;
                 })()
               )}
             </DragOverlay>
