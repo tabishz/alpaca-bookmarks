@@ -130,7 +130,7 @@ export const AddBookmarkModal: React.FC<Props> = ({ isOpen, onClose, onSuccess, 
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4 backdrop-blur-sm">
-      <div className="w-full max-w-lg rounded-lg bg-surface p-6 shadow-xl relative animate-in fade-in zoom-in duration-200">
+      <div className="w-full max-w-lg rounded-lg bg-surface p-6 shadow-xl relative animate-in fade-in zoom-in duration-200 max-h-[90vh] overflow-y-auto">
         <button onClick={onClose} className="absolute right-4 top-4 text-gray-400 hover:text-text">
           <X size={24} />
         </button>

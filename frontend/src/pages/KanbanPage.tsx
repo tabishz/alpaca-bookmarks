@@ -888,12 +888,12 @@ export const KanbanPage: React.FC = () => {
 
       {/* New Board Modal */}
       {isAddingBoard && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <form 
             onSubmit={(e) => { e.preventDefault(); createBoard(); }}
-            className="bg-surface rounded-lg p-6 w-full max-w-md"
+            className="bg-surface rounded-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl animate-in fade-in zoom-in duration-200 border border-gray-700"
           >
-            <h2 className="text-xl font-bold mb-4">Create New Board</h2>
+            <h2 className="text-xl font-bold mb-4 text-text">Create New Board</h2>
             <input
               type="text"
               placeholder="Board title"
@@ -929,7 +929,7 @@ export const KanbanPage: React.FC = () => {
               </button>
               <button
                 type="submit"
-                className="px-4 py-2 bg-primary text-white rounded hover:bg-primary/80"
+                className="px-4 py-2 bg-primary text-white rounded hover:bg-primary/80 font-bold"
               >
                 Create Board
               </button>
