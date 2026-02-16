@@ -1,355 +1,65 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import api from '../api/client';
-import { KanbanBoard, KanbanColumn, KanbanCard } from '../api/types';
-import { Plus, Trash2, Edit3, Home, Settings, Check, X, Heart, ListTodo, Info } from 'lucide-react';
-import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, DragOverEvent, closestCenter, useDroppable } from '@dnd-kit/core';
-import { SortableContext, verticalListSortingStrategy, horizontalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
-import { useSortable } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
+import { KanbanBoard, KanbanColumn as KanbanColumnType, KanbanCard } from '../api/types';
+import { Plus, Trash2, Home, Settings, Heart, ListTodo, Info } from 'lucide-react';
+import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, closestCenter, rectIntersection, CollisionDetection } from '@dnd-kit/core';
+import { SortableContext, horizontalListSortingStrategy, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
 import { UndoToast } from '../components/UndoToast';
 import { KeyboardShortcutsModal } from '../components/KeyboardShortcutsModal';
+import { DraggableBoardButton, KanbanColumn } from '../components/kanban';
 
 interface UndoToastData {
   id: string;
   message: string;
   type: 'board' | 'column' | 'card';
-  data: KanbanBoard | KanbanColumn | KanbanCard;
+  data: KanbanBoard | KanbanColumnType | KanbanCard;
   boardId?: number;
   columnIndex?: number;
   cardIndex?: number;
 }
 
-// Draggable Board Button Component
-const DraggableBoardButton: React.FC<{
-  board: KanbanBoard;
-  isSelected: boolean;
-  onClick: () => void;
-}> = ({ board, isSelected, onClick }) => {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: `board-${board.id}` });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-  };
-
-  return (
-    <button
-      ref={setNodeRef}
-      style={style}
-      onClick={onClick}
-      className={`px-4 py-2 rounded-lg transition-colors cursor-move ${
-        isSelected
-          ? 'bg-primary text-white'
-          : 'bg-surface text-muted hover:text-text'
-      }`}
-      {...attributes}
-      {...listeners}
-    >
-      {board.title}
-    </button>
-  );
-};
-
-// Draggable Card Component
-const DraggableCard: React.FC<{
-  card: KanbanCard;
-  onDelete: (cardId: number) => void;
-  onUpdate: (cardId: number, title: string) => void;
-}> = ({ card, onDelete, onUpdate }) => {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({
-    id: card.id,
-    disabled: false,
-  });
-
-  const [isEditing, setIsEditing] = useState(false);
-  const [editTitle, setEditTitle] = useState(card.title);
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-  };
-
-  const handleDeleteClick = (e: React.MouseEvent | React.PointerEvent) => {
-    e.stopPropagation();
-    e.preventDefault();
-    onDelete(card.id);
-  };
-
-  const handleEditClick = (e: React.MouseEvent | React.PointerEvent) => {
-    e.stopPropagation();
-    e.preventDefault();
-    setIsEditing(true);
-    setEditTitle(card.title);
-  };
-
-  const handleSave = () => {
-    if (editTitle.trim() && editTitle !== card.title) {
-      onUpdate(card.id, editTitle.trim());
-    }
-    setIsEditing(false);
-  };
-
-  const handleCancel = () => {
-    setEditTitle(card.title);
-    setIsEditing(false);
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      handleSave();
-    } else if (e.key === 'Escape') {
-      handleCancel();
-    }
-    // Stop propagation for all keys when editing to prevent dnd-kit interference
-    e.stopPropagation();
-  };
-
-  const handleInputKeyDown = (e: React.KeyboardEvent) => {
-    // Allow spacebar to work normally in the input
-    e.stopPropagation();
-  };
-
-  return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className={`bg-surface border border-gray-600 rounded-lg p-3 hover:shadow-lg transition-shadow group ${isEditing ? '' : 'cursor-move'}`}
-      {...(isEditing ? {} : { ...attributes, ...listeners })}
-    >
-      <div className="flex items-start justify-between">
-        <div className="flex-1 min-w-0">
-          {isEditing ? (
-            <div className="flex items-center gap-2">
-              <input
-                type="text"
-                value={editTitle}
-                onChange={(e) => setEditTitle(e.target.value)}
-                onKeyDown={(e) => {
-                  handleKeyDown(e);
-                  handleInputKeyDown(e);
-                }}
-                className="flex-1 bg-background border border-gray-600 rounded px-2 py-1 text-text text-sm"
-                autoFocus
-                onClick={(e) => e.stopPropagation()}
-                onPointerDown={(e) => e.stopPropagation()}
-              />
-              <button
-                onClick={(e) => { e.stopPropagation(); e.preventDefault(); handleSave(); }}
-                onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
-                className="p-1 text-green-400 hover:text-green-300"
-              >
-                <Check size={14} />
-              </button>
-              <button
-                onClick={(e) => { e.stopPropagation(); e.preventDefault(); handleCancel(); }}
-                onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
-                className="p-1 text-muted hover:text-text"
-              >
-                <X size={14} />
-              </button>
-            </div>
-          ) : (
-            <>
-              <h4 className="font-medium text-text mb-1">{card.title}</h4>
-              {card.description && (
-                <p className="text-sm text-muted">{card.description}</p>
-              )}
-            </>
-          )}
-        </div>
-        {!isEditing && (
-          <div className="flex gap-1 ml-2">
-            <button
-              onClick={handleEditClick}
-              onPointerDown={handleEditClick}
-              className="opacity-0 group-hover:opacity-100 p-1 text-muted hover:text-primary transition-all pointer-events-auto"
-              data-dndkit-disabled
-            >
-              <Edit3 size={14} />
-            </button>
-            <button
-              onClick={handleDeleteClick}
-              onPointerDown={handleDeleteClick}
-              className="opacity-0 group-hover:opacity-100 p-1 text-muted hover:text-red-400 transition-all pointer-events-auto"
-              data-dndkit-disabled
-            >
-              <Trash2 size={14} />
-            </button>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-};
-
-// Column Component
-const KanbanColumnComponent: React.FC<{
-  column: KanbanColumn;
-  onAddCard: (columnId: number, title: string) => void;
-  onDeleteColumn: (columnId: number) => void;
-  onUpdateColumn: (columnId: number, title: string) => void;
-  onDeleteCard: (cardId: number) => void;
-  onUpdateCard: (cardId: number, title: string) => void;
-}> = ({ column, onAddCard, onDeleteColumn, onUpdateColumn, onDeleteCard, onUpdateCard }) => {
-  const [isEditing, setIsEditing] = useState(false);
-  const [editTitle, setEditTitle] = useState(column.title);
-  const [isAddingCard, setIsAddingCard] = useState(false);
-  const [newCardTitle, setNewCardTitle] = useState('');
-
-  const { setNodeRef, isOver } = useDroppable({
-    id: `column-${column.id}`,
-  });
-
-  const handleSaveTitle = () => {
-    if (editTitle.trim() && editTitle !== column.title) {
-      onUpdateColumn(column.id, editTitle);
-    }
-    setIsEditing(false);
-  };
-
-  const handleStartAddCard = () => {
-    setIsAddingCard(true);
-    setNewCardTitle('');
-  };
-
-  const handleSaveNewCard = () => {
-    if (newCardTitle.trim()) {
-      onAddCard(column.id, newCardTitle.trim());
-    }
-    setIsAddingCard(false);
-    setNewCardTitle('');
-  };
-
-  const handleCancelNewCard = () => {
-    setIsAddingCard(false);
-    setNewCardTitle('');
-  };
-
-  const handleNewCardKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      handleSaveNewCard();
-    } else if (e.key === 'Escape') {
-      handleCancelNewCard();
-    }
-  };
-
-  // Listen for keyboard shortcut to add card
-  React.useEffect(() => {
-    const handleAddCardEvent = (e: CustomEvent) => {
-      if (e.detail.columnId === column.id) {
-        handleStartAddCard();
-      }
-    };
-    window.addEventListener('kanban-add-card', handleAddCardEvent as EventListener);
-    return () => window.removeEventListener('kanban-add-card', handleAddCardEvent as EventListener);
-  }, [column.id]);
-
-  return (
-    <div className="bg-surface/50 rounded-lg p-4 min-w-[280px] max-w-[280px]">
-      <div className="flex items-center justify-between mb-3">
-        {isEditing ? (
-          <input
-            type="text"
-            value={editTitle}
-            onChange={(e) => setEditTitle(e.target.value)}
-            onBlur={handleSaveTitle}
-            onKeyPress={(e) => e.key === 'Enter' && handleSaveTitle()}
-            className="flex-1 bg-background border border-gray-600 rounded px-2 py-1 text-text mr-2"
-            autoFocus
-          />
-        ) : (
-          <h3 className="font-semibold text-text flex-1">{column.title}</h3>
-        )}
-        <div className="flex gap-1">
-          <button
-            onClick={() => setIsEditing(!isEditing)}
-            className="p-1 text-muted hover:text-text"
-          >
-            <Edit3 size={16} />
-          </button>
-          <button
-            onClick={() => onDeleteColumn(column.id)}
-            className="p-1 text-muted hover:text-red-400"
-          >
-            <Trash2 size={16} />
-          </button>
-        </div>
-      </div>
-
-      <div
-        ref={setNodeRef}
-        className={`space-y-2 min-h-[100px] rounded-lg transition-colors ${
-          isOver ? 'bg-primary/20 border-2 border-dashed border-primary' : ''
-        }`}
-      >
-        <SortableContext items={column.cards.map(card => card.id)} strategy={verticalListSortingStrategy}>
-          {column.cards.sort((a, b) => a.position - b.position).map((card) => (
-            <DraggableCard key={card.id} card={card} onDelete={onDeleteCard} onUpdate={onUpdateCard} />
-          ))}
-        </SortableContext>
-      </div>
-
-      {isAddingCard ? (
-        <div className="mt-3 bg-surface border border-gray-600 rounded-lg p-3">
-          <input
-            type="text"
-            value={newCardTitle}
-            onChange={(e) => setNewCardTitle(e.target.value)}
-            onKeyDown={handleNewCardKeyDown}
-            placeholder="Enter card title..."
-            className="w-full bg-background border border-gray-600 rounded px-2 py-1 text-text text-sm mb-2"
-            autoFocus
-          />
-          <div className="flex gap-2">
-            <button
-              onClick={handleSaveNewCard}
-              className="flex-1 px-3 py-1 bg-primary text-white rounded text-sm hover:bg-primary/80"
-            >
-              Add
-            </button>
-            <button
-              onClick={handleCancelNewCard}
-              className="px-3 py-1 text-muted hover:text-text text-sm"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      ) : (
-        <button
-          onClick={handleStartAddCard}
-          className="w-full mt-3 p-2 border-2 border-dashed border-gray-600 rounded-lg text-muted hover:border-primary hover:text-primary transition-colors"
-        >
-          <Plus size={16} className="inline mr-1" /> Add Card
-        </button>
-      )}
-    </div>
-  );
-};
-
 const LAST_BOARD_KEY = 'kanban_last_board_id';
+
+// Custom collision detection that only considers column-to-column when dragging columns
+const customCollisionDetection: CollisionDetection = (args) => {
+  const { active, droppableContainers } = args;
+  
+  // Check if we're dragging a column
+  const isDraggingColumn = String(active.id).startsWith('col-');
+  
+  // Filter containers based on what's being dragged
+  const filteredContainers = droppableContainers.filter(container => {
+    const containerId = String(container.id);
+    if (isDraggingColumn) {
+      // When dragging a column, only consider other columns
+      return containerId.startsWith('col-');
+    } else {
+      // When dragging a card, consider both columns (as drop targets) and other cards
+      return containerId.startsWith('col-') || typeof container.id === 'number';
+    }
+  });
+  
+  // Use rectIntersection for better horizontal detection with columns
+  if (isDraggingColumn) {
+    return rectIntersection({
+      ...args,
+      droppableContainers: filteredContainers,
+    });
+  }
+  
+  // Use closestCenter for cards
+  return closestCenter({
+    ...args,
+    droppableContainers: filteredContainers,
+  });
+};
 
 export const KanbanPage: React.FC = () => {
   const [boards, setBoards] = useState<KanbanBoard[]>([]);
   const [selectedBoard, setSelectedBoard] = useState<KanbanBoard | null>(null);
-  const [activeId, setActiveId] = useState<number | null>(null);
+  const [activeId, setActiveId] = useState<number | string | null>(null);
+  const [activeColumnId, setActiveColumnId] = useState<string | null>(null);
   const [isAddingColumn, setIsAddingColumn] = useState(false);
   const [newColumnTitle, setNewColumnTitle] = useState('');
   const [isAddingBoard, setIsAddingBoard] = useState(false);
@@ -383,18 +93,15 @@ export const KanbanPage: React.FC = () => {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Only trigger if 'n' is pressed and no input/textarea is focused
       if (e.key === 'n' && selectedBoard) {
         const activeElement = document.activeElement;
         const isInputFocused = activeElement?.tagName === 'INPUT' ||
-                               activeElement?.tagName === 'TEXTAREA' ||
-                               (activeElement as HTMLElement)?.isContentEditable;
+                                activeElement?.tagName === 'TEXTAREA' ||
+                                (activeElement as HTMLElement)?.isContentEditable;
 
         if (!isInputFocused && selectedBoard.columns.length > 0) {
-          // Get left-most column (first in the sorted array)
           const leftMostColumn = selectedBoard.columns.sort((a, b) => a.position - b.position)[0];
           setAddingCardColumn(leftMostColumn.id);
-          // Trigger a custom event to notify columns
           window.dispatchEvent(new CustomEvent('kanban-add-card', { detail: { columnId: leftMostColumn.id } }));
         }
       }
@@ -409,18 +116,22 @@ export const KanbanPage: React.FC = () => {
     if (boards.length === 0) return;
 
     if (urlBoardId) {
-      // If URL has boardId, select that board
       const boardId = parseInt(urlBoardId);
       const board = boards.find(b => b.id === boardId);
       if (board) {
         setSelectedBoard(board);
         localStorage.setItem(LAST_BOARD_KEY, boardId.toString());
       } else {
-        // Board not found, navigate to base /kanban
-        navigate('/kanban', { replace: true });
+        // Board not found, redirect to first available board
+        const sortedBoards = [...boards].sort((a, b) => a.position - b.position);
+        if (sortedBoards.length > 0) {
+          const firstBoard = sortedBoards[0];
+          setSelectedBoard(firstBoard);
+          navigate(`/kanban/${firstBoard.id}`, { replace: true });
+          localStorage.setItem(LAST_BOARD_KEY, firstBoard.id.toString());
+        }
       }
     } else {
-      // No boardId in URL, check localStorage
       const lastBoardId = localStorage.getItem(LAST_BOARD_KEY);
       if (lastBoardId) {
         const boardId = parseInt(lastBoardId);
@@ -429,13 +140,11 @@ export const KanbanPage: React.FC = () => {
           setSelectedBoard(board);
           navigate(`/kanban/${boardId}`, { replace: true });
         } else {
-          // Last board not found, default to first
           setSelectedBoard(boards[0]);
           navigate(`/kanban/${boards[0].id}`, { replace: true });
           localStorage.setItem(LAST_BOARD_KEY, boards[0].id.toString());
         }
       } else {
-        // No last board in storage, default to first
         setSelectedBoard(boards[0]);
         if (boards.length > 0) {
           navigate(`/kanban/${boards[0].id}`, { replace: true });
@@ -443,7 +152,7 @@ export const KanbanPage: React.FC = () => {
         }
       }
     }
-  }, [boards, urlBoardId]);
+  }, [boards, urlBoardId, navigate]);
 
   const fetchBoards = async () => {
     try {
@@ -459,7 +168,6 @@ export const KanbanPage: React.FC = () => {
     }
   };
 
-  // Select board by ID and update URL
   const selectBoard = (board: KanbanBoard | null) => {
     if (board) {
       setSelectedBoard(board);
@@ -500,14 +208,10 @@ export const KanbanPage: React.FC = () => {
       setNewBoardDescription('');
       setIsAddingBoard(false);
 
-      // Create default columns and wait for all to complete
-      await Promise.all([
-        createColumn(newBoard.id, 'To Do', false),
-        createColumn(newBoard.id, 'In Progress', false),
-        createColumn(newBoard.id, 'Done', false)
-      ]);
+      await createColumn(newBoard.id, 'To Do', false);
+      await createColumn(newBoard.id, 'In Progress', false);
+      await createColumn(newBoard.id, 'Done', false);
 
-      // Now fetch the complete board with columns
       await fetchBoard(newBoard.id);
     } catch (error) {
       console.error('Failed to create board:', error);
@@ -534,9 +238,8 @@ export const KanbanPage: React.FC = () => {
   const createCard = async (columnId: number, title: string) => {
     if (!title?.trim() || !selectedBoard) return;
 
-    // Optimistically add card to UI
     const tempCard: KanbanCard = {
-      id: -Date.now(), // Temporary negative ID
+      id: -Date.now(),
       column_id: columnId,
       title: title.trim(),
       description: '',
@@ -564,7 +267,6 @@ export const KanbanPage: React.FC = () => {
         title: title.trim(),
         description: ''
       });
-      // Replace temp card with real card from server
       const realCard = response.data;
       const finalColumns = selectedBoard.columns.map(col => {
         if (col.id === columnId) {
@@ -583,7 +285,6 @@ export const KanbanPage: React.FC = () => {
       setSelectedBoard(prev => prev ? { ...prev, columns: finalColumns } : null);
     } catch (error) {
       console.error('Failed to create card:', error);
-      // Remove temp card on error
       fetchBoard(selectedBoard.id);
     }
   };
@@ -602,13 +303,11 @@ export const KanbanPage: React.FC = () => {
   const deleteColumn = async (columnId: number) => {
     if (!confirm('Are you sure you want to delete this column and all its cards?')) return;
 
-    // Find column and its index before deletion
     const columnIndex = selectedBoard?.columns.findIndex(c => c.id === columnId);
     const columnToDelete = selectedBoard?.columns.find(c => c.id === columnId);
 
     if (!selectedBoard || !columnToDelete || columnIndex === -1) return;
 
-    // Remove from UI immediately - update both boards and selectedBoard
     const updatedColumns = selectedBoard.columns.filter(c => c.id !== columnId);
     setBoards(prev => prev.map(board =>
       board.id === selectedBoard.id
@@ -631,7 +330,6 @@ export const KanbanPage: React.FC = () => {
     const timer = window.setTimeout(() => {
       api.delete(`/kanban/columns/${columnId}`).catch(error => {
         console.error("Failed to permanently delete column", error);
-        // Show error and restore from undo
         setBoards(prev => prev.map(board =>
           board.id === selectedBoard.id
             ? { ...board, columns: [...board.columns.slice(0, columnIndex), columnToDelete, ...board.columns.slice(columnIndex)] }
@@ -649,7 +347,6 @@ export const KanbanPage: React.FC = () => {
   const deleteCard = async (cardId: number) => {
     if (!selectedBoard) return;
 
-    // Find card and its column/index before deletion
     let cardToDelete: KanbanCard | null = null;
     let columnIndex: number = -1;
     let cardIndex: number = -1;
@@ -666,7 +363,6 @@ export const KanbanPage: React.FC = () => {
 
     if (!cardToDelete || columnIndex === -1) return;
 
-    // Remove from UI immediately - update both boards and selectedBoard
     const updatedColumns = selectedBoard.columns.map((col, idx) =>
       idx === columnIndex
         ? { ...col, cards: col.cards.filter(c => c.id !== cardId) }
@@ -695,7 +391,6 @@ export const KanbanPage: React.FC = () => {
     const timer = window.setTimeout(() => {
       api.delete(`/kanban/cards/${cardId}`).catch(error => {
         console.error("Failed to permanently delete card", error);
-        // Show error and restore from undo
         const restoredColumns = selectedBoard.columns.map((col, idx) =>
           idx === columnIndex
             ? { ...col, cards: [...col.cards.slice(0, cardIndex), cardToDelete, ...col.cards.slice(cardIndex + 1)] }
@@ -718,7 +413,6 @@ export const KanbanPage: React.FC = () => {
   const updateCard = async (cardId: number, title: string) => {
     if (!selectedBoard || !title.trim()) return;
 
-    // Find the card and its column
     let cardToUpdate: KanbanCard | null = null;
     let columnIndex: number = -1;
 
@@ -734,7 +428,6 @@ export const KanbanPage: React.FC = () => {
 
     if (!cardToUpdate || columnIndex === -1) return;
 
-    // Optimistically update UI
     const updatedColumns = selectedBoard.columns.map((col, idx) =>
       idx === columnIndex
         ? { ...col, cards: col.cards.map(c => c.id === cardId ? { ...c, title } : c) }
@@ -752,7 +445,6 @@ export const KanbanPage: React.FC = () => {
       await api.put(`/kanban/cards/${cardId}`, { title });
     } catch (error) {
       console.error('Failed to update card:', error);
-      // Revert on error
       setBoards(prev => prev.map(board =>
         board.id === selectedBoard.id
           ? { ...board, columns: selectedBoard.columns }
@@ -769,14 +461,11 @@ export const KanbanPage: React.FC = () => {
 
     if (!confirm(`Are you sure you want to delete the board "${boardToDelete.title}" and all its Data?`)) return;
 
-    // Find Board index
     const boardIndex = boards.findIndex(b => b.id === boardId);
     if (boardIndex === -1) return;
 
-    // Remove from UI immediately
     setBoards(prev => prev.filter(b => b.id !== boardId));
 
-    // If deleted board was selected, select a different board
     if (selectedBoard?.id === boardId) {
       const remainingBoards = boards.filter(b => b.id !== boardId);
       setSelectedBoard(remainingBoards.length > 0 ? remainingBoards[0] : null);
@@ -795,10 +484,8 @@ export const KanbanPage: React.FC = () => {
     const timer = window.setTimeout(() => {
       api.delete(`/kanban/boards/${boardId}`).catch(error => {
         console.error("Failed to permanently delete board", error);
-        // Restore from undo
         setBoards(prev => {
           const newBoards = [...prev];
-          // Insert at original index, or at end if index is out of bounds
           if (boardIndex >= newBoards.length) {
             newBoards.push(boardToDelete);
           } else {
@@ -825,7 +512,6 @@ export const KanbanPage: React.FC = () => {
     const activeId = String(active.id);
     const overId = String(over.id);
 
-    // Check if we're dragging a board
     if (!activeId.startsWith('board-') || !overId.startsWith('board-')) return;
 
     const activeBoardId = parseInt(activeId.replace('board-', ''));
@@ -838,10 +524,7 @@ export const KanbanPage: React.FC = () => {
 
     if (oldIndex === -1 || newIndex === -1) return;
 
-    // Reorder boards locally
     const reorderedBoards = arrayMove(boards, oldIndex, newIndex);
-
-    // Update position values to match new order
     const reorderedBoardsWithPositions = reorderedBoards.map((board, index) => ({
       ...board,
       position: index
@@ -849,7 +532,6 @@ export const KanbanPage: React.FC = () => {
 
     setBoards(reorderedBoardsWithPositions);
 
-    // Update positions in backend
     try {
       await Promise.all(
         reorderedBoardsWithPositions.map((board, index) =>
@@ -858,34 +540,79 @@ export const KanbanPage: React.FC = () => {
       );
     } catch (error) {
       console.error('Failed to reorder boards:', error);
-      // Revert on error
       fetchBoards();
     }
   };
 
   const handleDragStart = (event: DragStartEvent) => {
-    setActiveId(event.active.id as number);
-  };
-
-  const handleDragOver = (_event: DragOverEvent) => {
-    // Handle drag over logic if needed
+    const id = event.active.id;
+    if (typeof id === 'string' && id.startsWith('col-')) {
+      setActiveColumnId(id);
+    } else {
+      setActiveId(id);
+    }
   };
 
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
+    
     setActiveId(null);
+    setActiveColumnId(null);
 
     if (!over || !selectedBoard) return;
 
-    const activeId = active.id as number;
+    const activeIdStr = String(active.id);
+    const overIdStr = String(over.id);
+
+    // Handle column reordering
+    if (activeIdStr.startsWith('col-')) {
+      if (!overIdStr.startsWith('col-')) return;
+      
+      const activeColumnIdNum = parseInt(activeIdStr.replace('col-', ''));
+      const overColumnIdNum = parseInt(overIdStr.replace('col-', ''));
+
+      if (activeColumnIdNum === overColumnIdNum) return;
+
+      const sortedColumns = [...selectedBoard.columns].sort((a, b) => a.position - b.position);
+      const oldIndex = sortedColumns.findIndex(c => c.id === activeColumnIdNum);
+      const newIndex = sortedColumns.findIndex(c => c.id === overColumnIdNum);
+
+      if (oldIndex === -1 || newIndex === -1) return;
+
+      const reorderedColumns = arrayMove(sortedColumns, oldIndex, newIndex);
+      const reorderedColumnsWithPositions = reorderedColumns.map((column, index) => ({
+        ...column,
+        position: index
+      }));
+
+      const updatedBoard = { ...selectedBoard, columns: reorderedColumnsWithPositions };
+      setSelectedBoard(updatedBoard);
+      setBoards(prev => prev.map(board =>
+        board.id === selectedBoard.id
+          ? updatedBoard
+          : board
+      ));
+
+      try {
+        await api.put(`/kanban/columns/${activeColumnIdNum}`, { position: newIndex });
+      } catch (error) {
+        console.error('Failed to reorder column:', error);
+        if (selectedBoard) {
+          fetchBoard(selectedBoard.id);
+        }
+      }
+      return;
+    }
+
+    // Handle card operations
+    const activeCardId = active.id as number;
     const overId = over.id as string | number;
 
-    // Find the active card and its column
     let activeCard: KanbanCard | null = null;
-    let activeColumn: KanbanColumn | null = null;
+    let activeColumn: KanbanColumnType | null = null;
 
     for (const column of selectedBoard.columns) {
-      const card = column.cards.find(c => c.id === activeId);
+      const card = column.cards.find(c => c.id === activeCardId);
       if (card) {
         activeCard = card;
         activeColumn = column;
@@ -895,56 +622,48 @@ export const KanbanPage: React.FC = () => {
 
     if (!activeCard) return;
 
-    // Check if we're dropping on a column (column IDs are strings like "column-1")
-    if (typeof overId === 'string' && overId.startsWith('column-')) {
-      const targetColumnId = parseInt(overId.replace('column-', ''));
+    // Dropping on a column (move card to different column)
+    if (typeof overId === 'string' && overId.startsWith('col-')) {
+      const targetColumnId = parseInt(overId.replace('col-', ''));
       const targetColumn = selectedBoard.columns.find(c => c.id === targetColumnId);
 
-      if (targetColumn) {
-        // Moving card to a different column
-        if (activeCard.column_id !== targetColumn.id) {
-          // Optimistically update UI immediately
-          const updatedColumns = selectedBoard.columns.map(col => {
-            if (col.id === activeCard.column_id) {
-              // Remove from source column
-              return { ...col, cards: col.cards.filter(c => c.id !== activeId) };
-            } else if (col.id === targetColumn.id) {
-              // Add to target column with updated column_id
-              return {
-                ...col,
-                cards: [...col.cards, { ...activeCard, column_id: targetColumn.id }]
-              };
-            }
-            return col;
-          });
-
-          setBoards(prev => prev.map(board =>
-            board.id === selectedBoard.id
-              ? { ...board, columns: updatedColumns }
-              : board
-          ));
-          setSelectedBoard(prev => prev ? { ...prev, columns: updatedColumns } : null);
-
-          try {
-            // Update card to move to new column
-            await api.put(`/kanban/cards/${activeCard.id}`, {
-              column_id: targetColumn.id,
-              position: targetColumn.cards.length
-            });
-          } catch (error) {
-            console.error('Failed to move card:', error);
-            // Revert on error
-            fetchBoard(selectedBoard.id);
+      if (targetColumn && activeCard.column_id !== targetColumn.id) {
+        const updatedColumns = selectedBoard.columns.map(col => {
+          if (col.id === activeCard!.column_id) {
+            return { ...col, cards: col.cards.filter(c => c.id !== activeCardId) };
+          } else if (col.id === targetColumn.id) {
+            return {
+              ...col,
+              cards: [...col.cards, { ...activeCard!, column_id: targetColumn.id }]
+            };
           }
+          return col;
+        });
+
+        setBoards(prev => prev.map(board =>
+          board.id === selectedBoard.id
+            ? { ...board, columns: updatedColumns }
+            : board
+        ));
+        setSelectedBoard(prev => prev ? { ...prev, columns: updatedColumns } : null);
+
+        try {
+          await api.put(`/kanban/cards/${activeCard.id}`, {
+            column_id: targetColumn.id,
+            position: targetColumn.cards.length
+          });
+        } catch (error) {
+          console.error('Failed to move card:', error);
+          fetchBoard(selectedBoard.id);
         }
-        return;
       }
+      return;
     }
 
-    // Find over card for reordering within the same column
+    // Reordering within the same column
     if (typeof overId === 'number') {
       let overCard: KanbanCard | null = null;
-      let overColumn: KanbanColumn | null = null;
+      let overColumn: KanbanColumnType | null = null;
 
       for (const column of selectedBoard.columns) {
         const card = column.cards.find(c => c.id === overId);
@@ -957,21 +676,17 @@ export const KanbanPage: React.FC = () => {
 
       if (!overCard || activeCard.column_id !== overCard.column_id) return;
 
-      // Reordering within the same column
-      const oldIndex = activeColumn!.cards.findIndex(c => c.id === activeId);
+      const oldIndex = activeColumn!.cards.findIndex(c => c.id === activeCardId);
       const newIndex = overColumn!.cards.findIndex(c => c.id === overId);
 
       if (oldIndex === newIndex) return;
 
       const reorderedCards = arrayMove(activeColumn!.cards, oldIndex, newIndex);
-
-      // Update position values to match new order
       const reorderedCardsWithPositions = reorderedCards.map((card, index) => ({
         ...card,
         position: index
       }));
 
-      // Optimistically update UI immediately
       const updatedColumns = selectedBoard.columns.map(col => {
         if (col.id === activeColumn!.id) {
           return { ...col, cards: reorderedCardsWithPositions };
@@ -986,7 +701,6 @@ export const KanbanPage: React.FC = () => {
       ));
       setSelectedBoard(prev => prev ? { ...prev, columns: updatedColumns } : null);
 
-      // Update positions in backend
       try {
         await Promise.all(
           reorderedCards.map((card, index) =>
@@ -995,7 +709,6 @@ export const KanbanPage: React.FC = () => {
         );
       } catch (error) {
         console.error('Failed to reorder cards:', error);
-        // Revert on error
         fetchBoard(selectedBoard.id);
       }
     }
@@ -1009,7 +722,6 @@ export const KanbanPage: React.FC = () => {
     setIsAddingColumn(false);
   };
 
-  // Undo toast functions
   const removeToast = (toastId: string) => {
     setUndoToasts(currentToasts => currentToasts.filter(t => t.id !== toastId));
     if (undoTimersRef.current[toastId]) {
@@ -1020,19 +732,17 @@ export const KanbanPage: React.FC = () => {
 
   const handleUndoDelete = (toast: UndoToastData) => {
     if (toast.type === 'board') {
-      // Restore board
       const boardIndex = boards.findIndex(b => b.id === toast.boardId!);
       setBoards(prev => [...prev.slice(0, boardIndex!), toast.data as KanbanBoard, ...prev.slice(boardIndex!)]);
       if (selectedBoard?.id === toast.boardId) {
         setSelectedBoard(toast.data as KanbanBoard);
       }
     } else if (toast.type === 'column') {
-      // Restore column
       setBoards(prev => prev.map(board =>
         board.id === toast.boardId
           ? {
               ...board,
-              columns: [...board.columns.slice(0, toast.columnIndex!), toast.data as KanbanColumn, ...board.columns.slice(toast.columnIndex! + 1)]
+              columns: [...board.columns.slice(0, toast.columnIndex!), toast.data as KanbanColumnType, ...board.columns.slice(toast.columnIndex! + 1)]
             }
           : board
       ));
@@ -1040,7 +750,6 @@ export const KanbanPage: React.FC = () => {
         fetchBoard(toast.boardId!);
       }
     } else if (toast.type === 'card') {
-      // Restore card - insert and then sort by position to ensure correct order
       const restoredColumns = (prevBoard: KanbanBoard) =>
         prevBoard.columns.map((col, idx) =>
           idx === toast.columnIndex!
@@ -1080,25 +789,22 @@ export const KanbanPage: React.FC = () => {
         navigate('/todos');
       }
 
-      // Number keys 1-9 to select boards
       const numKey = parseInt(e.key);
       if (!isNaN(numKey) && numKey >= 1 && numKey <= 9) {
         e.preventDefault();
         const sortedBoards = [...boards].sort((a, b) => a.position - b.position);
-        const boardIndex = numKey - 1; // Convert to 0-based index
+        const boardIndex = numKey - 1;
         if (boardIndex < sortedBoards.length) {
           const board = sortedBoards[boardIndex];
           fetchBoard(board.id);
         }
       }
 
-      // Toggle info modal with 'i' key
       if (e.key === 'i') {
         e.preventDefault();
         setIsInfoModalOpen(prev => !prev);
       }
 
-      // Close modal with Escape key
       if (e.key === 'Escape' && isInfoModalOpen) {
         setIsInfoModalOpen(false);
       }
@@ -1107,6 +813,20 @@ export const KanbanPage: React.FC = () => {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [navigate, boards, isInfoModalOpen]);
+
+  // Get active card or column for drag overlay
+  const getActiveCard = () => {
+    if (!selectedBoard || !activeId) return null;
+    return selectedBoard.columns
+      .flatMap(col => col.cards)
+      .find(c => c.id === activeId);
+  };
+
+  const getActiveColumn = () => {
+    if (!selectedBoard || !activeColumnId) return null;
+    const columnId = parseInt(activeColumnId.replace('col-', ''));
+    return selectedBoard.columns.find(c => c.id === columnId);
+  };
 
   return (
     <div className="min-h-screen p-6 md:p-10 w-full">
@@ -1281,11 +1001,10 @@ export const KanbanPage: React.FC = () => {
             </div>
           )}
 
-          {/* Kanban Board */}
+          {/* Single DnD Context for columns and cards */}
           <DndContext
-            collisionDetection={closestCenter}
+            collisionDetection={customCollisionDetection}
             onDragStart={handleDragStart}
-            onDragOver={handleDragOver}
             onDragEnd={handleDragEnd}
           >
             <div className="flex gap-4 overflow-x-auto pb-4">
@@ -1293,21 +1012,20 @@ export const KanbanPage: React.FC = () => {
                 selectedBoard.columns
                   .sort((a, b) => a.position - b.position)
                   .map((column) => (
-                    <div key={column.id} className="flex-shrink-0">
-                      <SortableContext
-                        items={[`column-${column.id}`, ...column.cards.map(card => card.id)]}
-                        strategy={verticalListSortingStrategy}
-                      >
-                        <KanbanColumnComponent
-                          column={column}
-                          onAddCard={createCard}
-                          onDeleteColumn={deleteColumn}
-                          onUpdateColumn={updateColumn}
-                          onDeleteCard={deleteCard}
-                          onUpdateCard={updateCard}
-                        />
-                      </SortableContext>
-                    </div>
+                    <SortableContext
+                      key={column.id}
+                      items={column.cards.map(card => card.id)}
+                      strategy={verticalListSortingStrategy}
+                    >
+                      <KanbanColumn
+                        column={column}
+                        onAddCard={createCard}
+                        onDeleteColumn={deleteColumn}
+                        onUpdateColumn={updateColumn}
+                        onDeleteCard={deleteCard}
+                        onUpdateCard={updateCard}
+                      />
+                    </SortableContext>
                   ))
               ) : (
                 <div className="text-center py-20 flex-1">
@@ -1324,11 +1042,18 @@ export const KanbanPage: React.FC = () => {
               )}
             </div>
             <DragOverlay>
-              {activeId && selectedBoard && (
+              {activeColumnId ? (
                 (() => {
-                  const card = selectedBoard.columns
-                    .flatMap(col => col.cards)
-                    .find(c => c.id === activeId);
+                  const column = getActiveColumn();
+                  return column ? (
+                    <div className="bg-surface/50 rounded-lg p-4 min-w-[280px] max-w-[280px] opacity-90 border-2 border-primary">
+                      <h3 className="font-semibold text-text">{column.title}</h3>
+                    </div>
+                  ) : null;
+                })()
+              ) : activeId ? (
+                (() => {
+                  const card = getActiveCard();
                   return card ? (
                     <div className="bg-surface border border-primary rounded-lg p-3 opacity-90">
                       <h4 className="font-medium text-text mb-1">{card.title}</h4>
@@ -1338,7 +1063,7 @@ export const KanbanPage: React.FC = () => {
                     </div>
                   ) : null;
                 })()
-              )}
+              ) : null}
             </DragOverlay>
           </DndContext>
         </div>
