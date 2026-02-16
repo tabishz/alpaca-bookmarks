@@ -1,7 +1,7 @@
 # Alpaca Bookmarks
 
 ## Version
-0.3.2-beta
+0.3.3-beta
 
 ## Introduction
 Alpaca Bookmarks is a self-hosted, multi-user bookmarking application built for speed and simplicity. It allows users to save, organize, and search their links with a clean, responsive interface.
