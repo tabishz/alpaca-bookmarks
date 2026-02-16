@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { KanbanColumn as KanbanColumnType } from '../../api/types';
-import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, DragOverEvent, closestCenter, useDroppable } from '@dnd-kit/core';
-import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Plus, Edit3, Trash2 } from 'lucide-react';
@@ -14,10 +12,6 @@ interface KanbanColumnProps {
   onUpdateColumn: (columnId: number, title: string) => void;
   onDeleteCard: (cardId: number) => void;
   onUpdateCard: (cardId: number, title: string) => void;
-  onDragStart?: (event: DragStartEvent) => void;
-  onDragOver?: (event: DragOverEvent) => void;
-  onDragEnd?: (event: DragEndEvent) => void;
-  activeId?: number | null;
 }
 
 export const KanbanColumn: React.FC<KanbanColumnProps> = ({
@@ -27,10 +21,6 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({
   onUpdateColumn,
   onDeleteCard,
   onUpdateCard,
-  onDragStart,
-  onDragOver,
-  onDragEnd,
-  activeId,
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(column.title);
@@ -40,17 +30,17 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({
   const {
     attributes,
     listeners,
-    setNodeRef: setSortableRef,
+    setNodeRef,
     transform,
     transition,
     isDragging,
   } = useSortable({
     id: `col-${column.id}`,
     disabled: isEditing || isAddingCard,
-  });
-
-  const { setNodeRef: setDroppableRef, isOver } = useDroppable({
-    id: `column-${column.id}`,
+    data: {
+      type: 'column',
+      column,
+    },
   });
 
   const style = {
@@ -105,11 +95,12 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({
 
   return (
     <div
-      ref={setSortableRef}
+      ref={setNodeRef}
       style={style}
-      className="bg-surface/50 rounded-lg p-4 min-w-[280px] max-w-[280px]"
+      className="bg-surface/50 rounded-lg p-4 min-w-[280px] max-w-[280px] flex flex-col"
       {...attributes}
     >
+      {/* Column Header with drag handle */}
       <div className="flex items-center justify-between mb-3">
         {isEditing ? (
           <input
@@ -156,42 +147,14 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({
         </div>
       </div>
 
-      {/* Card DnD Context - separate from column DnD */}
-      <DndContext
-        collisionDetection={closestCenter}
-        onDragStart={onDragStart}
-        onDragOver={onDragOver}
-        onDragEnd={onDragEnd}
-      >
-        <div
-          ref={setDroppableRef}
-          className={`space-y-2 min-h-[100px] rounded-lg transition-colors ${
-            isOver ? 'bg-primary/20 border-2 border-dashed border-primary' : ''
-          }`}
-        >
-          <SortableContext items={column.cards.map(card => card.id)} strategy={verticalListSortingStrategy}>
-            {column.cards.sort((a, b) => a.position - b.position).map((card) => (
-              <DraggableCard key={card.id} card={card} onDelete={onDeleteCard} onUpdate={onUpdateCard} />
-            ))}
-          </SortableContext>
-        </div>
-        <DragOverlay>
-          {activeId && (
-            (() => {
-              const card = column.cards.find(c => c.id === activeId);
-              return card ? (
-                <div className="bg-surface border border-primary rounded-lg p-3 opacity-90">
-                  <h4 className="font-medium text-text mb-1">{card.title}</h4>
-                  {card.description && (
-                    <p className="text-sm text-muted">{card.description}</p>
-                  )}
-                </div>
-              ) : null;
-            })()
-          )}
-        </DragOverlay>
-      </DndContext>
+      {/* Cards area - no inner DndContext, just render cards */}
+      <div className="space-y-2 min-h-[100px] rounded-lg flex-1">
+        {column.cards.sort((a, b) => a.position - b.position).map((card) => (
+          <DraggableCard key={card.id} card={card} onDelete={onDeleteCard} onUpdate={onUpdateCard} />
+        ))}
+      </div>
 
+      {/* Add card button/form */}
       {isAddingCard ? (
         <div className="mt-3 bg-surface border border-gray-600 rounded-lg p-3">
           <input
