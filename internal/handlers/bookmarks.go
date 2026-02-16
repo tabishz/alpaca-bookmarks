@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"golang.org/x/net/html"
 )
 
 // Input struct for creating/updating a bookmark
@@ -211,6 +212,88 @@ func DeleteBookmark(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Bookmark deleted"})
+}
+
+// GET /api/v1/bookmarks/metadata?url=...
+func GetPageMetadata(c *gin.Context) {
+	pageURL := c.Query("url")
+	if pageURL == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "url parameter is required"})
+		return
+	}
+
+	client := http.Client{
+		Timeout: 10 * time.Second,
+	}
+
+	req, err := http.NewRequest("GET", pageURL, nil)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid URL"})
+		return
+	}
+	req.Header.Set("User-Agent", "Alpaca-Bookmarks/1.0")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch URL"})
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Server returned status %d", resp.StatusCode)})
+		return
+	}
+
+	// We only care about HTML
+	contentType := resp.Header.Get("Content-Type")
+	if !strings.Contains(contentType, "text/html") {
+		c.JSON(http.StatusOK, gin.H{"url": pageURL, "title": "", "description": ""})
+		return
+	}
+
+	title := ""
+	description := ""
+	doc, err := html.Parse(resp.Body)
+	if err == nil {
+		title, description = extractMetadata(doc)
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"url":         pageURL,
+		"title":       title,
+		"description": description,
+	})
+}
+
+func extractMetadata(n *html.Node) (title, description string) {
+	var traverse func(*html.Node)
+	traverse = func(n *html.Node) {
+		if n.Type == html.ElementNode {
+			if n.Data == "title" && title == "" {
+				if n.FirstChild != nil {
+					title = n.FirstChild.Data
+				}
+			} else if n.Data == "meta" {
+				var name, content string
+				for _, attr := range n.Attr {
+					if attr.Key == "name" || attr.Key == "property" {
+						name = strings.ToLower(attr.Val)
+					} else if attr.Key == "content" {
+						content = attr.Val
+					}
+				}
+				if (name == "description" || name == "og:description" || name == "twitter:description") && description == "" {
+					description = content
+				}
+			}
+		}
+		for c := n.FirstChild; c != nil; c = c.NextSibling {
+			traverse(c)
+		}
+	}
+	traverse(n)
+	return
 }
 
 // POST /api/v1/bookmarks/:id/icon
