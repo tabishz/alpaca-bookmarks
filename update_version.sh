@@ -20,9 +20,16 @@ else
     sed -i "s/const Version = ".*"/const Version = "$NEW_VERSION"/" "$SCRIPT_DIR/cmd/server/main.go"
 fi
 
-# 2. Update Version in frontend/package.json and run npm install
+# 2. Update Version in README.md (line after "## Version")
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    sed -i '' '/^## Version$/{n;s/.*/'$NEW_VERSION'/;}' "$SCRIPT_DIR/README.md"
+else
+    sed -i '/^## Version$/{n;s/.*/'$NEW_VERSION'/;}' "$SCRIPT_DIR/README.md"
+fi
+
+# 3. Update Version in frontend/package.json and run npm install
 cd "$SCRIPT_DIR/frontend" || exit
 npm version --no-git-tag-version "$NEW_VERSION"
 npm install
 
-echo "Successfully updated version to $NEW_VERSION in Go backend and Frontend."
+echo "Successfully updated version to $NEW_VERSION in Go backend, Frontend, and README."
