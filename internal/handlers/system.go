@@ -15,8 +15,9 @@ import (
 // GET /api/v1/system/config
 func GetSystemConfig(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
-		"icons_endpoint": os.Getenv("ICONS_ENDPOINT"),
-		"icons_location": os.Getenv("ICONS_LOCATION"),
+		"icons_endpoint":   os.Getenv("ICONS_ENDPOINT"),
+		"icons_location":   os.Getenv("ICONS_LOCATION"),
+		"icons_collection": os.Getenv("ICONS_COLLECTION"),
 	})
 }
 

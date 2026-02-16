@@ -188,6 +188,7 @@ export const EditBookmarkModal: React.FC<Props> = ({ bookmark, onClose, onSucces
           onClose={() => setIsIconModalOpen(false)}
           onSelect={handleIconSelect}
           endpoint={iconsEndpoint!}
+          collection={iconsCollection!}
           location={iconsLocation!}
         />
       )}

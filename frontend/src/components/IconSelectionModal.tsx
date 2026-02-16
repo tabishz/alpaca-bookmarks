@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Search, Loader2, Image as ImageIcon, ChevronRight, ChevronLeft } from 'lucide-react';
+import { X, Search, Loader2, Image as ImageIcon, ChevronRight } from 'lucide-react';
 import axios from 'axios';
 
 interface IconRecord {
@@ -15,30 +15,32 @@ interface Props {
   onClose: () => void;
   onSelect: (iconUrl: string) => void;
   endpoint: string;
+  collection: string;
   location: string;
 }
 
-export const IconSelectionModal: React.FC<Props> = ({ isOpen, onClose, onSelect, endpoint, location }) => {
+export const IconSelectionModal: React.FC<Props> = ({ isOpen, onClose, onSelect, endpoint, collection, location }) => {
   const [search, setSearch] = useState('');
   const [icons, setIcons] = useState<IconRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
   const [hasMore, setHasMore] = useState(false);
-  
+
   const searchTimeout = useRef<number | null>(null);
 
   const fetchIcons = async (pageNum: number, searchQuery: string) => {
-    if (!endpoint) return;
+    if (!endpoint || !collection) return;
     setLoading(true);
     try {
       // PocketBase List/Search API: /api/collections/<collection>/records
-      // Using filter for name, tags, description
-      const filter = searchQuery 
+      const apiUrl = `${endpoint}/api/collections/${collection}/records`;
+      
+      const filter = searchQuery
         ? `(name ~ "${searchQuery}" || tags ~ "${searchQuery}" || description ~ "${searchQuery}")`
         : '';
-      
-      const response = await axios.get(endpoint, {
+
+      const response = await axios.get(apiUrl, {
         params: {
           page: pageNum,
           perPage: 12,
@@ -48,13 +50,13 @@ export const IconSelectionModal: React.FC<Props> = ({ isOpen, onClose, onSelect,
       });
 
       const { items, totalItems: total } = response.data;
-      
+
       if (pageNum === 1) {
         setIcons(items);
       } else {
         setIcons(prev => [...prev, ...items]);
       }
-      
+
       setTotalItems(total);
       setHasMore(items.length === 12 && (pageNum * 12) < total);
     } catch (err) {
@@ -65,11 +67,11 @@ export const IconSelectionModal: React.FC<Props> = ({ isOpen, onClose, onSelect,
   };
 
   useEffect(() => {
-    if (isOpen && endpoint) {
+    if (isOpen && endpoint && collection) {
       setPage(1);
       fetchIcons(1, search);
     }
-  }, [isOpen, endpoint]);
+  }, [isOpen, endpoint, collection]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -82,9 +84,9 @@ export const IconSelectionModal: React.FC<Props> = ({ isOpen, onClose, onSelect,
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setSearch(value);
-    
+
     if (searchTimeout.current) window.clearTimeout(searchTimeout.current);
-    
+
     searchTimeout.current = window.setTimeout(() => {
       setPage(1);
       fetchIcons(1, value);
@@ -135,9 +137,9 @@ export const IconSelectionModal: React.FC<Props> = ({ isOpen, onClose, onSelect,
                   title={icon.description || icon.name}
                 >
                   <div className="w-12 h-12 flex items-center justify-center bg-background rounded-md overflow-hidden border border-gray-700 group-hover:border-primary/50">
-                    <img 
-                      src={`${location}/${icon.filename}`} 
-                      alt={icon.name} 
+                    <img
+                      src={`${location}/${icon.filename}`}
+                      alt={icon.name}
                       className="w-10 h-10 object-contain"
                       loading="lazy"
                     />
@@ -167,7 +169,7 @@ export const IconSelectionModal: React.FC<Props> = ({ isOpen, onClose, onSelect,
             </div>
           )}
         </div>
-        
+
         <div className="mt-4 text-xs text-gray-500 text-center">
           Showing {icons.length} of {totalItems} icons
         </div>
