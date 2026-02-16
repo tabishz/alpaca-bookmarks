@@ -42,20 +42,39 @@ const DraggableBoardButton: React.FC<{
   };
 
   return (
-    <button
+    <div
       ref={setNodeRef}
       style={style}
-      onClick={onClick}
-      className={`px-4 py-2 rounded-lg transition-colors cursor-move ${
+      className={`flex items-center rounded-lg transition-colors overflow-hidden ${
         isSelected
           ? 'bg-primary text-white'
           : 'bg-surface text-muted hover:text-text'
       }`}
       {...attributes}
-      {...listeners}
     >
-      {board.title}
-    </button>
+      <button
+        onClick={onClick}
+        className="px-3 py-2 flex-1 text-left cursor-pointer"
+      >
+        {board.title}
+      </button>
+      <div
+        className="px-2 py-2 cursor-move hover:bg-white/10"
+        {...listeners}
+      >
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
+          <circle cx="2" cy="2" r="1.5" />
+          <circle cx="6" cy="2" r="1.5" />
+          <circle cx="10" cy="2" r="1.5" />
+          <circle cx="2" cy="6" r="1.5" />
+          <circle cx="6" cy="6" r="1.5" />
+          <circle cx="10" cy="6" r="1.5" />
+          <circle cx="2" cy="10" r="1.5" />
+          <circle cx="6" cy="10" r="1.5" />
+          <circle cx="10" cy="10" r="1.5" />
+        </svg>
+      </div>
+    </div>
   );
 };
 
@@ -387,8 +406,8 @@ export const KanbanPage: React.FC = () => {
       if (e.key === 'n' && selectedBoard) {
         const activeElement = document.activeElement;
         const isInputFocused = activeElement?.tagName === 'INPUT' ||
-                               activeElement?.tagName === 'TEXTAREA' ||
-                               (activeElement as HTMLElement)?.isContentEditable;
+                                activeElement?.tagName === 'TEXTAREA' ||
+                                (activeElement as HTMLElement)?.isContentEditable;
 
         if (!isInputFocused && selectedBoard.columns.length > 0) {
           // Get left-most column (first in the sorted array)
