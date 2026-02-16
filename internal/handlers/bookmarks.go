@@ -84,6 +84,20 @@ func GetBookmarks(c *gin.Context) {
 	c.JSON(http.StatusOK, bookmarks)
 }
 
+// GET /api/v1/bookmarks/:id
+func GetBookmark(c *gin.Context) {
+	userID := c.MustGet("userID").(uint)
+	id := c.Param("id")
+
+	var bookmark models.Bookmark
+	if err := database.DB.Preload("Tags").Where("id = ? AND user_id = ?", id, userID).First(&bookmark).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Bookmark not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, bookmark)
+}
+
 // POST /api/v1/bookmarks
 func CreateBookmark(c *gin.Context) {
 	userID := c.MustGet("userID").(uint)

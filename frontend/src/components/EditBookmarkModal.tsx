@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
+import { X, Image as ImageIcon } from 'lucide-react';
 import api from '../api/client';
 import { Bookmark } from '../api/types';
 import { TagInput } from './TagInput';
@@ -16,6 +16,7 @@ export const EditBookmarkModal: React.FC<Props> = ({ bookmark, onClose, onSucces
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [tags, setTags] = useState<string[]>([]);
+  const [customIconUrl, setCustomIconUrl] = useState('');
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -24,6 +25,7 @@ export const EditBookmarkModal: React.FC<Props> = ({ bookmark, onClose, onSucces
       setTitle(bookmark.title);
       setDescription(bookmark.description);
       setTags(bookmark.tags.map(t => t.name));
+      setCustomIconUrl('');
     }
   }, [bookmark]);
 
@@ -34,6 +36,7 @@ export const EditBookmarkModal: React.FC<Props> = ({ bookmark, onClose, onSucces
     setLoading(true);
 
     try {
+      // 1. Update bookmark details
       const res = await api.put<Bookmark>(`/bookmarks/${bookmark.id}`, {
         url,
         title,
@@ -41,7 +44,22 @@ export const EditBookmarkModal: React.FC<Props> = ({ bookmark, onClose, onSucces
         tags
       });
 
-      onSuccess(res.data);
+      let updatedBookmark = res.data;
+
+      // 2. Update icon if a custom URL was provided
+      if (customIconUrl.trim()) {
+        try {
+          await api.post(`/bookmarks/${bookmark.id}/icon`, { icon_url: customIconUrl.trim() });
+          // If icon was updated, we might want to refetch to get the new icon data URI
+          const refreshRes = await api.get<Bookmark>(`/bookmarks/${bookmark.id}`);
+          updatedBookmark = refreshRes.data;
+        } catch (iconErr) {
+          console.error("Failed to update custom icon:", iconErr);
+          alert("Bookmark updated, but custom icon failed to load. Please check the icon URL.");
+        }
+      }
+
+      onSuccess(updatedBookmark);
       onClose();
     } catch {
       alert("Failed to update bookmark");
@@ -89,6 +107,20 @@ export const EditBookmarkModal: React.FC<Props> = ({ bookmark, onClose, onSucces
               value={description}
               onChange={e => setDescription(e.target.value)}
             />
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-400 flex items-center gap-2">
+              <ImageIcon size={14} /> Custom Icon URL
+            </label>
+            <input
+              type="text"
+              className="w-full rounded border border-gray-600 bg-background p-2 text-text focus:border-primary focus:outline-none"
+              placeholder="https://example.com/icon.png"
+              value={customIconUrl}
+              onChange={e => setCustomIconUrl(e.target.value)}
+            />
+            <p className="mt-1 text-xs text-gray-500">Provide a direct link to an image to override the default icon.</p>
           </div>
 
           <div>

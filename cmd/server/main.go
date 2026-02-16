@@ -104,6 +104,7 @@ func main() {
 			// Bookmarks CRUD
 			protected.POST("/bookmarks", handlers.CreateBookmark)
 			protected.GET("/bookmarks", handlers.GetBookmarks)
+			protected.GET("/bookmarks/:id", handlers.GetBookmark)
 			protected.GET("/bookmarks/metadata", handlers.GetPageMetadata)
 			protected.GET("/bookmarks/:id/icon", handlers.GetBookmarkIcon)
 			protected.POST("/bookmarks/:id/icon", handlers.UpdateBookmarkIconFromURL)
