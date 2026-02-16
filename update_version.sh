@@ -27,9 +27,16 @@ else
     sed -i '/^## Version$/{n;s/.*/'$NEW_VERSION'/;}' "$SCRIPT_DIR/README.md"
 fi
 
-# 3. Update Version in frontend/package.json and run npm install
+# 3. Update ALPACA_VERSION in .env file
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    sed -i '' "s/^ALPACA_VERSION=.*/ALPACA_VERSION=$NEW_VERSION/" "$SCRIPT_DIR/.env"
+else
+    sed -i "s/^ALPACA_VERSION=.*/ALPACA_VERSION=$NEW_VERSION/" "$SCRIPT_DIR/.env"
+fi
+
+# 4. Update Version in frontend/package.json and run npm install
 cd "$SCRIPT_DIR/frontend" || exit
 npm version --no-git-tag-version "$NEW_VERSION"
 npm install
 
-echo "Successfully updated version to $NEW_VERSION in Go backend, Frontend, and README."
+echo "Successfully updated version to $NEW_VERSION in Go backend, Frontend, README, and .env."
