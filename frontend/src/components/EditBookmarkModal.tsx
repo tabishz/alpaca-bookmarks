@@ -29,6 +29,22 @@ export const EditBookmarkModal: React.FC<Props> = ({ bookmark, onClose, onSucces
     }
   }, [bookmark]);
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+
+    if (bookmark) {
+      window.addEventListener('keydown', handleKeyDown);
+    }
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [bookmark, onClose]);
+
   if (!bookmark) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
