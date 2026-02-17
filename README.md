@@ -1,7 +1,7 @@
 # Alpaca Bookmarks
 
 ## Version
-0.3.2-beta
+0.3.3-beta
 
 ## Introduction
 Alpaca Bookmarks is a self-hosted, multi-user bookmarking application built for speed and simplicity. It allows users to save, organize, and search their links with a clean, responsive interface.
@@ -78,6 +78,34 @@ When adding or editing a bookmark, the tag input field has its own shortcuts:
 
 ---
 
+
+## Icons Endpoint
+To enable icons endpoint and icon selection option, set these environment variables:
+```
+ICONS_ENDPOINT=https://pocketbase.url
+ICONS_COLLECTION=icons
+ICONS_LOCATION=https://web.url/png
+```
+
+`ICONS_LOCATION` is the URL where all the png icons are hosted
+`ICONS_ENDPOINT` is the PocketBase's base URL
+`ICONS_COLLECTION` is the PocketBase's collection name which is open to public for search and list.
+
+Collection format
+```json
+{
+	filename: 'Name of file with extension',
+  name: 'Name of the app',
+  tags: 'app tags separated by commas',
+  description: 'description of the app',
+  updated: 'Last updated date/time'
+}
+```
+
+Icon Selection Modal searches in pocket base to get the filename and list with in conjunction with `ICONS_COLLECTION`.
+
+---
+
 ## 🚀 Getting Started (Docker)
 
 This is the recommended way to run the application.
@@ -122,6 +150,9 @@ services:
       - AWS_REGION=${AWS_REGION:=garage}
       - S3_BUCKET_NAME=your-%{S3_BUCKET_NAME}
       - S3_ENDPOINT_URL=${S3_ENDPOINT_URL}
+      - ICONS_ENDPOINT=https://pocketbase.url
+      - ICONS_COLLECTION=icons
+      - ICONS_LOCATION=https://web.url/png
     healthcheck:
       # This healthcheck pings the Go backend directly, which runs on port 8080 inside the container.
       # It mirrors the healthcheck defined in the Dockerfile.

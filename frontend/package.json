@@ -1,7 +1,7 @@
 {
   "name": "alpaca-bookmarks-web",
   "private": true,
-  "version": "0.3.2-beta",
+  "version": "0.3.3-beta",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -15,6 +15,7 @@
     "@dnd-kit/utilities": "^3.2.2",
     "axios": "^1.13.2",
     "lucide-react": "^0.563.0",
+    "pocketbase": "^0.26.8",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-grid-layout": "^2.2.2",
