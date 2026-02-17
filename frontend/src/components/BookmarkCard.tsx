@@ -18,8 +18,13 @@ const Icon: React.FC<{ bookmark: Bookmark; className: string }> = ({ bookmark, c
   const [hasError, setHasError] = useState(false);
 
   useEffect(() => {
+    setIconSrc(bookmark.icon || null);
+    setHasError(false);
+  }, [bookmark.icon]);
+
+  useEffect(() => {
     const needsFetch = !bookmark.icon_last_fetched || new Date(bookmark.icon_last_fetched).getTime() < Date.now() - 2592000000;
-    if (needsFetch) {
+    if (needsFetch && !bookmark.icon) {
       api.get(`/bookmarks/${bookmark.id}/icon`, { responseType: 'blob' })
         .then(response => {
           if (response.status === 200) {
