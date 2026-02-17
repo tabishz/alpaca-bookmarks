@@ -16,7 +16,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-const Version = "0.3.2-beta"
+const Version = "0.3.3-beta"
 
 // Helper function to create initial admin
 func createDefaultAdmin() {
@@ -101,9 +101,12 @@ func main() {
 			protected.PUT("/user/layout", handlers.SaveUserLayout)
 			protected.GET("/user/export", handlers.ExportUserData)
 			protected.POST("/user/import", handlers.ImportUserData)
+			protected.GET("/system/config", handlers.GetSystemConfig)
 			// Bookmarks CRUD
 			protected.POST("/bookmarks", handlers.CreateBookmark)
 			protected.GET("/bookmarks", handlers.GetBookmarks)
+			protected.GET("/bookmarks/:id", handlers.GetBookmark)
+			protected.GET("/bookmarks/metadata", handlers.GetPageMetadata)
 			protected.GET("/bookmarks/:id/icon", handlers.GetBookmarkIcon)
 			protected.POST("/bookmarks/:id/icon", handlers.UpdateBookmarkIconFromURL)
 			protected.GET("/tags", handlers.GetAllTags)

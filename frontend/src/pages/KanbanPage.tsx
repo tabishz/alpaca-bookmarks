@@ -888,25 +888,36 @@ export const KanbanPage: React.FC = () => {
 
       {/* New Board Modal */}
       {isAddingBoard && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-surface rounded-lg p-6 w-full max-w-md">
-            <h2 className="text-xl font-bold mb-4">Create New Board</h2>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <form 
+            onSubmit={(e) => { e.preventDefault(); createBoard(); }}
+            className="bg-surface rounded-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl animate-in fade-in zoom-in duration-200 border border-gray-700"
+          >
+            <h2 className="text-xl font-bold mb-4 text-text">Create New Board</h2>
             <input
               type="text"
               placeholder="Board title"
+              required
               value={newBoardTitle}
               onChange={(e) => setNewBoardTitle(e.target.value)}
-              className="w-full bg-background border border-gray-600 rounded px-3 py-2 mb-3 text-text"
+              className="w-full bg-background border border-gray-600 rounded px-3 py-2 mb-3 text-text focus:border-primary focus:outline-none"
               autoFocus
             />
             <textarea
               placeholder="Board description (optional)"
               value={newBoardDescription}
               onChange={(e) => setNewBoardDescription(e.target.value)}
-              className="w-full bg-background border border-gray-600 rounded px-3 py-2 mb-4 text-text h-20 resize-none"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  createBoard();
+                }
+              }}
+              className="w-full bg-background border border-gray-600 rounded px-3 py-2 mb-4 text-text h-20 resize-none focus:border-primary focus:outline-none"
             />
             <div className="flex gap-2 justify-end">
               <button
+                type="button"
                 onClick={() => {
                   setIsAddingBoard(false);
                   setNewBoardTitle('');
@@ -917,13 +928,13 @@ export const KanbanPage: React.FC = () => {
                 Cancel
               </button>
               <button
-                onClick={createBoard}
-                className="px-4 py-2 bg-primary text-white rounded hover:bg-primary/80"
+                type="submit"
+                className="px-4 py-2 bg-primary text-white rounded hover:bg-primary/80 font-bold"
               >
                 Create Board
               </button>
             </div>
-          </div>
+          </form>
         </div>
       )}
 

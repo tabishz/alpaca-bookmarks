@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { X } from 'lucide-react';
 import api from '../api/client';
 import { Bookmark } from '../api/types';
 import { TagInput } from './TagInput';
+
 interface Props {
   isOpen: boolean;
   onClose: () => void;
@@ -11,7 +12,6 @@ interface Props {
   initialData?: { url: string; title?: string } | null;
 }
 
-// Update component signature to accept existingTags
 export const AddBookmarkModal: React.FC<Props> = ({ isOpen, onClose, onSuccess, existingTags, initialData }) => {
   const [url, setUrl] = useState('');
   const [title, setTitle] = useState('');
@@ -19,29 +19,91 @@ export const AddBookmarkModal: React.FC<Props> = ({ isOpen, onClose, onSuccess, 
   const [tags, setTags] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
 
+  const fetchMetadataDirectly = async (targetUrl: string) => {
+    try {
+      const response = await fetch(targetUrl);
+      if (!response.ok) return null;
+      
+      const htmlText = await response.text();
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(htmlText, "text/html");
+      
+      return {
+        title: doc.querySelector("title")?.innerText || "",
+        description: doc.querySelector('meta[name="description"]')?.getAttribute('content') || 
+                     doc.querySelector('meta[property="og:description"]')?.getAttribute('content') || ""
+      };
+    } catch (err) {
+      console.warn("Frontend fallback fetch failed (likely CORS or unreachable):", err);
+      return null;
+    }
+  };
+
+  const fetchAndSetMetadata = useCallback(async (targetUrl: string, force = false) => {
+    if (!targetUrl) return;
+
+    try {
+      // 1. Try Backend first (handles CORS for public sites)
+      const response = await api.get<{ title: string, description: string }>(`/bookmarks/metadata?url=${encodeURIComponent(targetUrl)}`);
+      
+      if (force || !title) {
+        if (response.data.title) setTitle(response.data.title);
+      }
+      if (force || !description) {
+        if (response.data.description) setDescription(response.data.description);
+      }
+    } catch (error) {
+      console.log("Backend metadata fetch failed, trying frontend fallback for LAN/local URLs...");
+      
+      // 2. Fallback to Frontend (might work for LAN sites if they have lax CORS or are on same network)
+      const localData = await fetchMetadataDirectly(targetUrl);
+      if (localData) {
+        if (force || !title) setTitle(localData.title);
+        if (force || !description) setDescription(localData.description);
+      }
+    }
+  }, [title, description]);
+
   // Listen for initial data changes
   useEffect(() => {
     if (isOpen && initialData) {
       setUrl(initialData.url || '');
       if (initialData.title) {
         setTitle(initialData.title);
-      } else if (initialData.url) {
-        const fetchAndSetTitle = async () => {
-          const fetchedTitle = await getTitle(initialData.url);
-          if (fetchedTitle) {
-            setTitle(fetchedTitle);
-          }
-        };
-        fetchAndSetTitle();
+      }
+      
+      if (initialData.url) {
+        fetchAndSetMetadata(initialData.url);
       }
     } else if (!isOpen) {
-      // Reset when closed
       setUrl('');
       setTitle('');
       setDescription('');
       setTags([]);
     }
-  }, [isOpen, initialData]);
+  }, [isOpen, initialData, fetchAndSetMetadata]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+
+    if (isOpen) {
+      window.addEventListener('keydown', handleKeyDown);
+    }
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen, onClose]);
+
+  const handleUrlBlur = () => {
+    if (url) {
+      fetchAndSetMetadata(url);
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -66,31 +128,9 @@ export const AddBookmarkModal: React.FC<Props> = ({ isOpen, onClose, onSuccess, 
     }
   };
 
-  const getTitle = async (url: string): Promise<string | undefined> => {
-    try {
-      const response = await fetch(url);
-
-      if (!response.ok) {
-        throw new Error('Network response was not ok');
-      }
-
-      const htmlText = await response.text();
-
-      // Use DOMParser to turn the string into a searchable document
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(htmlText, "text/html");
-      const title = doc.querySelector("title")?.innerText;
-
-      return title || undefined;
-    } catch (error) {
-      console.error("Failed to fetch page title:", error);
-      return undefined;
-    }
-  };
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4 backdrop-blur-sm">
-      <div className="w-full max-w-lg rounded-lg bg-surface p-6 shadow-xl relative animate-in fade-in zoom-in duration-200">
+      <div className="w-full max-w-lg rounded-lg bg-surface p-6 shadow-xl relative animate-in fade-in zoom-in duration-200 max-h-[90vh] overflow-y-auto">
         <button onClick={onClose} className="absolute right-4 top-4 text-gray-400 hover:text-text">
           <X size={24} />
         </button>
@@ -107,6 +147,7 @@ export const AddBookmarkModal: React.FC<Props> = ({ isOpen, onClose, onSuccess, 
               placeholder="https://example.com"
               value={url}
               onChange={e => setUrl(e.target.value)}
+              onBlur={handleUrlBlur}
               autoFocus
             />
           </div>
