@@ -34,31 +34,14 @@ export const EditBookmarkModal: React.FC<Props> = ({ bookmark, onClose, onSucces
     }
   }, [bookmark]);
 
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !isIconModalOpen) {
-        onClose();
-      }
-    };
-
-    if (bookmark) {
-      window.addEventListener('keydown', handleKeyDown);
-    }
-
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [bookmark, onClose, isIconModalOpen]);
-
-  if (!bookmark) return null;
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (e?: React.FormEvent | KeyboardEvent) => {
+    if (e) e.preventDefault();
+    if (loading) return;
     setLoading(true);
 
     try {
       // 1. Update bookmark details
-      const res = await api.put<Bookmark>(`/bookmarks/${bookmark.id}`, {
+      const res = await api.put<Bookmark>(`/bookmarks/${bookmark!.id}`, {
         url,
         title,
         description,
@@ -70,9 +53,9 @@ export const EditBookmarkModal: React.FC<Props> = ({ bookmark, onClose, onSucces
       // 2. Update icon if a custom URL was provided
       if (customIconUrl.trim()) {
         try {
-          await api.post(`/bookmarks/${bookmark.id}/icon`, { icon_url: customIconUrl.trim() });
+          await api.post(`/bookmarks/${bookmark!.id}/icon`, { icon_url: customIconUrl.trim() });
           // If icon was updated, we might want to refetch to get the new icon data URI
-          const refreshRes = await api.get<Bookmark>(`/bookmarks/${bookmark.id}`);
+          const refreshRes = await api.get<Bookmark>(`/bookmarks/${bookmark!.id}`);
           updatedBookmark = refreshRes.data;
         } catch (iconErr) {
           console.error("Failed to update custom icon:", iconErr);
@@ -88,6 +71,34 @@ export const EditBookmarkModal: React.FC<Props> = ({ bookmark, onClose, onSucces
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !isIconModalOpen) {
+        onClose();
+      } else if (e.key === 'Enter' && !isIconModalOpen) {
+        const target = e.target as HTMLElement;
+        const isInput = target.tagName === 'INPUT';
+        const isTextArea = target.tagName === 'TEXTAREA';
+        
+        // If not in an input/textarea, submit.
+        // (Inputs handle enter automatically, and Textarea has its own handler below)
+        if (!isInput && !isTextArea) {
+          handleSubmit(e);
+        }
+      }
+    };
+
+    if (bookmark) {
+      window.addEventListener('keydown', handleKeyDown);
+    }
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [bookmark, onClose, isIconModalOpen, url, title, description, tags, customIconUrl, loading]);
+
+  if (!bookmark) return null;
 
   const handleIconSelect = (iconUrl: string) => {
     setCustomIconUrl(iconUrl);
@@ -133,6 +144,12 @@ export const EditBookmarkModal: React.FC<Props> = ({ bookmark, onClose, onSucces
                 rows={3}
                 value={description}
                 onChange={e => setDescription(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSubmit(e as unknown as KeyboardEvent);
+                  }
+                }}
               />
             </div>
 
