@@ -41,25 +41,25 @@ export const IconSelectionModal: React.FC<Props> = ({ isOpen, onClose, onSelect,
     if (!pbRef.current || !collection) return;
     setLoading(true);
     try {
-      // Using PocketBase SDK for searching and pagination
-      const filter = searchQuery
-        ? `(name ~ "${searchQuery}" || tags ~ "${searchQuery}" || description ~ "${searchQuery}")`
+      // PocketBase requires single quotes for string values in filters
+      const escapedQuery = searchQuery.replace(/'/g, "\\'");
+      const filter = escapedQuery
+        ? `(name ~ '${escapedQuery}' || tags ~ '${escapedQuery}' || description ~ '${escapedQuery}')`
         : '';
 
       const resultList = await pbRef.current.collection(collection).getList(pageNum, 12, {
         filter: filter,
-        sort: '-created',
-        // PocketBase SDK returns record models, we need to map them or cast
-        requestKey: null, // disable auto-cancellation if needed, or keep it for better performance
+        sort: '-updated',
+        requestKey: null,
       });
 
-      // Map PB records to our interface (PB records have more fields but they are compatible)
+      // Map PB records directly as properties
       const items = resultList.items.map(item => ({
         id: item.id,
-        name: item.getString('name') || item.get('name') || '',
-        filename: item.getString('filename') || item.get('filename') || '',
-        tags: item.getString('tags') || item.get('tags') || '',
-        description: item.getString('description') || item.get('description') || '',
+        name: item.name || '',
+        filename: item.filename || '',
+        tags: item.tags || '',
+        description: item.description || '',
       } as IconRecord));
 
       if (pageNum === 1) {
@@ -71,9 +71,10 @@ export const IconSelectionModal: React.FC<Props> = ({ isOpen, onClose, onSelect,
       setTotalItems(resultList.totalItems);
       setHasMore(items.length === 12 && (pageNum * 12) < resultList.totalItems);
     } catch (err) {
-      // PB SDK throws an error on cancellation, which we can ignore
       if (err instanceof Error && err.name !== 'ClientResponseError') {
         console.error("Failed to fetch icons from collection:", err);
+      } else if (err && typeof err === 'object' && 'status' in err && (err as any).status === 400) {
+        console.error("PocketBase 400 Error. Check if fields 'name', 'tags', and 'description' exist in the collection.", err);
       }
     } finally {
       setLoading(false);
