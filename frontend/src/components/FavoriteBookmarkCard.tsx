@@ -157,7 +157,7 @@ export const FavoriteBookmarkCard: React.FC<Props> = ({ bookmark, width, height,
     if (!finalUrl.trim()) return;
     setIsUpdating(true);
     try {
-      const res = await api.post(`/bookmarks/${bookmark.id}/icon`, { icon_url: finalUrl.trim() });
+      await api.post(`/bookmarks/${bookmark.id}/icon`, { icon_url: finalUrl.trim() });
       // The backend should return the updated icon data URI in the response ideally, 
       // but if not, we can refetch it or the bookmark.
       // Looking at UpdateBookmarkIconFromURL, it doesn't return the icon.
