@@ -17,7 +17,7 @@ interface Props {
 
 export const FavoriteBookmarkCard: React.FC<Props> = ({ bookmark, width, height, isEditMode, onRemoveFavorite }) => {
   const isSmall = width === 1 && height === 1;
-  const [iconSrc, setIconSrc] = useState<string | null>(() => iconCache.get(bookmark.id) || null);
+  const [iconSrc, setIconSrc] = useState<string | null>(() => bookmark.icon || iconCache.get(bookmark.id) || null);
   const [iconError, setIconError] = useState(failedIconCache.has(bookmark.id));
 
   // Context Menu & Custom Icon State
@@ -32,6 +32,11 @@ export const FavoriteBookmarkCard: React.FC<Props> = ({ bookmark, width, height,
   const touchTimer = useRef<number | null>(null);
 
   const { isIconsEnabled, iconsEndpoint, iconsLocation, iconsCollection } = useSystemStore();
+
+  useEffect(() => {
+    setIconSrc(bookmark.icon || iconCache.get(bookmark.id) || null);
+    setIconError(failedIconCache.has(bookmark.id));
+  }, [bookmark.id, bookmark.icon]);
 
   useEffect(() => {
     const fetchIcon = async () => {
@@ -152,8 +157,12 @@ export const FavoriteBookmarkCard: React.FC<Props> = ({ bookmark, width, height,
     if (!finalUrl.trim()) return;
     setIsUpdating(true);
     try {
-      await api.post(`/bookmarks/${bookmark.id}/icon`, { icon_url: finalUrl.trim() });
-      // Refresh icon
+      const res = await api.post(`/bookmarks/${bookmark.id}/icon`, { icon_url: finalUrl.trim() });
+      // The backend should return the updated icon data URI in the response ideally, 
+      // but if not, we can refetch it or the bookmark.
+      // Looking at UpdateBookmarkIconFromURL, it doesn't return the icon.
+      
+      // Let's manually refresh it
       const response = await api.get(`/bookmarks/${bookmark.id}/icon`, {
         responseType: 'blob',
       });
