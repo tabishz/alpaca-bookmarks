@@ -19,6 +19,9 @@ services:
       - AWS_REGION=${AWS_REGION:=garage}
       - S3_BUCKET_NAME=your-%{S3_BUCKET_NAME}
       - S3_ENDPOINT_URL=${S3_ENDPOINT_URL}
+      - ICONS_ENDPOINT=${ICONS_ENDPOINT}
+      - ICONS_COLLECTION=${ICONS_COLLECTION}
+      - ICONS_LOCATION=${ICONS_LOCATION}
     healthcheck:
       # This healthcheck pings the Go backend directly, which runs on port 8080 inside the container.
       # It mirrors the healthcheck defined in the Dockerfile.
