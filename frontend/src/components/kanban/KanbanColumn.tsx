@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { KanbanColumn as KanbanColumnType } from '../../api/types';
 import { useSortable } from '@dnd-kit/sortable';
+import { useDroppable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import { Plus, Edit3, Trash2 } from 'lucide-react';
 import { DraggableCard } from './DraggableCard';
@@ -28,9 +29,9 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({
   const [newCardTitle, setNewCardTitle] = useState('');
 
   const {
-    attributes,
-    listeners,
-    setNodeRef,
+    attributes: sortableAttributes,
+    listeners: sortableListeners,
+    setNodeRef: setSortableNodeRef,
     transform,
     transition,
     isDragging,
@@ -43,10 +44,22 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({
     },
   });
 
+  const {
+    isOver: isOverDropTarget,
+    setNodeRef: setDroppableNodeRef,
+  } = useDroppable({
+    id: `col-${column.id}`,
+    disabled: isEditing || isAddingCard,
+    data: {
+      type: 'column',
+      column,
+    },
+  });
+
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.5 : 1,
+    opacity: (isDragging || isOverDropTarget) ? 0.5 : 1,
   };
 
   const handleSaveTitle = () => {
@@ -93,13 +106,16 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({
     return () => window.removeEventListener('kanban-add-card', handleAddCardEvent as EventListener);
   }, [column.id]);
 
-  return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className="bg-surface/50 rounded-lg p-4 min-w-[280px] max-w-[280px] flex flex-col"
-      {...attributes}
-    >
+return (
+      <div
+        ref={node => {
+          setSortableNodeRef(node);
+          setDroppableNodeRef(node);
+        }}
+        style={style}
+        className="bg-surface/50 rounded-lg p-4 min-w-[280px] max-w-[280px] flex flex-col"
+        {...sortableAttributes}
+      >
       {/* Column Header with drag handle */}
       <div className="flex items-center justify-between mb-3">
         {isEditing ? (
@@ -128,10 +144,10 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({
           >
             <Trash2 size={16} />
           </button>
-          <div
-            className="p-1 cursor-move text-muted hover:text-text"
-            {...listeners}
-          >
+           <div
+             className="p-1 cursor-move text-muted hover:text-text"
+             {...sortableListeners}
+           >
             <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
               <circle cx="2" cy="2" r="1.5" />
               <circle cx="6" cy="2" r="1.5" />

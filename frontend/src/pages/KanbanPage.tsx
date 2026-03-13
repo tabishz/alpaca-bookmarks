@@ -21,39 +21,32 @@ interface UndoToastData {
 
 const LAST_BOARD_KEY = 'kanban_last_board_id';
 
-// Custom collision detection that only considers column-to-column when dragging columns
-const customCollisionDetection: CollisionDetection = (args) => {
-  const { active, droppableContainers } = args;
-  
-  // Check if we're dragging a column
-  const isDraggingColumn = String(active.id).startsWith('col-');
-  
-  // Filter containers based on what's being dragged
-  const filteredContainers = droppableContainers.filter(container => {
-    const containerId = String(container.id);
-    if (isDraggingColumn) {
-      // When dragging a column, only consider other columns
-      return containerId.startsWith('col-');
-    } else {
-      // When dragging a card, consider both columns (as drop targets) and other cards
-      return containerId.startsWith('col-') || typeof container.id === 'number';
-    }
-  });
-  
-  // Use rectIntersection for better horizontal detection with columns
-  if (isDraggingColumn) {
+  // Custom collision detection that only considers column-to-column when dragging columns
+  const customCollisionDetection: CollisionDetection = (args) => {
+    const { active, droppableContainers } = args;
+    
+    // Check if we're dragging a column
+    const isDraggingColumn = String(active.id).startsWith('col-');
+    
+    // Filter containers based on what's being dragged
+    const filteredContainers = droppableContainers.filter(container => {
+      const containerId = String(container.id);
+      if (isDraggingColumn) {
+        // When dragging a column, only consider other columns
+        return containerId.startsWith('col-');
+      } else {
+        // When dragging a card, consider both columns (as drop targets) and other cards
+        return containerId.startsWith('col-') || typeof container.id === 'number';
+      }
+    });
+    
+    // Use rectIntersection for both columns and cards for better area coverage
+    // This ensures we can drop cards anywhere within a column's bounds, including near the Add Card button
     return rectIntersection({
       ...args,
       droppableContainers: filteredContainers,
     });
-  }
-  
-  // Use closestCenter for cards
-  return closestCenter({
-    ...args,
-    droppableContainers: filteredContainers,
-  });
-};
+  };
 
 export const KanbanPage: React.FC = () => {
   const [boards, setBoards] = useState<KanbanBoard[]>([]);
@@ -1019,63 +1012,64 @@ export const KanbanPage: React.FC = () => {
             onDragEnd={handleDragEnd}
           >
             <div className="flex gap-4 overflow-x-auto pb-4">
-              {selectedBoard.columns && selectedBoard.columns.length > 0 ? (
-                selectedBoard.columns
-                  .sort((a, b) => a.position - b.position)
-                  .map((column) => (
-                    <SortableContext
-                      key={column.id}
-                      items={column.cards.map(card => card.id)}
-                      strategy={verticalListSortingStrategy}
-                    >
-                      <KanbanColumn
-                        column={column}
-                        onAddCard={createCard}
-                        onDeleteColumn={deleteColumn}
-                        onUpdateColumn={updateColumn}
-                        onDeleteCard={deleteCard}
-                        onUpdateCard={updateCard}
-                      />
-                    </SortableContext>
-                  ))
-              ) : (
-                <div className="text-center py-20 flex-1">
-                  <div className="text-4xl mb-4">📝</div>
-                  <h3 className="text-xl font-bold mb-2">No Columns Yet</h3>
-                  <p className="text-muted mb-4">Add your first column to get started</p>
-                  <button
-                    onClick={() => setIsAddingColumn(true)}
-                    className="bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary/80"
-                  >
-                    Add First Column
-                  </button>
-                </div>
-              )}
+           {selectedBoard.columns && selectedBoard.columns.length > 0 ? (
+                 selectedBoard.columns
+                   .sort((a, b) => a.position - b.position)
+                   .map((column) => (
+                     <SortableContext
+                       id={`col-${column.id}`}
+                       key={column.id}
+                       items={column.cards.map(card => card.id)}
+                       strategy={verticalListSortingStrategy}
+                     >
+                       <KanbanColumn
+                         column={column}
+                         onAddCard={createCard}
+                         onDeleteColumn={deleteColumn}
+                         onUpdateColumn={updateColumn}
+                         onDeleteCard={deleteCard}
+                         onUpdateCard={updateCard}
+                       />
+                     </SortableContext>
+                   ))
+               ) : (
+                 <div className="text-center py-20 flex-1">
+                   <div className="text-4xl mb-4">📝</div>
+                   <h3 className="text-xl font-bold mb-2">No Columns Yet</h3>
+                   <p className="text-muted mb-4">Add your first column to get started</p>
+                   <button
+                     onClick={() => setIsAddingColumn(true)}
+                     className="bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary/80"
+                   >
+                     Add First Column
+                   </button>
+                 </div>
+               )}
             </div>
-            <DragOverlay>
-              {activeColumnId ? (
-                (() => {
-                  const column = getActiveColumn();
-                  return column ? (
-                    <div className="bg-surface/50 rounded-lg p-4 min-w-[280px] max-w-[280px] opacity-90 border-2 border-primary">
-                      <h3 className="font-semibold text-text">{column.title}</h3>
-                    </div>
-                  ) : null;
-                })()
-              ) : activeId ? (
-                (() => {
-                  const card = getActiveCard();
-                  return card ? (
-                    <div className="bg-surface border border-primary rounded-lg p-3 opacity-90">
-                      <h4 className="font-medium text-text mb-1">{card.title}</h4>
-                      {card.description && (
-                        <p className="text-sm text-muted">{card.description}</p>
-                      )}
-                    </div>
-                  ) : null;
-                })()
-              ) : null}
-            </DragOverlay>
+<DragOverlay className="pointer-events-none">
+  {activeColumnId ? (
+    (() => {
+      const column = getActiveColumn();
+      return column ? (
+        <div className="bg-surface/50 rounded-lg p-4 min-w-[280px] max-w-[280px] opacity-90 border-2 border-primary">
+          <h3 className="font-semibold text-text">{column.title}</h3>
+        </div>
+      ) : null;
+    })()
+  ) : activeId ? (
+    (() => {
+      const card = getActiveCard();
+      return card ? (
+        <div className="bg-surface border border-primary rounded-lg p-3 opacity-90">
+          <h4 className="font-medium text-text mb-1">{card.title}</h4>
+          {card.description && (
+            <p className="text-sm text-muted">{card.description}</p>
+          )}
+        </div>
+      ) : null;
+    })()
+  ) : null}
+</DragOverlay>
           </DndContext>
         </div>
       )}
