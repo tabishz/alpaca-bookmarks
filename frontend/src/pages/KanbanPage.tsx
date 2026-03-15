@@ -3,7 +3,7 @@ import { useNavigate, useParams, Link } from 'react-router-dom';
 import api from '../api/client';
 import { KanbanBoard, KanbanColumn as KanbanColumnType, KanbanCard } from '../api/types';
 import { Plus, Trash2, Home, Settings, Heart, ListTodo, Info } from 'lucide-react';
-import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, closestCenter, rectIntersection, CollisionDetection } from '@dnd-kit/core';
+import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, closestCenter, CollisionDetection } from '@dnd-kit/core';
 import { SortableContext, horizontalListSortingStrategy, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
 import { UndoToast } from '../components/UndoToast';
 import { KeyboardShortcutsModal } from '../components/KeyboardShortcutsModal';
@@ -40,9 +40,8 @@ const LAST_BOARD_KEY = 'kanban_last_board_id';
       }
     });
     
-    // Use rectIntersection for both columns and cards for better area coverage
-    // This ensures we can drop cards anywhere within a column's bounds, including near the Add Card button
-    return rectIntersection({
+    // Use closestCenter for both columns and cards - this enables dropping between cards
+    return closestCenter({
       ...args,
       droppableContainers: filteredContainers,
     });
