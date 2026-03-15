@@ -3,7 +3,7 @@ import { useNavigate, useParams, Link } from 'react-router-dom';
 import api from '../api/client';
 import { KanbanBoard, KanbanColumn as KanbanColumnType, KanbanCard } from '../api/types';
 import { Plus, Trash2, Home, Settings, Heart, ListTodo, Info } from 'lucide-react';
-import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, closestCenter, CollisionDetection } from '@dnd-kit/core';
+import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, closestCenter, rectIntersection, CollisionDetection } from '@dnd-kit/core';
 import { SortableContext, horizontalListSortingStrategy, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
 import { UndoToast } from '../components/UndoToast';
 import { KeyboardShortcutsModal } from '../components/KeyboardShortcutsModal';
@@ -40,11 +40,23 @@ const LAST_BOARD_KEY = 'kanban_last_board_id';
       }
     });
     
-    // Use closestCenter for both columns and cards - this enables dropping between cards
-    return closestCenter({
+    // Get column intersections using rectIntersection (entire column area is drop zone)
+    const columnContainers = filteredContainers.filter(c => String(c.id).startsWith('col-'));
+    const columnIntersections = rectIntersection({
       ...args,
-      droppableContainers: filteredContainers,
+      droppableContainers: columnContainers,
     });
+    
+    // Get card intersections using closestCenter (for reordering between cards)
+    const cardContainers = filteredContainers.filter(c => typeof c.id === 'number');
+    const cardIntersections = closestCenter({
+      ...args,
+      droppableContainers: cardContainers,
+    });
+    
+    // Return both - columns first, then cards
+    // This ensures the entire column area is a valid drop target while still enabling card-to-card sorting
+    return [...columnIntersections, ...cardIntersections];
   };
 
 export const KanbanPage: React.FC = () => {
