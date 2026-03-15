@@ -122,6 +122,21 @@ export const FavoritesDashboard = () => {
     fetchFavoritesAndLayouts();
   }, []);
 
+  const handleEnterEditMode = useCallback(() => {
+    layoutChanges.current = null;
+    const editableLayout: Layouts = {};
+    for (const bp of Object.keys(layouts)) {
+        if (layouts[bp]) {
+            editableLayout[bp] = layouts[bp]!.map(item => ({
+                ...item,
+                static: false,
+            }));
+        }
+    }
+    setLayouts(editableLayout);
+    setIsEditMode(true);
+  }, [layouts]);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
@@ -133,6 +148,7 @@ export const FavoritesDashboard = () => {
       }
       if (e.key === 'Escape' && !isTyping) {
         if (isInfoModalOpen) { setIsInfoModalOpen(false); }
+        else if (isEditMode) { setIsEditMode(false); }
       }
       if (e.key === 'i' && !isTyping) {
         if (isInfoModalOpen) { setIsInfoModalOpen(false); }
@@ -146,13 +162,21 @@ export const FavoritesDashboard = () => {
         e.preventDefault();
         navigate('/kanban');
       }
+      if (e.key === 'e' && !isTyping) {
+        e.preventDefault();
+        if (isEditMode) {
+          setIsEditMode(false);
+        } else {
+          handleEnterEditMode();
+        }
+      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [navigate, isInfoModalOpen]);
+  }, [navigate, isInfoModalOpen, isEditMode, handleEnterEditMode]);
 
   const onLayoutChange = useCallback((_layout: Layout, allLayouts: Layouts) => {
     layoutChanges.current = allLayouts;
@@ -160,21 +184,6 @@ export const FavoritesDashboard = () => {
     // and doesn't snap back on the next render
     setLayouts(allLayouts);
   }, []);
-
-  const handleEnterEditMode = () => {
-    layoutChanges.current = null;
-    const editableLayout: Layouts = {};
-    for (const bp of Object.keys(layouts)) {
-        if (layouts[bp]) {
-            editableLayout[bp] = layouts[bp]!.map(item => ({
-                ...item,
-                static: false,
-            }));
-        }
-    }
-    setLayouts(editableLayout);
-    setIsEditMode(true);
-  }
 
   const handleSave = async () => {
     // Use the latest layout from the ref, or the state if no changes were made.
