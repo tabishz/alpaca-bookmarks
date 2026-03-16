@@ -3,6 +3,12 @@
 # Exit on error
 set -e
 
+PLATFORM="linux/arm64"
+
+if [ "$1" == "amd64" ]; then
+    PLATFORM="linux/amd64"
+fi
+
 # Ensure we are in the project root
 cd "$(dirname "$0")"
 
@@ -22,7 +28,7 @@ echo "Building Image: $IMAGE_TAG"
 
 # 2. Build for linux/arm64 on macOS
 # Load the image locally first, then push it to the registry
-docker-buildx build --platform linux/arm64 -t "$IMAGE_TAG" --load .
+docker-buildx build --platform $PLATFORM -t "$IMAGE_TAG" --load .
 docker push "$IMAGE_TAG"
 
 echo "Successfully built and pushed $IMAGE_TAG"
