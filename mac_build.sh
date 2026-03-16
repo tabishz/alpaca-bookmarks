@@ -4,10 +4,25 @@
 set -e
 
 PLATFORM="linux/arm64"
+REGISTRY="tabishz"
 
-if [ "$1" == "amd64" ]; then
-    PLATFORM="linux/amd64"
-fi
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --platform)
+            PLATFORM="linux/$2"
+            shift 2
+            ;;
+        --registry)
+            REGISTRY="$2"
+            shift 2
+            ;;
+        *)
+            echo "Unknown option: $1"
+            echo "Usage: $0 [--platform amd64] [--registry hq.truthful.men]"
+            exit 1
+            ;;
+    esac
+done
 
 # Ensure we are in the project root
 cd "$(dirname "$0")"
@@ -21,7 +36,12 @@ if [ -z "$VERSION" ]; then
     exit 1
 fi
 
-IMAGE_TAG="tabishz/alpaca-bookmarks:arm64-$VERSION"
+TAG_SUFFIX='arm64'
+if [[ $PLATFORM == *"amd64"* ]]; then
+    TAG_SUFFIX="amd64"
+fi
+
+IMAGE_TAG="$REGISTRY/alpaca-bookmarks:$TAG_SUFFIX-$VERSION"
 
 echo "Detected Version: $VERSION"
 echo "Building Image: $IMAGE_TAG"
