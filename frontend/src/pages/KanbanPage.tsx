@@ -3,7 +3,7 @@ import { useNavigate, useParams, Link } from 'react-router-dom';
 import api from '../api/client';
 import { KanbanBoard, KanbanColumn as KanbanColumnType, KanbanCard } from '../api/types';
 import { Plus, Trash2, Home, Settings, Heart, ListTodo, Info, Sliders, ArrowRightLeft, Tags, LogOut, Shield } from 'lucide-react';
-import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, closestCenter, rectIntersection, CollisionDetection } from '@dnd-kit/core';
+import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, closestCenter, rectIntersection, pointerWithin, CollisionDetection } from '@dnd-kit/core';
 import { SortableContext, horizontalListSortingStrategy, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
 import { UndoToast } from '../components/UndoToast';
 import { KeyboardShortcutsModal } from '../components/KeyboardShortcutsModal';
@@ -28,10 +28,10 @@ const LAST_BOARD_KEY = 'kanban_last_board_id';
   // Custom collision detection that only considers column-to-column when dragging columns
   const customCollisionDetection: CollisionDetection = (args) => {
     const { active, droppableContainers } = args;
-
+    
     // Check if we're dragging a column
     const isDraggingColumn = String(active.id).startsWith('col-');
-
+    
     // Filter containers based on what's being dragged
     const filteredContainers = droppableContainers.filter(container => {
       const containerId = String(container.id);
@@ -43,24 +43,24 @@ const LAST_BOARD_KEY = 'kanban_last_board_id';
         return containerId.startsWith('col-') || typeof container.id === 'number';
       }
     });
-
+    
     // Get column intersections using rectIntersection (entire column area is drop zone)
     const columnContainers = filteredContainers.filter(c => String(c.id).startsWith('col-'));
     const columnIntersections = rectIntersection({
       ...args,
       droppableContainers: columnContainers,
     });
-
-    // Get card intersections using closestCenter (for reordering between cards)
+    
+    // Get card intersections using pointerWithin (for precise reordering between cards)
     const cardContainers = filteredContainers.filter(c => typeof c.id === 'number');
-    const cardIntersections = closestCenter({
+    const cardIntersections = pointerWithin({
       ...args,
       droppableContainers: cardContainers,
     });
-
-    // Return both - columns first, then cards
-    // This ensures the entire column area is a valid drop target while still enabling card-to-card sorting
-    return [...columnIntersections, ...cardIntersections];
+    
+    // Return cards first (for reordering), then columns (for moving between columns)
+    // This ensures card-to-card sorting takes priority
+    return [...cardIntersections, ...columnIntersections];
   };
 
 export const KanbanPage: React.FC = () => {
