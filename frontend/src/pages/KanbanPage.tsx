@@ -2,12 +2,16 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import api from '../api/client';
 import { KanbanBoard, KanbanColumn as KanbanColumnType, KanbanCard } from '../api/types';
-import { Plus, Trash2, Home, Settings, Heart, ListTodo, Info } from 'lucide-react';
+import { Plus, Trash2, Home, Settings, Heart, ListTodo, Info, Sliders, ArrowRightLeft, Tags, LogOut, Shield } from 'lucide-react';
 import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, closestCenter, rectIntersection, CollisionDetection } from '@dnd-kit/core';
 import { SortableContext, horizontalListSortingStrategy, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
 import { UndoToast } from '../components/UndoToast';
 import { KeyboardShortcutsModal } from '../components/KeyboardShortcutsModal';
+import { SettingsModal } from '../components/SettingsModal';
+import { DataImportExportModal } from '../components/DataImportExportModal';
 import { DraggableBoardButton, KanbanColumn } from '../components/kanban';
+import { useTheme, Theme } from '../hooks/useTheme';
+import { useAuthStore } from '../store/authStore';
 
 interface UndoToastData {
   id: string;
@@ -21,41 +25,48 @@ interface UndoToastData {
 
 const LAST_BOARD_KEY = 'kanban_last_board_id';
 
-// Custom collision detection that only considers column-to-column when dragging columns
-const customCollisionDetection: CollisionDetection = (args) => {
-  const { active, droppableContainers } = args;
-  
-  // Check if we're dragging a column
-  const isDraggingColumn = String(active.id).startsWith('col-');
-  
-  // Filter containers based on what's being dragged
-  const filteredContainers = droppableContainers.filter(container => {
-    const containerId = String(container.id);
-    if (isDraggingColumn) {
-      // When dragging a column, only consider other columns
-      return containerId.startsWith('col-');
-    } else {
-      // When dragging a card, consider both columns (as drop targets) and other cards
-      return containerId.startsWith('col-') || typeof container.id === 'number';
-    }
-  });
-  
-  // Use rectIntersection for better horizontal detection with columns
-  if (isDraggingColumn) {
-    return rectIntersection({
-      ...args,
-      droppableContainers: filteredContainers,
+  // Custom collision detection that only considers column-to-column when dragging columns
+  const customCollisionDetection: CollisionDetection = (args) => {
+    const { active, droppableContainers } = args;
+
+    // Check if we're dragging a column
+    const isDraggingColumn = String(active.id).startsWith('col-');
+
+    // Filter containers based on what's being dragged
+    const filteredContainers = droppableContainers.filter(container => {
+      const containerId = String(container.id);
+      if (isDraggingColumn) {
+        // When dragging a column, only consider other columns
+        return containerId.startsWith('col-');
+      } else {
+        // When dragging a card, consider both columns (as drop targets) and other cards
+        return containerId.startsWith('col-') || typeof container.id === 'number';
+      }
     });
-  }
-  
-  // Use closestCenter for cards
-  return closestCenter({
-    ...args,
-    droppableContainers: filteredContainers,
-  });
-};
+
+    // Get column intersections using rectIntersection (entire column area is drop zone)
+    const columnContainers = filteredContainers.filter(c => String(c.id).startsWith('col-'));
+    const columnIntersections = rectIntersection({
+      ...args,
+      droppableContainers: columnContainers,
+    });
+
+    // Get card intersections using closestCenter (for reordering between cards)
+    const cardContainers = filteredContainers.filter(c => typeof c.id === 'number');
+    const cardIntersections = closestCenter({
+      ...args,
+      droppableContainers: cardContainers,
+    });
+
+    // Return both - columns first, then cards
+    // This ensures the entire column area is a valid drop target while still enabling card-to-card sorting
+    return [...columnIntersections, ...cardIntersections];
+  };
 
 export const KanbanPage: React.FC = () => {
+  useTheme();
+  const { theme, setTheme } = useTheme();
+  const { user, logout } = useAuthStore();
   const [boards, setBoards] = useState<KanbanBoard[]>([]);
   const [selectedBoard, setSelectedBoard] = useState<KanbanBoard | null>(null);
   const [activeId, setActiveId] = useState<number | string | null>(null);
@@ -68,8 +79,24 @@ export const KanbanPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isBoardMenuOpen, setIsBoardMenuOpen] = useState(false);
+  const [isSettingsMenuOpen, setIsSettingsMenuOpen] = useState(false);
   const [undoToasts, setUndoToasts] = useState<UndoToastData[]>([]);
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
+  const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
+  const [isDataImportExportModalOpen, setIsDataImportExportModalOpen] = useState(false);
+  const [settingsStartView, setSettingsStartView] = useState<'settings' | 'tags'>('settings');
+  const [limit, setLimit] = useState(() => {
+    const saved = localStorage.getItem('bookmarks_limit');
+    return saved ? parseInt(saved) : 50;
+  });
+  const [tileSize, setTileSize] = useState(() => {
+    const saved = localStorage.getItem('tile_size');
+    return saved ? parseInt(saved) : 280;
+  });
+  const [showUrl, setShowUrl] = useState(() => {
+    const saved = localStorage.getItem('show_url');
+    return saved ? saved === 'true' : true;
+  });
   const undoTimersRef = useRef<{ [key: string]: number }>({});
   const navigate = useNavigate();
   const { boardId: urlBoardId } = useParams();
@@ -555,7 +582,7 @@ export const KanbanPage: React.FC = () => {
 
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
-    
+
     setActiveId(null);
     setActiveColumnId(null);
 
@@ -567,7 +594,7 @@ export const KanbanPage: React.FC = () => {
     // Handle column reordering
     if (activeIdStr.startsWith('col-')) {
       if (!overIdStr.startsWith('col-')) return;
-      
+
       const activeColumnIdNum = parseInt(activeIdStr.replace('col-', ''));
       const overColumnIdNum = parseInt(overIdStr.replace('col-', ''));
 
@@ -722,6 +749,16 @@ export const KanbanPage: React.FC = () => {
     setIsAddingColumn(false);
   };
 
+  const handleConfigSave = async (newLimit: number, newTheme: Theme, newTileSize: number, newShowUrl: boolean) => {
+    localStorage.setItem('bookmarks_limit', newLimit.toString());
+    localStorage.setItem('tile_size', newTileSize.toString());
+    localStorage.setItem('show_url', newShowUrl.toString());
+    setLimit(newLimit);
+    setTheme(newTheme);
+    setTileSize(newTileSize);
+    setShowUrl(newShowUrl);
+  };
+
   const removeToast = (toastId: string) => {
     setUndoToasts(currentToasts => currentToasts.filter(t => t.id !== toastId));
     if (undoTimersRef.current[toastId]) {
@@ -808,11 +845,15 @@ export const KanbanPage: React.FC = () => {
       if (e.key === 'Escape' && isInfoModalOpen) {
         setIsInfoModalOpen(false);
       }
+
+      if (e.key === 'Escape' && isSettingsMenuOpen) {
+        setIsSettingsMenuOpen(false);
+      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [navigate, boards, isInfoModalOpen]);
+  }, [navigate, boards, isInfoModalOpen, isSettingsMenuOpen]);
 
   // Get active card or column for drag overlay
   const getActiveCard = () => {
@@ -829,7 +870,7 @@ export const KanbanPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen p-6 md:p-10 w-full">
+    <div className="min-h-screen p-6 md:p-10 w-full" onClick={() => setIsSettingsMenuOpen(false)}>
       <header className="mb-8 flex items-center justify-between">
         <h1 className="text-3xl font-bold">Alpaca Kanban</h1>
         <div className="flex items-center gap-2">
@@ -857,6 +898,26 @@ export const KanbanPage: React.FC = () => {
           >
             <Info size={28} />
           </button>
+          <div className="relative">
+            <button
+              onClick={(e) => { e.stopPropagation(); setIsSettingsMenuOpen(!isSettingsMenuOpen); }}
+              className={`p-2 rounded-md transition-colors ${isSettingsMenuOpen ? 'bg-surface text-white' : 'text-gray-400 hover:text-white'}`}
+            >
+              <Settings size={28} />
+            </button>
+            {isSettingsMenuOpen && (
+              <div className="absolute right-0 top-full z-20 mt-2 w-56 overflow-hidden rounded-md border border-gray-600 bg-surface shadow-xl">
+                <button onClick={() => { setSettingsStartView('settings'); setIsConfigModalOpen(true); setIsSettingsMenuOpen(false); }} className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-muted hover:bg-primary hover:text-white"><Sliders size={16} /> Preferences</button>
+                <button onClick={() => { setIsDataImportExportModalOpen(true); setIsSettingsMenuOpen(false); }} className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-muted hover:bg-primary hover:text-white"><ArrowRightLeft size={16} /> Data Import / Export</button>
+                <button onClick={() => { setSettingsStartView('tags'); setIsConfigModalOpen(true); setIsSettingsMenuOpen(false); }} className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-muted hover:bg-primary hover:text-white"><Tags size={16} /> Organize Tags</button>
+                {user?.role === 'admin' && (
+                  <Link to="/admin" className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-yellow-400 hover:bg-yellow-400/10"><Shield size={16} /> Admin Console</Link>
+                )}
+                <div className="my-1 border-t border-gray-700"></div>
+                <button onClick={logout} className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-red-400 hover:bg-red-400/10"><LogOut size={16} /> Logout</button>
+              </div>
+            )}
+          </div>
         </div>
       </header>
 
@@ -889,7 +950,7 @@ export const KanbanPage: React.FC = () => {
       {/* New Board Modal */}
       {isAddingBoard && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <form 
+          <form
             onSubmit={(e) => { e.preventDefault(); createBoard(); }}
             className="bg-surface rounded-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl animate-in fade-in zoom-in duration-200 border border-gray-700"
           >
@@ -1019,63 +1080,64 @@ export const KanbanPage: React.FC = () => {
             onDragEnd={handleDragEnd}
           >
             <div className="flex gap-4 overflow-x-auto pb-4">
-              {selectedBoard.columns && selectedBoard.columns.length > 0 ? (
-                selectedBoard.columns
-                  .sort((a, b) => a.position - b.position)
-                  .map((column) => (
-                    <SortableContext
-                      key={column.id}
-                      items={column.cards.map(card => card.id)}
-                      strategy={verticalListSortingStrategy}
-                    >
-                      <KanbanColumn
-                        column={column}
-                        onAddCard={createCard}
-                        onDeleteColumn={deleteColumn}
-                        onUpdateColumn={updateColumn}
-                        onDeleteCard={deleteCard}
-                        onUpdateCard={updateCard}
-                      />
-                    </SortableContext>
-                  ))
-              ) : (
-                <div className="text-center py-20 flex-1">
-                  <div className="text-4xl mb-4">📝</div>
-                  <h3 className="text-xl font-bold mb-2">No Columns Yet</h3>
-                  <p className="text-muted mb-4">Add your first column to get started</p>
-                  <button
-                    onClick={() => setIsAddingColumn(true)}
-                    className="bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary/80"
-                  >
-                    Add First Column
-                  </button>
-                </div>
-              )}
+           {selectedBoard.columns && selectedBoard.columns.length > 0 ? (
+                 selectedBoard.columns
+                   .sort((a, b) => a.position - b.position)
+                   .map((column) => (
+                     <SortableContext
+                       id={`col-${column.id}`}
+                       key={column.id}
+                       items={column.cards.map(card => card.id)}
+                       strategy={verticalListSortingStrategy}
+                     >
+                       <KanbanColumn
+                         column={column}
+                         onAddCard={createCard}
+                         onDeleteColumn={deleteColumn}
+                         onUpdateColumn={updateColumn}
+                         onDeleteCard={deleteCard}
+                         onUpdateCard={updateCard}
+                       />
+                     </SortableContext>
+                   ))
+               ) : (
+                 <div className="text-center py-20 flex-1">
+                   <div className="text-4xl mb-4">📝</div>
+                   <h3 className="text-xl font-bold mb-2">No Columns Yet</h3>
+                   <p className="text-muted mb-4">Add your first column to get started</p>
+                   <button
+                     onClick={() => setIsAddingColumn(true)}
+                     className="bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary/80"
+                   >
+                     Add First Column
+                   </button>
+                 </div>
+               )}
             </div>
-            <DragOverlay>
-              {activeColumnId ? (
-                (() => {
-                  const column = getActiveColumn();
-                  return column ? (
-                    <div className="bg-surface/50 rounded-lg p-4 min-w-[280px] max-w-[280px] opacity-90 border-2 border-primary">
-                      <h3 className="font-semibold text-text">{column.title}</h3>
-                    </div>
-                  ) : null;
-                })()
-              ) : activeId ? (
-                (() => {
-                  const card = getActiveCard();
-                  return card ? (
-                    <div className="bg-surface border border-primary rounded-lg p-3 opacity-90">
-                      <h4 className="font-medium text-text mb-1">{card.title}</h4>
-                      {card.description && (
-                        <p className="text-sm text-muted">{card.description}</p>
-                      )}
-                    </div>
-                  ) : null;
-                })()
-              ) : null}
-            </DragOverlay>
+<DragOverlay className="pointer-events-none">
+  {activeColumnId ? (
+    (() => {
+      const column = getActiveColumn();
+      return column ? (
+        <div className="bg-surface/50 rounded-lg p-4 min-w-[280px] max-w-[280px] opacity-90 border-2 border-primary">
+          <h3 className="font-semibold text-text">{column.title}</h3>
+        </div>
+      ) : null;
+    })()
+  ) : activeId ? (
+    (() => {
+      const card = getActiveCard();
+      return card ? (
+        <div className="bg-surface border border-primary rounded-lg p-3 opacity-90">
+          <h4 className="font-medium text-text mb-1">{card.title}</h4>
+          {card.description && (
+            <p className="text-sm text-muted">{card.description}</p>
+          )}
+        </div>
+      ) : null;
+    })()
+  ) : null}
+</DragOverlay>
           </DndContext>
         </div>
       )}
@@ -1133,6 +1195,21 @@ export const KanbanPage: React.FC = () => {
       </div>
 
       <KeyboardShortcutsModal isOpen={isInfoModalOpen} onClose={() => setIsInfoModalOpen(false)} />
+      <SettingsModal
+        isOpen={isConfigModalOpen}
+        onClose={() => setIsConfigModalOpen(false)}
+        currentLimit={limit}
+        currentTheme={theme}
+        currentTileSize={tileSize}
+        currentShowUrl={showUrl}
+        onSave={handleConfigSave}
+        initialView={settingsStartView}
+      />
+      <DataImportExportModal
+        isOpen={isDataImportExportModalOpen}
+        onClose={() => setIsDataImportExportModalOpen(false)}
+        onImportSuccess={() => {}}
+      />
     </div>
   );
 };

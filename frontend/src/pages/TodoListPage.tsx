@@ -1,13 +1,18 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Home, Plus, Trash2, CheckCircle, Circle, ChevronRight, ChevronDown, ListTodo, Edit2, X, Save, Heart, Layout, Info } from 'lucide-react';
+import { Home, Plus, Trash2, CheckCircle, Circle, ChevronRight, ChevronDown, ListTodo, Edit2, X, Save, Heart, Layout, Info, Settings, Sliders, ArrowRightLeft, Tags, LogOut, Shield } from 'lucide-react';
 import api from '../api/client';
 import { TodoList, TodoItem } from '../api/types';
-import { useTheme } from '../hooks/useTheme';
+import { useTheme, Theme } from '../hooks/useTheme';
 import { KeyboardShortcutsModal } from '../components/KeyboardShortcutsModal';
+import { SettingsModal } from '../components/SettingsModal';
+import { DataImportExportModal } from '../components/DataImportExportModal';
+import { useAuthStore } from '../store/authStore';
 
 export const TodoListPage: React.FC = () => {
   useTheme();
+  const { theme, setTheme } = useTheme();
+  const { user, logout } = useAuthStore();
   const navigate = useNavigate();
   const [todoLists, setTodoLists] = useState<TodoList[]>([]);
   const [loading, setLoading] = useState(true);
@@ -16,6 +21,22 @@ export const TodoListPage: React.FC = () => {
   const [editingListId, setEditingListId] = useState<number | null>(null);
   const [editingListTitle, setEditingListTitle] = useState('');
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
+  const [isSettingsMenuOpen, setIsSettingsMenuOpen] = useState(false);
+  const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
+  const [isDataImportExportModalOpen, setIsDataImportExportModalOpen] = useState(false);
+  const [settingsStartView, setSettingsStartView] = useState<'settings' | 'tags'>('settings');
+  const [limit, setLimit] = useState(() => {
+    const saved = localStorage.getItem('bookmarks_limit');
+    return saved ? parseInt(saved) : 50;
+  });
+  const [tileSize, setTileSize] = useState(() => {
+    const saved = localStorage.getItem('tile_size');
+    return saved ? parseInt(saved) : 280;
+  });
+  const [showUrl, setShowUrl] = useState(() => {
+    const saved = localStorage.getItem('show_url');
+    return saved ? saved === 'true' : true;
+  });
   const newListInputRef = useRef<HTMLInputElement>(null);
 
   const fetchTodoLists = async () => {
@@ -78,13 +99,15 @@ export const TodoListPage: React.FC = () => {
       } else if (e.key === 'Escape') {
         if (isInfoModalOpen) {
           setIsInfoModalOpen(false);
+        } else if (isSettingsMenuOpen) {
+          setIsSettingsMenuOpen(false);
         }
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [navigate, isInfoModalOpen, todoLists]);
+  }, [navigate, isInfoModalOpen, isSettingsMenuOpen, todoLists]);
 
   const toggleListExpansion = (id: number) => {
     const newExpanded = new Set(expandedLists);
@@ -176,8 +199,18 @@ export const TodoListPage: React.FC = () => {
     }
   };
 
+  const handleConfigSave = async (newLimit: number, newTheme: Theme, newTileSize: number, newShowUrl: boolean) => {
+    localStorage.setItem('bookmarks_limit', newLimit.toString());
+    localStorage.setItem('tile_size', newTileSize.toString());
+    localStorage.setItem('show_url', newShowUrl.toString());
+    setLimit(newLimit);
+    setTheme(newTheme);
+    setTileSize(newTileSize);
+    setShowUrl(newShowUrl);
+  };
+
   return (
-    <div className="min-h-screen p-4 md:p-10 w-full max-w-4xl mx-auto">
+    <div className="min-h-screen p-4 md:p-10 w-full max-w-4xl mx-auto" onClick={() => setIsSettingsMenuOpen(false)}>
       <header className="mb-8 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <ListTodo size={32} className="text-primary" />
@@ -202,6 +235,26 @@ export const TodoListPage: React.FC = () => {
           >
             <Info size={28} />
           </button>
+          <div className="relative">
+            <button
+              onClick={(e) => { e.stopPropagation(); setIsSettingsMenuOpen(!isSettingsMenuOpen); }}
+              className={`p-2 rounded-md transition-colors ${isSettingsMenuOpen ? 'bg-surface text-white' : 'text-gray-400 hover:text-white'}`}
+            >
+              <Settings size={28} />
+            </button>
+            {isSettingsMenuOpen && (
+              <div className="absolute right-0 top-full z-20 mt-2 w-56 overflow-hidden rounded-md border border-gray-600 bg-surface shadow-xl">
+                <button onClick={() => { setSettingsStartView('settings'); setIsConfigModalOpen(true); setIsSettingsMenuOpen(false); }} className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-muted hover:bg-primary hover:text-white"><Sliders size={16} /> Preferences</button>
+                <button onClick={() => { setIsDataImportExportModalOpen(true); setIsSettingsMenuOpen(false); }} className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-muted hover:bg-primary hover:text-white"><ArrowRightLeft size={16} /> Data Import / Export</button>
+                <button onClick={() => { setSettingsStartView('tags'); setIsConfigModalOpen(true); setIsSettingsMenuOpen(false); }} className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-muted hover:bg-primary hover:text-white"><Tags size={16} /> Organize Tags</button>
+                {user?.role === 'admin' && (
+                  <Link to="/admin" className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-yellow-400 hover:bg-yellow-400/10"><Shield size={16} /> Admin Console</Link>
+                )}
+                <div className="my-1 border-t border-gray-700"></div>
+                <button onClick={logout} className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-red-400 hover:bg-red-400/10"><LogOut size={16} /> Logout</button>
+              </div>
+            )}
+          </div>
         </div>
       </header>
 
@@ -314,6 +367,21 @@ export const TodoListPage: React.FC = () => {
         </div>
       )}
       <KeyboardShortcutsModal isOpen={isInfoModalOpen} onClose={() => setIsInfoModalOpen(false)} />
+      <SettingsModal
+        isOpen={isConfigModalOpen}
+        onClose={() => setIsConfigModalOpen(false)}
+        currentLimit={limit}
+        currentTheme={theme}
+        currentTileSize={tileSize}
+        currentShowUrl={showUrl}
+        onSave={handleConfigSave}
+        initialView={settingsStartView}
+      />
+      <DataImportExportModal
+        isOpen={isDataImportExportModalOpen}
+        onClose={() => setIsDataImportExportModalOpen(false)}
+        onImportSuccess={() => {}}
+      />
     </div>
   );
 };

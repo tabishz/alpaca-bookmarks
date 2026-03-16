@@ -1,7 +1,7 @@
 # Alpaca Bookmarks
 
 ## Version
-0.3.3-beta
+0.3.4-beta
 
 ## Introduction
 Alpaca Bookmarks is a self-hosted, multi-user bookmarking application built for speed and simplicity. It allows users to save, organize, and search their links with a clean, responsive interface.
@@ -200,7 +200,6 @@ The application is configured via environment variables. You can pass these to D
 | `GIN_MODE` | Set to `debug` for logs or `release` for production. | No | `release` |
 
 ### AWS S3 Backup Configuration (Optional)
-This feature is experimental and has not been tested thoroughly.
 To enable automated nightly backups, provide the following credentials.
 
 | Variable | Description | Example |
@@ -211,6 +210,18 @@ To enable automated nightly backups, provide the following credentials.
 | `S3_BUCKET_NAME` | The name of your S3 bucket | `my-bookmarks-backup` |
 | `S3_ENDPOINT_URL` | S3 endpoint URL for non-AWS | `https://s3.domain.com` |
 | `BACKUP_SCHEDULE` | Cron syntax for backup frequency | `0 0 * * *` (Midnight daily) |
+
+#### Backup Retention Settings (Optional)
+Control how many backups to keep in S3. Old backups are automatically deleted based on the following rules:
+- **Monthly backups**: Backups created on the 1st of each month
+- **Weekly backups**: Backups created on Sundays
+- **Daily backups**: All other backups
+
+| Variable | Description | Default |
+| :--- | :--- | :--- |
+| `BACKUP_RETENTION_DAILY` | Number of daily backups to keep | `7` |
+| `BACKUP_RETENTION_WEEKLY` | Number of weekly backups to keep | `4` |
+| `BACKUP_RETENTION_MONTHLY` | Number of monthly backups to keep | `12` |
 
 ---
 
