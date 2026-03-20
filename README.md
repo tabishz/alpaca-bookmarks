@@ -193,7 +193,7 @@ The application is configured via environment variables. You can pass these to D
 | Variable | Description | Required | Default |
 | :--- | :--- | :--- | :--- |
 | `JWT_SECRET` | A secure random string used to sign auth tokens. **Crucial for security.** | **YES** | *None (App will crash if missing)* |
-| `PORT` | Internal port the Go backend listens on. | No | `8080` |
+| `PORT` | Internal port the Go backend listens on. | No | `8081` |
 | `DB_PATH` | Location of the SQLite database file inside the container. | No | `/data/data.sqlite` |
 | `GIN_MODE` | Set to `debug` for logs or `release` for production. | No | `release` |
 
@@ -243,7 +243,7 @@ If you are developing features, you can run the frontend and backend separately.
 ```bash
 # Create a .env file
 echo "JWT_SECRET=dev-secret" > .env
-echo "PORT=8080" >> .env
+echo "PORT=8081" >> .env
 
 # Run the server
 go run cmd/server/main.go
