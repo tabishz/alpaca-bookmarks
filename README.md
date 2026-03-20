@@ -10,7 +10,7 @@ The application is distributed as a single Docker container that includes:
 * **Frontend:** React (Vite) + Tailwind CSS
 * **Backend:** Go (Gin Framework) + GORM
 * **Database:** SQLite (Embedded, zero-config)
-* **Server:** Caddy (Reverse Proxy & Static File Server)
+* **Server:** Go (Embedded Static File Serving)
 
 ## Features
 * **Multi-User Support:**
@@ -134,12 +134,11 @@ services:
     image: tabishz/alpaca-bookmarks:latest
     container_name: alpaca-bookmarks
     ports:
-      # Map host port 8081 to container port 8081 (which Caddy listens on)
+      # Map host port 8081 to container port 8081 (which the Go backend listens on)
       - "${ALPACA_PORT:-8081}:8081"
     volumes:
       # Use a named volume to persist the SQLite database
       - alpaca_data:/data
-      # - ./Caddyfile:/etc/caddy/Caddyfile
     restart: unless-stopped
     environment:
       - TZ=${TZ:-America/Edmonton}
@@ -154,9 +153,8 @@ services:
       - ICONS_COLLECTION=icons
       - ICONS_LOCATION=https://web.url/png
     healthcheck:
-      # This healthcheck pings the Go backend directly, which runs on port 8080 inside the container.
-      # It mirrors the healthcheck defined in the Dockerfile.
-      test: ["CMD", "curl", "--fail", "http://localhost:8080/api/v1/ping"]
+      # This healthcheck pings the Go backend directly on port 8081.
+      test: ["CMD", "curl", "--fail", "http://localhost:8081/api/v1/ping"]
       interval: 30s
       timeout: 3s
       retries: 3
