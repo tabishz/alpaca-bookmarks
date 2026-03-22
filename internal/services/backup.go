@@ -2,12 +2,15 @@ package services
 
 import (
 	"alpaca-bookmarks/internal/database"
+	"compress/gzip"
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -81,6 +84,14 @@ func listBackups(client *s3.Client, bucket string) ([]types.Object, error) {
 
 func parseBackupTimestamp(key string) (time.Time, error) {
 	var timestamp int64
+	// Try .sqlite.gz first
+	if strings.HasSuffix(key, ".gz") {
+		_, err := fmt.Sscanf(key, "backups/backup_%d.sqlite.gz", &timestamp)
+		if err == nil {
+			return time.Unix(timestamp, 0), nil
+		}
+	}
+	// Then try .sqlite
 	_, err := fmt.Sscanf(key, "backups/backup_%d.sqlite", &timestamp)
 	if err != nil {
 		return time.Time{}, err
@@ -100,9 +111,14 @@ func determineBackupsToKeep(backups []types.Object, config BackupRetentionConfig
 	now := time.Now()
 	keep := make(map[string]bool)
 
-	var dailyBackups []time.Time
-	var weeklyBackups []time.Time
-	var monthlyBackups []time.Time
+	type backupEntry struct {
+		Key       string
+		Timestamp time.Time
+	}
+
+	var dailyBackups []backupEntry
+	var weeklyBackups []backupEntry
+	var monthlyBackups []backupEntry
 
 	for _, obj := range backups {
 		timestamp, err := parseBackupTimestamp(*obj.Key)
@@ -115,40 +131,36 @@ func determineBackupsToKeep(backups []types.Object, config BackupRetentionConfig
 			continue
 		}
 
+		entry := backupEntry{Key: *obj.Key, Timestamp: timestamp}
+
 		if isFirstDayOfMonth(timestamp) {
-			monthlyBackups = append(monthlyBackups, timestamp)
+			monthlyBackups = append(monthlyBackups, entry)
 		} else if isFirstDayOfWeek(timestamp) {
-			weeklyBackups = append(weeklyBackups, timestamp)
+			weeklyBackups = append(weeklyBackups, entry)
 		} else {
-			dailyBackups = append(dailyBackups, timestamp)
+			dailyBackups = append(dailyBackups, entry)
 		}
 	}
 
 	sort.Slice(monthlyBackups, func(i, j int) bool {
-		return monthlyBackups[i].After(monthlyBackups[j])
+		return monthlyBackups[i].Timestamp.After(monthlyBackups[j].Timestamp)
 	})
 	for i := 0; i < len(monthlyBackups) && i < config.Monthly; i++ {
-		ts := monthlyBackups[i]
-		key := fmt.Sprintf("backups/backup_%d.sqlite", ts.Unix())
-		keep[key] = true
+		keep[monthlyBackups[i].Key] = true
 	}
 
 	sort.Slice(weeklyBackups, func(i, j int) bool {
-		return weeklyBackups[i].After(weeklyBackups[j])
+		return weeklyBackups[i].Timestamp.After(weeklyBackups[j].Timestamp)
 	})
 	for i := 0; i < len(weeklyBackups) && i < config.Weekly; i++ {
-		ts := weeklyBackups[i]
-		key := fmt.Sprintf("backups/backup_%d.sqlite", ts.Unix())
-		keep[key] = true
+		keep[weeklyBackups[i].Key] = true
 	}
 
 	sort.Slice(dailyBackups, func(i, j int) bool {
-		return dailyBackups[i].After(dailyBackups[j])
+		return dailyBackups[i].Timestamp.After(dailyBackups[j].Timestamp)
 	})
 	for i := 0; i < len(dailyBackups) && i < config.Daily; i++ {
-		ts := dailyBackups[i]
-		key := fmt.Sprintf("backups/backup_%d.sqlite", ts.Unix())
-		keep[key] = true
+		keep[dailyBackups[i].Key] = true
 	}
 
 	return keep
@@ -189,38 +201,37 @@ func cleanupOldBackups(bucket string) error {
 	return nil
 }
 
-/**
-// Run every day at midnight. Cron syntax: "0 0 * * *"
-export BACKUP_SCHEDULE = "0 0 * * *"
+func compressFile(src string, dst string) error {
+	inputFile, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer inputFile.Close()
 
-For AWS S3:
-export AWS_ACCESS_KEY_ID=your_key_id
-export AWS_SECRET_ACCESS_KEY=your_secret_key
-export AWS_REGION=us-east-1
-export S3_BUCKET_NAME=your-unique-bucket-name
+	outputFile, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer outputFile.Close()
 
-For Garage S3 (or other compatible services):
-export AWS_ACCESS_KEY_ID=your_key_id
-export AWS_SECRET_ACCESS_KEY=your_secret_key
-export AWS_REGION=garage
-export S3_BUCKET_NAME=your-unique-bucket-name
-export S3_ENDPOINT_URL=https://your-garage-s3-endpoint.com
+	gzipWriter := gzip.NewWriter(outputFile)
+	defer gzipWriter.Close()
 
-// Backup Retention Settings (optional - defaults shown):
-export BACKUP_RETENTION_DAILY=7      // number of daily backups to keep
-export BACKUP_RETENTION_WEEKLY=4     // number of weekly backups (1st of week) to keep
-export BACKUP_RETENTION_MONTHLY=12   // number of monthly backups (1st of month) to keep
-**/
+	_, err = io.Copy(gzipWriter, inputFile)
+	return err
+}
 
-// PerformBackup creates a hot backup of SQLite and uploads it to an S3-compatible object store
+// PerformBackup creates a hot backup of SQLite, compresses it, and uploads it to an S3-compatible object store
 func PerformBackup() error {
 	bucket := os.Getenv("S3_BUCKET_NAME")
 	if bucket == "" {
 		return fmt.Errorf("S3_BUCKET_NAME is not set, skipping backup")
 	}
 
-	backupFile := fmt.Sprintf("backup_%d.sqlite", time.Now().Unix())
+	timestamp := time.Now().Unix()
+	backupFile := fmt.Sprintf("backup_%d.sqlite", timestamp)
 	tempPath := "/tmp/" + backupFile
+	compressedPath := tempPath + ".gz"
 
 	err := database.DB.Exec("VACUUM INTO ?", tempPath).Error
 	if err != nil {
@@ -228,18 +239,24 @@ func PerformBackup() error {
 	}
 	defer os.Remove(tempPath)
 
+	log.Println("Compressing backup...")
+	if err := compressFile(tempPath, compressedPath); err != nil {
+		return fmt.Errorf("failed to compress backup: %v", err)
+	}
+	defer os.Remove(compressedPath)
+
 	client, err := getS3Client()
 	if err != nil {
 		return fmt.Errorf("failed to get S3 client: %v", err)
 	}
 
-	f, err := os.Open(tempPath)
+	f, err := os.Open(compressedPath)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
 
-	objectKey := fmt.Sprintf("backups/%s", backupFile)
+	objectKey := fmt.Sprintf("backups/%s.gz", backupFile)
 	_, err = client.PutObject(context.TODO(), &s3.PutObjectInput{
 		Bucket: aws.String(bucket),
 		Key:    aws.String(objectKey),
