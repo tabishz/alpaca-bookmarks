@@ -16,7 +16,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-const Version = "0.3.3-beta"
+const Version = "0.3.6-beta"
 
 // Helper function to create initial admin
 func createDefaultAdmin() {
@@ -71,6 +71,17 @@ func main() {
 	r.Use(gin.LoggerWithConfig(gin.LoggerConfig{
 		SkipPaths: []string{"/api/v1/ping"},
 	}))
+
+	// Serve Static Files (Frontend)
+	// We check for the existence of /app/dist to see if we're in the Docker container
+	distPath := "./frontend/dist"
+	if _, err := os.Stat("/app/dist"); err == nil {
+		distPath = "/app/dist"
+	}
+	r.Static("/assets", fmt.Sprintf("%s/assets", distPath))
+	r.StaticFile("/favicon.ico", fmt.Sprintf("%s/favicon.ico", distPath))
+	r.StaticFile("/manifest.json", fmt.Sprintf("%s/manifest.json", distPath))
+	r.StaticFile("/alpaca-bookmarks.png", fmt.Sprintf("%s/alpaca-bookmarks.png", distPath))
 
 	api := r.Group("/api/v1")
 	{
@@ -160,5 +171,22 @@ func main() {
 		}
 	}
 
-	r.Run(":8080")
+	// Fallback to index.html for SPA routing
+	r.NoRoute(func(c *gin.Context) {
+		path := c.Request.URL.Path
+		// If it's an API request or an asset request that reached here, it's a 404
+		if len(path) >= 4 && path[:4] == "/api" {
+			c.JSON(http.StatusNotFound, gin.H{"error": "API endpoint not found"})
+			return
+		}
+		
+		// For everything else, serve index.html (SPA routing)
+		c.File(fmt.Sprintf("%s/index.html", distPath))
+	})
+
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8081"
+	}
+	r.Run(":" + port)
 }

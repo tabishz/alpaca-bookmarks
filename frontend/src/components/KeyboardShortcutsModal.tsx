@@ -17,6 +17,7 @@ const favoritesShortcuts: Shortcut[] = [
   { key: 'd', description: 'Go to Todo Lists'},
   { key: 'k', description: 'Go to Kanban Boards'},
   { key: 'i', description: 'Toggle shortcuts list'},
+  { key: 'e', description: 'Toggle Edit Mode'},
 ];
 
 const todoShortcuts: Shortcut[] = [

@@ -3,26 +3,29 @@ services:
     build: .
     container_name: alpaca-bookmarks
     ports:
-      # Map host port 8081 to container port 8081 (which Caddy listens on)
+      # Map host port 8081 to container port 8081 (Go backend)
       - "${ALPACA_PORT:-8081}:8081"
     volumes:
       # Use a named volume to persist the SQLite database
       - data:/data
-      # - ./Caddyfile:/etc/caddy/Caddyfile
     restart: unless-stopped
     environment:
       - TZ=${TZ:-America/Edmonton}
-      # openssl rand -hex 32
-      - JWT_SECRET=${JWT_SECRET:=someSecret}
+      - JWT_SECRET=${JWT_SECRET:=someSecret} # openssl rand -hex 32
+      - ICONS_ENDPOINT=${ICONS_ENDPOINT} # pocketbase url
+      - ICONS_COLLECTION=${ICONS_COLLECTION} # pocketbase collection name
+      - ICONS_LOCATION=${ICONS_LOCATION} # url where icon files are
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
       - AWS_REGION=${AWS_REGION:=garage}
-      - S3_BUCKET_NAME=your-%{S3_BUCKET_NAME}
+      - S3_BUCKET_NAME=${S3_BUCKET_NAME}
       - S3_ENDPOINT_URL=${S3_ENDPOINT_URL}
+      - BACKUP_RETENTION_DAILY=${BACKUP_RETENTION_DAILY:-7}
+      - BACKUP_RETENTION_WEEKLY=${BACKUP_RETENTION_WEEKLY:-4}
+      - BACKUP_RETENTION_MONTHLY=${BACKUP_RETENTION_MONTHLY:-12}
     healthcheck:
-      # This healthcheck pings the Go backend directly, which runs on port 8080 inside the container.
-      # It mirrors the healthcheck defined in the Dockerfile.
-      test: ["CMD", "curl", "--fail", "http://localhost:8080/api/v1/ping"]
+      # This healthcheck pings the Go backend directly on port 8081.
+      test: ["CMD", "curl", "--fail", "http://localhost:8081/api/v1/ping"]
       interval: 30s
       timeout: 3s
       retries: 3

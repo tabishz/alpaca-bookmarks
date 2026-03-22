@@ -1,7 +1,7 @@
 # Alpaca Bookmarks
 
 ## Version
-0.3.3-beta
+0.3.6-beta
 
 ## Introduction
 Alpaca Bookmarks is a self-hosted, multi-user bookmarking application built for speed and simplicity. It allows users to save, organize, and search their links with a clean, responsive interface.
@@ -10,7 +10,7 @@ The application is distributed as a single Docker container that includes:
 * **Frontend:** React (Vite) + Tailwind CSS
 * **Backend:** Go (Gin Framework) + GORM
 * **Database:** SQLite (Embedded, zero-config)
-* **Server:** Caddy (Reverse Proxy & Static File Server)
+* **Server:** Go (Embedded Static File Serving)
 
 ## Features
 * **Multi-User Support:**
@@ -134,12 +134,11 @@ services:
     image: tabishz/alpaca-bookmarks:latest
     container_name: alpaca-bookmarks
     ports:
-      # Map host port 8081 to container port 8081 (which Caddy listens on)
+      # Map host port 8081 to container port 8081 (which the Go backend listens on)
       - "${ALPACA_PORT:-8081}:8081"
     volumes:
       # Use a named volume to persist the SQLite database
       - alpaca_data:/data
-      # - ./Caddyfile:/etc/caddy/Caddyfile
     restart: unless-stopped
     environment:
       - TZ=${TZ:-America/Edmonton}
@@ -154,9 +153,8 @@ services:
       - ICONS_COLLECTION=icons
       - ICONS_LOCATION=https://web.url/png
     healthcheck:
-      # This healthcheck pings the Go backend directly, which runs on port 8080 inside the container.
-      # It mirrors the healthcheck defined in the Dockerfile.
-      test: ["CMD", "curl", "--fail", "http://localhost:8080/api/v1/ping"]
+      # This healthcheck pings the Go backend directly on port 8081.
+      test: ["CMD", "curl", "--fail", "http://localhost:8081/api/v1/ping"]
       interval: 30s
       timeout: 3s
       retries: 3
@@ -195,12 +193,11 @@ The application is configured via environment variables. You can pass these to D
 | Variable | Description | Required | Default |
 | :--- | :--- | :--- | :--- |
 | `JWT_SECRET` | A secure random string used to sign auth tokens. **Crucial for security.** | **YES** | *None (App will crash if missing)* |
-| `PORT` | Internal port the Go backend listens on. | No | `8080` |
+| `PORT` | Internal port the Go backend listens on. | No | `8081` |
 | `DB_PATH` | Location of the SQLite database file inside the container. | No | `/data/data.sqlite` |
 | `GIN_MODE` | Set to `debug` for logs or `release` for production. | No | `release` |
 
 ### AWS S3 Backup Configuration (Optional)
-This feature is experimental and has not been tested thoroughly.
 To enable automated nightly backups, provide the following credentials.
 
 | Variable | Description | Example |
@@ -211,6 +208,18 @@ To enable automated nightly backups, provide the following credentials.
 | `S3_BUCKET_NAME` | The name of your S3 bucket | `my-bookmarks-backup` |
 | `S3_ENDPOINT_URL` | S3 endpoint URL for non-AWS | `https://s3.domain.com` |
 | `BACKUP_SCHEDULE` | Cron syntax for backup frequency | `0 0 * * *` (Midnight daily) |
+
+#### Backup Retention Settings (Optional)
+Control how many backups to keep in S3. Old backups are automatically deleted based on the following rules:
+- **Monthly backups**: Backups created on the 1st of each month
+- **Weekly backups**: Backups created on Sundays
+- **Daily backups**: All other backups
+
+| Variable | Description | Default |
+| :--- | :--- | :--- |
+| `BACKUP_RETENTION_DAILY` | Number of daily backups to keep | `7` |
+| `BACKUP_RETENTION_WEEKLY` | Number of weekly backups to keep | `4` |
+| `BACKUP_RETENTION_MONTHLY` | Number of monthly backups to keep | `12` |
 
 ---
 
@@ -234,7 +243,7 @@ If you are developing features, you can run the frontend and backend separately.
 ```bash
 # Create a .env file
 echo "JWT_SECRET=dev-secret" > .env
-echo "PORT=8080" >> .env
+echo "PORT=8081" >> .env
 
 # Run the server
 go run cmd/server/main.go
