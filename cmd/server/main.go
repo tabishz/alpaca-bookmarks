@@ -12,6 +12,7 @@ import (
 	"os"
 
 	"github.com/gin-gonic/gin"
+	_ "github.com/joho/godotenv/autoload"
 	"github.com/robfig/cron/v3"
 	"golang.org/x/crypto/bcrypt"
 )
