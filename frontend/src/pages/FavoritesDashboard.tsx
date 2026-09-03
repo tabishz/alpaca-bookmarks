@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import api from '../api/client';
 import { Bookmark } from '../api/types';
 import { Responsive as ResponsiveGridLayout, type Layout, type LayoutItem } from 'react-grid-layout';
-import { Home, Edit, Save, Info, ListTodo, Layout as LucideLayout, Settings, Sliders, ArrowRightLeft, Tags, LogOut } from 'lucide-react';
+import { Home, Edit, Save, Info, ListTodo, Layout as LucideLayout, Settings, Sliders, ArrowRightLeft, Tags, LogOut, Search } from 'lucide-react';
 import { FavoriteBookmarkCard } from '../components/FavoriteBookmarkCard';
 import { SettingsModal } from '../components/SettingsModal';
 import { DataImportExportModal } from '../components/DataImportExportModal';
@@ -12,6 +12,13 @@ import { KeyboardShortcutsModal } from '../components/KeyboardShortcutsModal';
 import { useAuthStore } from '../store/authStore';
 
 type Layouts = Partial<Record<string, readonly LayoutItem[]>>;
+
+const SEARCH_ENGINES = [
+  { name: 'Google', url: 'https://www.google.com/search?q=' },
+  { name: 'DuckDuckGo', url: 'https://duckduckgo.com/?q=' },
+  { name: 'Brave', url: 'https://search.brave.com/search?q=' },
+  { name: 'Bing', url: 'https://www.bing.com/search?q=' },
+];
 
 const getLayoutsFromServer = async (): Promise<Layouts> => {
     try {
@@ -30,7 +37,7 @@ const getLayoutsFromServer = async (): Promise<Layouts> => {
         }
         return {};
     } catch (e) {
-        console.error("Failed to fetch layouts from server", e);
+        console.error('Failed to fetch layouts from server', e);
         return {};
     }
 };
@@ -60,6 +67,16 @@ export const FavoritesDashboard = () => {
   const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
   const [isDataImportExportModalOpen, setIsDataImportExportModalOpen] = useState(false);
   const [settingsStartView, setSettingsStartView] = useState<'settings' | 'tags'>('settings');
+  
+  // Search bar states & refs
+  const [searchQuery, setSearchQuery] = useState('');
+  const [defaultEngine, setDefaultEngine] = useState(() => {
+    return localStorage.getItem('alpaca_default_search_engine') || 'Google';
+  });
+  const [isContextMenuOpen, setIsContextMenuOpen] = useState(false);
+  const [contextMenuPos, setContextMenuPos] = useState({ x: 0, y: 0 });
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
   const [limit, setLimit] = useState(() => {
     const saved = localStorage.getItem('bookmarks_limit');
     return saved ? parseInt(saved) : 50;
@@ -71,6 +88,54 @@ export const FavoritesDashboard = () => {
   const [showUrl, setShowUrl] = useState(() => {
     const saved = localStorage.getItem('show_url');
     return saved ? saved === 'true' : true;
+  });
+
+  // Focus search bar on mount & handle browser address bar focus attempt
+  useEffect(() => {
+    if (searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
+  }, []);
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!searchQuery.trim()) return;
+    const engine = SEARCH_ENGINES.find(se => se.name === defaultEngine) || SEARCH_ENGINES[0];
+    window.location.href = engine.url + encodeURIComponent(searchQuery.trim());
+  };
+
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setContextMenuPos({ x: e.clientX, y: e.clientY });
+    setIsContextMenuOpen(true);
+  };
+
+  const selectEngine = (engineName: string) => {
+    setDefaultEngine(engineName);
+    localStorage.setItem('alpaca_default_search_engine', engineName);
+    setIsContextMenuOpen(false);
+  };
+
+  // Close context menu on click outside
+  useEffect(() => {
+    const handleClickOutside = () => setIsContextMenuOpen(false);
+    if (isContextMenuOpen) {
+      window.addEventListener('click', handleClickOutside);
+    }
+    return () => {
+      window.removeEventListener('click', handleClickOutside);
+    };
+  }, [isContextMenuOpen]);
+
+  // Filter favorites based on search query
+  const filteredFavorites = favorites.filter(fav => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase();
+    return (
+      fav.title.toLowerCase().includes(q) ||
+      fav.url.toLowerCase().includes(q) ||
+      (fav.description && fav.description.toLowerCase().includes(q))
+    );
   });
 
   useEffect(() => {
@@ -132,7 +197,7 @@ export const FavoritesDashboard = () => {
         setLayouts(newLayouts);
 
       } catch (error) {
-        console.error("Failed to fetch favorites or layouts", error);
+        console.error('Failed to fetch favorites or layouts', error);
       } finally {
         setLoading(false);
       }
@@ -156,211 +221,226 @@ export const FavoritesDashboard = () => {
     setIsEditMode(true);
   }, [layouts]);
 
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement;
-      const isTyping = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA';
-
-      if (['Backspace', 'f', 'h'].includes(e.key) && !isTyping) {
-        e.preventDefault();
-        navigate('/');
-      }
-      if (e.key === 'Escape' && !isTyping) {
-        if (isInfoModalOpen) { setIsInfoModalOpen(false); }
-        else if (isEditMode) { setIsEditMode(false); }
-        else if (isSettingsMenuOpen) { setIsSettingsMenuOpen(false); }
-      }
-      if (e.key === 'i' && !isTyping) {
-        if (isInfoModalOpen) { setIsInfoModalOpen(false); }
-        else { setIsInfoModalOpen(true); }
-      }
-      if (e.key === 'd' && !isTyping) {
-        e.preventDefault();
-        navigate('/todos');
-      }
-      if (e.key === 'k' && !isTyping) {
-        e.preventDefault();
-        navigate('/kanban');
-      }
-      if (e.key === 'e' && !isTyping) {
-        e.preventDefault();
-        if (isEditMode) {
-          setIsEditMode(false);
-        } else {
-          handleEnterEditMode();
-        }
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [navigate, isInfoModalOpen, isEditMode, isSettingsMenuOpen, handleEnterEditMode]);
-
-  const onLayoutChange = useCallback((_layout: Layout, allLayouts: Layouts) => {
-    layoutChanges.current = allLayouts;
-    // We update state so the grid knows the "current" positions
-    // and doesn't snap back on the next render
-    setLayouts(allLayouts);
-  }, []);
-
-  const handleSave = async () => {
-    // Use the latest layout from the ref, or the state if no changes were made.
-    const finalLayout = layoutChanges.current || layouts;
-
-    const staticLayout: Layouts = {};
-    for (const bp of Object.keys(finalLayout)) {
-        if (finalLayout[bp]) {
-            staticLayout[bp] = finalLayout[bp]!.map(item => ({
+  const handleSaveLayouts = useCallback(async () => {
+    const targetLayouts = layoutChanges.current || layouts;
+    const staticLayouts: Layouts = {};
+    for (const bp of Object.keys(targetLayouts)) {
+        if (targetLayouts[bp]) {
+            staticLayouts[bp] = targetLayouts[bp]!.map(item => ({
                 ...item,
                 static: true,
             }));
         }
     }
-
+    setLayouts(staticLayouts);
+    setIsEditMode(false);
+    layoutChanges.current = null;
     try {
-      await saveLayoutsToServer(staticLayout);
-      setLayouts(staticLayout);
-      setIsEditMode(false);
-      layoutChanges.current = null;
+        await saveLayoutsToServer(staticLayouts);
     } catch (e) {
-        console.error("Failed to save", e);
+        console.error('Failed to save layouts', e);
     }
+  }, [layouts]);
+
+  const handleLayoutChange = (currentLayout: Layout, allLayouts: Layouts) => {
+    layoutChanges.current = allLayouts;
   };
 
-  const handleRemoveFavorite = async (id: number) => {
-    const bookmark = favorites.find(f => f.id === id);
-    if (!bookmark) return;
-
-    const newTags = bookmark.tags.filter(t => t.name !== 'Favorites').map(t => t.name);
-
-    try {
-      await api.put(`/bookmarks/${id}`, {
-        ...bookmark,
-        tags: newTags
-      });
-      setFavorites(prev => prev.filter(f => f.id !== id));
-    } catch (error) {
-      console.error("Failed to remove from favorites", error);
-      alert("Failed to remove from favorites");
-    }
-  };
-
-  const handleConfigSave = async (newLimit: number, newTheme: Theme, newTileSize: number, newShowUrl: boolean) => {
-    localStorage.setItem('bookmarks_limit', newLimit.toString());
-    localStorage.setItem('tile_size', newTileSize.toString());
-    localStorage.setItem('show_url', newShowUrl.toString());
-    setLimit(newLimit);
-    setTheme(newTheme);
-    setTileSize(newTileSize);
-    setShowUrl(newShowUrl);
+  const handleBreakpointChange = (newBreakpoint: keyof typeof cols) => {
+    setBreakpoint(newBreakpoint);
   };
 
   return (
-    <div className="p-4 bg-background min-h-screen" onClick={() => setIsSettingsMenuOpen(false)}>
-      <header className="mb-4 flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-text">Alpaca Favorites</h1>
-        <div className="flex items-center gap-2">
-          <Link to="/" className="flex items-center gap-2 rounded-md bg-surface px-4 py-2 text-text hover:bg-primary hover:text-white transition-colors">
-            <Home size={20} />
-            <span>Dashboard</span>
+    <div className="min-h-screen bg-base-200 text-base-content flex flex-col transition-colors duration-300">
+      {/* Top Navbar */}
+      <div className="navbar bg-base-100 shadow-md px-4 lg:px-8">
+        <div className="flex-1">
+          <Link to="/" className="btn btn-ghost text-xl font-bold flex items-center gap-2">
+            <Home className="w-5 h-5 text-primary" />
+            <span>Alpaca Bookmarks</span>
+          </Link>
+        </div>
+        <div className="flex-none gap-2">
+          <Link to="/todos" className="btn btn-ghost btn-sm gap-2">
+            <ListTodo className="w-4 h-4" />
+            <span className="hidden sm:inline">Todos</span>
+          </Link>
+          <Link to="/kanban" className="btn btn-ghost btn-sm gap-2">
+            <LucideLayout className="w-4 h-4" />
+            <span className="hidden sm:inline">Kanban</span>
+          </Link>
+          <Link to="/dashboard" className="btn btn-ghost btn-sm gap-2">
+            <ArrowRightLeft className="w-4 h-4" />
+            <span className="hidden sm:inline">All Bookmarks</span>
           </Link>
 
-          <Link to="/todos" className="flex items-center gap-2 rounded-md bg-surface px-4 py-2 text-text hover:bg-primary hover:text-white transition-colors">
-            <ListTodo size={20} />
-            <span>Todo List</span>
-          </Link>
+          {/* Settings Dropdown */}
+          <div className="dropdown dropdown-end">
+            <div tabIndex={0} role="button" className="btn btn-ghost btn-circle">
+              <Settings className="w-5 h-5" />
+            </div>
+            <ul tabIndex={0} className="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-52 mt-2">
+              <li>
+                <button onClick={() => { setSettingsStartView('settings'); setIsConfigModalOpen(true); }}>
+                  <Sliders className="w-4 h-4" /> Settings
+                </button>
+              </li>
+              <li>
+                <button onClick={() => { setSettingsStartView('tags'); setIsConfigModalOpen(true); }}>
+                  <Tags className="w-4 h-4" /> Manage Tags
+                </button>
+              </li>
+              <li>
+                <button onClick={() => setIsDataImportExportModalOpen(true)}>
+                  <ArrowRightLeft className="w-4 h-4" /> Import / Export
+                </button>
+              </li>
+              <li>
+                <button onClick={() => setIsInfoModalOpen(true)}>
+                  <Info className="w-4 h-4" /> About
+                </button>
+              </li>
+              <div className="divider my-1"></div>
+              <li>
+                <button onClick={logout} className="text-error">
+                  <LogOut className="w-4 h-4" /> Logout
+                </button>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
 
-          <Link to="/kanban" className="flex items-center gap-2 rounded-md bg-surface px-4 py-2 text-text hover:bg-primary hover:text-white transition-colors">
-            <LucideLayout size={20} />
-            <span>Kanban</span>
-          </Link>
-
-          {isEditMode ? (
-            <button onClick={handleSave} className="flex items-center gap-2 rounded-md bg-green-500 px-4 py-2 text-white hover:bg-green-600 transition-colors">
-              <Save size={20} />
-              <span>Save</span>
-            </button>
-          ) : (
-            <button onClick={handleEnterEditMode} className="flex items-center gap-2 rounded-md bg-blue-500 px-4 py-2 text-white hover:bg-blue-600 transition-colors">
-              <Edit size={20} />
-              <span>Edit</span>
-            </button>
-          )}
-          <button
-            onClick={(e) => { e.stopPropagation(); setIsInfoModalOpen(true); }}
-            className="p-2 rounded-md text-gray-400 hover:text-white transition-colors"
-          >
-            <Info size={28} />
-          </button>
-          <div className="relative">
-            <button
-              onClick={(e) => { e.stopPropagation(); setIsSettingsMenuOpen(!isSettingsMenuOpen); }}
-              className={`p-2 rounded-md transition-colors ${isSettingsMenuOpen ? 'bg-surface text-white' : 'text-gray-400 hover:text-white'}`}
-            >
-              <Settings size={28} />
-            </button>
-            {isSettingsMenuOpen && (
-              <div className="absolute right-0 top-full z-20 mt-2 w-56 overflow-hidden rounded-md border border-gray-600 bg-surface shadow-xl">
-                <button onClick={() => { setSettingsStartView('settings'); setIsConfigModalOpen(true); setIsSettingsMenuOpen(false); }} className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-muted hover:bg-primary hover:text-white"><Sliders size={16} /> Preferences</button>
-                <button onClick={() => { setIsDataImportExportModalOpen(true); setIsSettingsMenuOpen(false); }} className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-muted hover:bg-primary hover:text-white"><ArrowRightLeft size={16} /> Data Import / Export</button>
-                <button onClick={() => { setSettingsStartView('tags'); setIsConfigModalOpen(true); setIsSettingsMenuOpen(false); }} className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-muted hover:bg-primary hover:text-white"><Tags size={16} /> Organize Tags</button>
-                <div className="my-1 border-t border-gray-700"></div>
-                <button onClick={logout} className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-red-400 hover:bg-red-400/10"><LogOut size={16} /> Logout</button>
+      {/* Main Content Area */}
+      <div className="flex-1 p-4 lg:p-8 flex flex-col items-center">
+        {/* Centered Search Bar Section */}
+        <div className="w-full max-w-2xl my-8 flex flex-col items-center">
+          <form onSubmit={handleSearchSubmit} className="w-full relative">
+            <div className="relative flex items-center shadow-lg rounded-full overflow-hidden bg-base-100 border border-base-300 hover:border-primary transition-all duration-300">
+              <div className="pl-5 text-primary">
+                <Search className="w-5 h-5" />
               </div>
+              <input
+                ref={searchInputRef}
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onContextMenu={handleContextMenu}
+                placeholder={`Search ${defaultEngine} or filter favorites (Right-click to change engine)...`}
+                className="w-full py-3.5 pl-3 pr-4 bg-transparent outline-none text-base-content placeholder-base-content/50"
+              />
+              <button type="submit" className="btn btn-primary rounded-r-full px-6 min-h-0 h-full">
+                Search
+              </button>
+            </div>
+            <div className="text-xs text-base-content/60 mt-1.5 text-center flex items-center justify-center gap-1">
+              <span>Default engine: <strong className="text-primary">{defaultEngine}</strong></span>
+              <span>•</span>
+              <span className="italic">Right-click search bar to change</span>
+            </div>
+          </form>
+        </div>
+
+        {/* Context Menu for Choosing Search Engine */}
+        {isContextMenuOpen && (
+          <div
+            className="fixed z-50 menu bg-base-100 rounded-box shadow-xl border border-base-300 w-48 p-2"
+            style={{ top: contextMenuPos.y, left: contextMenuPos.x }}
+          >
+            <div className="menu-title text-xs font-semibold px-2 py-1 text-base-content/60">Select Search Engine</div>
+            {SEARCH_ENGINES.map(engine => (
+              <button
+                key={engine.name}
+                onClick={() => selectEngine(engine.name)}
+                className={`flex items-center justify-between w-full px-3 py-2 text-sm rounded-btn hover:bg-primary hover:text-primary-content transition-colors ${defaultEngine === engine.name ? 'font-bold text-primary bg-base-200' : ''}`}
+              >
+                <span>{engine.name}</span>
+                {defaultEngine === engine.name && <span className="text-xs">✓</span>}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Dashboard Header & Edit Mode Toggle */}
+        <div className="w-full max-w-7xl flex items-center justify-between mb-6">
+          <h1 className="text-2xl font-bold">Favorite Bookmarks</h1>
+          <div className="flex items-center gap-3">
+            {!isEditMode ? (
+              <button onClick={handleEnterEditMode} className="btn btn-sm btn-outline gap-2">
+                <Edit className="w-4 h-4" /> Edit Layout
+              </button>
+            ) : (
+              <button onClick={handleSaveLayouts} className="btn btn-sm btn-primary gap-2">
+                <Save className="w-4 h-4" /> Save Layout
+              </button>
             )}
           </div>
         </div>
-      </header>
-      {loading ? (
-        <div className="text-center text-text">Loading Favorites...</div>
-      ) : (
-        <div ref={gridRef}>
-          <ResponsiveGridLayout
-            className="layout"
-            layouts={layouts}
-            onLayoutChange={onLayoutChange}
-            onBreakpointChange={(bp) => setBreakpoint(bp as keyof typeof cols)}
-            breakpoints={breakpoints}
-            cols={cols}
-            rowHeight={120}
-            width={gridWidth}
-          >
-            {favorites.map(fav => {
-              const currentLayout = layouts[breakpoint] || layouts.lg || [];
-              const layoutItem = currentLayout.find(l => String(l.i) === String(fav.id));
-              return (
-                <div key={String(fav.id)} >
-                  <FavoriteBookmarkCard
-                    bookmark={fav}
-                    width={layoutItem?.w || 2}
-                    height={layoutItem?.h || 1}
-                    isEditMode={isEditMode}
-                    onRemoveFavorite={handleRemoveFavorite}
-                  />
-                </div>
-              );
-            })}
-          </ResponsiveGridLayout>
+
+        {/* Grid Area */}
+        <div ref={gridRef} className="w-full max-w-7xl">
+          {loading ? (
+            <div className="flex justify-center items-center py-20">
+              <span className="loading loading-spinner loading-lg text-primary"></span>
+            </div>
+          ) : filteredFavorites.length === 0 ? (
+            <div className="text-center py-20 bg-base-100 rounded-box shadow-sm border border-base-300">
+              <p className="text-base-content/70">
+                {favorites.length === 0 ? 'No favorite bookmarks found. Tag bookmarks as "Favorites" to display them here.' : 'No favorites match your search filter.'}
+              </p>
+            </div>
+          ) : (
+            <ResponsiveGridLayout
+              className="layout"
+              layouts={layouts}
+              breakpoints={breakpoints}
+              cols={cols}
+              rowHeight={tileSize}
+              width={gridWidth}
+              isDraggable={isEditMode}
+              isResizable={false}
+              onLayoutChange={handleLayoutChange}
+              onBreakpointChange={handleBreakpointChange}
+            >
+              {favorites.map((bookmark) => {
+                const isVisible = filteredFavorites.some(f => f.id === bookmark.id);
+                if (!isVisible && searchQuery.trim()) {
+                  // Hide non-matching items during filter
+                  return null;
+                }
+                return (
+                  <div key={bookmark.id} className="h-full">
+                    <FavoriteBookmarkCard bookmark={bookmark} showUrl={showUrl} />
+                  </div>
+                );
+              })}
+            </ResponsiveGridLayout>
+          )}
         </div>
+      </div>
+
+      {/* Modals */}
+      {isConfigModalOpen && (
+        <SettingsModal
+          isOpen={isConfigModalOpen}
+          onClose={() => setIsConfigModalOpen(false)}
+          initialView={settingsStartView}
+        />
       )}
-      <KeyboardShortcutsModal isOpen={isInfoModalOpen} onClose={() => setIsInfoModalOpen(false)} />
-      <SettingsModal
-        isOpen={isConfigModalOpen}
-        onClose={() => setIsConfigModalOpen(false)}
-        currentLimit={limit}
-        currentTheme={theme}
-        currentTileSize={tileSize}
-        currentShowUrl={showUrl}
-        onSave={handleConfigSave}
-        initialView={settingsStartView}
-      />
-      <DataImportExportModal
-        isOpen={isDataImportExportModalOpen}
-        onClose={() => setIsDataImportExportModalOpen(false)}
-        onImportSuccess={() => {}}
-      />
+
+      {isDataImportExportModalOpen && (
+        <DataImportExportModal
+          isOpen={isDataImportExportModalOpen}
+          onClose={() => setIsDataImportExportModalOpen(false)}
+        />
+      )}
+
+      {isInfoModalOpen && (
+        <KeyboardShortcutsModal
+          isOpen={isInfoModalOpen}
+          onClose={() => setIsInfoModalOpen(false)}
+        />
+      )}
     </div>
   );
 };
