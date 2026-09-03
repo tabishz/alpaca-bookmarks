@@ -53,7 +53,7 @@ export const FavoritesDashboard = () => {
   useTheme();
   const navigate = useNavigate();
   const { theme, setTheme } = useTheme();
-  const { logout } = useAuthStore();
+  const { logout, user } = useAuthStore();
   const [favorites, setFavorites] = useState<Bookmark[]>([]);
   const [loading, setLoading] = useState(true);
   const [layouts, setLayouts] = useState<Layouts>({});
@@ -90,11 +90,41 @@ export const FavoritesDashboard = () => {
     return saved ? saved === 'true' : true;
   });
 
-  // Focus search bar on mount & handle browser address bar focus attempt
+  // Focus search bar on mount
   useEffect(() => {
     if (searchInputRef.current) {
       searchInputRef.current.focus();
     }
+  }, []);
+
+  // Global keyboard shortcuts (e.g. / or Esc)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // If user is typing in an input/textarea, ignore shortcut unless it is Escape
+      const target = e.target as HTMLElement;
+      const isInput = target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA');
+
+      if (e.key === '/' && !isInput) {
+        e.preventDefault();
+        if (searchInputRef.current) {
+          searchInputRef.current.focus();
+        }
+      } else if (e.key === 'Escape') {
+        setIsSettingsMenuOpen(false);
+        setIsContextMenuOpen(false);
+        setIsInfoModalOpen(false);
+        setIsConfigModalOpen(false);
+        setIsDataImportExportModalOpen(false);
+        if (document.activeElement instanceof HTMLElement) {
+          document.activeElement.blur();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
   }, []);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
@@ -253,25 +283,25 @@ export const FavoritesDashboard = () => {
   return (
     <div className="min-h-screen bg-base-200 text-base-content flex flex-col transition-colors duration-300">
       {/* Top Navbar */}
-      <div className="navbar bg-base-100 shadow-md px-4 lg:px-8">
-        <div className="flex-1">
+      <div className="navbar bg-base-100 shadow-md px-4 lg:px-8 flex items-center justify-between">
+        <div className="flex-1 flex items-center">
           <Link to="/" className="btn btn-ghost text-xl font-bold flex items-center gap-2">
             <Home className="w-5 h-5 text-primary" />
             <span>Alpaca Bookmarks</span>
           </Link>
         </div>
-        <div className="flex-none gap-2">
-          <Link to="/todos" className="btn btn-ghost btn-sm gap-2">
+        <div className="flex-none flex items-center gap-2">
+          <Link to="/todos" className="btn btn-ghost btn-sm gap-2 hidden sm:flex items-center">
             <ListTodo className="w-4 h-4" />
-            <span className="hidden sm:inline">Todos</span>
+            <span>Todos</span>
           </Link>
-          <Link to="/kanban" className="btn btn-ghost btn-sm gap-2">
+          <Link to="/kanban" className="btn btn-ghost btn-sm gap-2 hidden sm:flex items-center">
             <LucideLayout className="w-4 h-4" />
-            <span className="hidden sm:inline">Kanban</span>
+            <span>Kanban</span>
           </Link>
-          <Link to="/dashboard" className="btn btn-ghost btn-sm gap-2">
+          <Link to="/dashboard" className="btn btn-ghost btn-sm gap-2 hidden sm:flex items-center">
             <ArrowRightLeft className="w-4 h-4" />
-            <span className="hidden sm:inline">All Bookmarks</span>
+            <span>All Bookmarks</span>
           </Link>
 
           {/* Settings Dropdown */}
