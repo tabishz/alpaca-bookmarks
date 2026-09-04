@@ -3,15 +3,21 @@ import { Link, useNavigate } from 'react-router-dom';
 import api from '../api/client';
 import { Bookmark } from '../api/types';
 import { Responsive as ResponsiveGridLayout, type Layout, type LayoutItem } from 'react-grid-layout';
-import { Home, Edit, Save, Info, ListTodo, Layout as LucideLayout, Settings, Sliders, ArrowRightLeft, Tags, LogOut } from 'lucide-react';
+import { Home, Edit, Save, Info, ListTodo, Layout as LucideLayout, Search } from 'lucide-react';
 import { FavoriteBookmarkCard } from '../components/FavoriteBookmarkCard';
-import { SettingsModal } from '../components/SettingsModal';
-import { DataImportExportModal } from '../components/DataImportExportModal';
-import { useTheme, Theme } from '../hooks/useTheme';
+import 'react-grid-layout/css/styles.css';
+import 'react-resizable/css/styles.css';
+import { useTheme } from '../hooks/useTheme';
 import { KeyboardShortcutsModal } from '../components/KeyboardShortcutsModal';
-import { useAuthStore } from '../store/authStore';
 
 type Layouts = Partial<Record<string, readonly LayoutItem[]>>;
+
+const SEARCH_ENGINES = [
+  { name: 'Google', url: 'https://www.google.com/search?q=' },
+  { name: 'DuckDuckGo', url: 'https://duckduckgo.com/?q=' },
+  { name: 'Brave', url: 'https://search.brave.com/search?q=' },
+  { name: 'Bing', url: 'https://www.bing.com/search?q=' },
+];
 
 const getLayoutsFromServer = async (): Promise<Layouts> => {
     try {
@@ -30,7 +36,7 @@ const getLayoutsFromServer = async (): Promise<Layouts> => {
         }
         return {};
     } catch (e) {
-        console.error("Failed to fetch layouts from server", e);
+        console.error('Failed to fetch layouts from server', e);
         return {};
     }
 };
@@ -45,8 +51,6 @@ const cols = { lg: 12, md: 10, sm: 6, xs: 4, xxs: 1 };
 export const FavoritesDashboard = () => {
   useTheme();
   const navigate = useNavigate();
-  const { theme, setTheme } = useTheme();
-  const { logout } = useAuthStore();
   const [favorites, setFavorites] = useState<Bookmark[]>([]);
   const [loading, setLoading] = useState(true);
   const [layouts, setLayouts] = useState<Layouts>({});
@@ -56,22 +60,33 @@ export const FavoritesDashboard = () => {
   const [gridWidth, setGridWidth] = useState(1200);
   const layoutChanges = useRef<Layouts | null>(null);
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
-  const [isSettingsMenuOpen, setIsSettingsMenuOpen] = useState(false);
-  const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
-  const [isDataImportExportModalOpen, setIsDataImportExportModalOpen] = useState(false);
-  const [settingsStartView, setSettingsStartView] = useState<'settings' | 'tags'>('settings');
-  const [limit, setLimit] = useState(() => {
-    const saved = localStorage.getItem('bookmarks_limit');
-    return saved ? parseInt(saved) : 50;
+
+  // Search bar states & refs
+  const [searchQuery, setSearchQuery] = useState('');
+  const [defaultEngine, setDefaultEngine] = useState(() => {
+    return localStorage.getItem('alpaca_default_search_engine') || 'Google';
   });
-  const [tileSize, setTileSize] = useState(() => {
-    const saved = localStorage.getItem('tile_size');
-    return saved ? parseInt(saved) : 280;
-  });
-  const [showUrl, setShowUrl] = useState(() => {
-    const saved = localStorage.getItem('show_url');
-    return saved ? saved === 'true' : true;
-  });
+  const [isContextMenuOpen, setIsContextMenuOpen] = useState(false);
+  const [contextMenuPos, setContextMenuPos] = useState({ x: 0, y: 0 });
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Auto-focus search input on mount
+  useEffect(() => {
+    if (searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
+  }, []);
+
+  // Close context menu on outside click
+  useEffect(() => {
+    const handleClickOutside = () => setIsContextMenuOpen(false);
+    if (isContextMenuOpen) {
+      window.addEventListener('click', handleClickOutside);
+    }
+    return () => {
+      window.removeEventListener('click', handleClickOutside);
+    };
+  }, [isContextMenuOpen]);
 
   useEffect(() => {
     const grid = gridRef.current;
@@ -141,21 +156,6 @@ export const FavoritesDashboard = () => {
     fetchFavoritesAndLayouts();
   }, []);
 
-  const handleEnterEditMode = useCallback(() => {
-    layoutChanges.current = null;
-    const editableLayout: Layouts = {};
-    for (const bp of Object.keys(layouts)) {
-        if (layouts[bp]) {
-            editableLayout[bp] = layouts[bp]!.map(item => ({
-                ...item,
-                static: false,
-            }));
-        }
-    }
-    setLayouts(editableLayout);
-    setIsEditMode(true);
-  }, [layouts]);
-
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
@@ -165,10 +165,12 @@ export const FavoritesDashboard = () => {
         e.preventDefault();
         navigate('/');
       }
-      if (e.key === 'Escape' && !isTyping) {
+      if (e.key === 'Escape') {
         if (isInfoModalOpen) { setIsInfoModalOpen(false); }
-        else if (isEditMode) { setIsEditMode(false); }
-        else if (isSettingsMenuOpen) { setIsSettingsMenuOpen(false); }
+        if (isContextMenuOpen) { setIsContextMenuOpen(false); }
+        if (document.activeElement instanceof HTMLElement) {
+          document.activeElement.blur();
+        }
       }
       if (e.key === 'i' && !isTyping) {
         if (isInfoModalOpen) { setIsInfoModalOpen(false); }
@@ -182,12 +184,10 @@ export const FavoritesDashboard = () => {
         e.preventDefault();
         navigate('/kanban');
       }
-      if (e.key === 'e' && !isTyping) {
+      if (e.key === '/' && !isTyping) {
         e.preventDefault();
-        if (isEditMode) {
-          setIsEditMode(false);
-        } else {
-          handleEnterEditMode();
+        if (searchInputRef.current) {
+          searchInputRef.current.focus();
         }
       }
     };
@@ -196,14 +196,27 @@ export const FavoritesDashboard = () => {
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [navigate, isInfoModalOpen, isEditMode, isSettingsMenuOpen, handleEnterEditMode]);
+  }, [navigate, isInfoModalOpen, isContextMenuOpen]);
 
   const onLayoutChange = useCallback((_layout: Layout, allLayouts: Layouts) => {
     layoutChanges.current = allLayouts;
-    // We update state so the grid knows the "current" positions
-    // and doesn't snap back on the next render
     setLayouts(allLayouts);
   }, []);
+
+  const handleEnterEditMode = () => {
+    layoutChanges.current = null;
+    const editableLayout: Layouts = {};
+    for (const bp of Object.keys(layouts)) {
+        if (layouts[bp]) {
+            editableLayout[bp] = layouts[bp]!.map(item => ({
+                ...item,
+                static: false,
+            }));
+        }
+    }
+    setLayouts(editableLayout);
+    setIsEditMode(true);
+  };
 
   const handleSave = async () => {
     // Use the latest layout from the ref, or the state if no changes were made.
@@ -247,18 +260,38 @@ export const FavoritesDashboard = () => {
     }
   };
 
-  const handleConfigSave = async (newLimit: number, newTheme: Theme, newTileSize: number, newShowUrl: boolean) => {
-    localStorage.setItem('bookmarks_limit', newLimit.toString());
-    localStorage.setItem('tile_size', newTileSize.toString());
-    localStorage.setItem('show_url', newShowUrl.toString());
-    setLimit(newLimit);
-    setTheme(newTheme);
-    setTileSize(newTileSize);
-    setShowUrl(newShowUrl);
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!searchQuery.trim()) return;
+    const engine = SEARCH_ENGINES.find(se => se.name === defaultEngine) || SEARCH_ENGINES[0];
+    window.location.href = engine.url + encodeURIComponent(searchQuery.trim());
   };
 
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setContextMenuPos({ x: e.clientX, y: e.clientY });
+    setIsContextMenuOpen(true);
+  };
+
+  const selectEngine = (engineName: string) => {
+    setDefaultEngine(engineName);
+    localStorage.setItem('alpaca_default_search_engine', engineName);
+    setIsContextMenuOpen(false);
+  };
+
+  // Filter favorites based on search query
+  const filteredFavorites = favorites.filter(fav => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase();
+    return (
+      fav.title.toLowerCase().includes(q) ||
+      fav.url.toLowerCase().includes(q) ||
+      (fav.description && fav.description.toLowerCase().includes(q))
+    );
+  });
+
   return (
-    <div className="p-4 bg-background min-h-screen" onClick={() => setIsSettingsMenuOpen(false)}>
+    <div className="p-4 bg-background min-h-screen">
       <header className="mb-4 flex items-center justify-between">
         <h1 className="text-2xl font-bold text-text">Alpaca Favorites</h1>
         <div className="flex items-center gap-2">
@@ -288,33 +321,79 @@ export const FavoritesDashboard = () => {
               <span>Edit</span>
             </button>
           )}
-          <button
-            onClick={(e) => { e.stopPropagation(); setIsInfoModalOpen(true); }}
-            className="p-2 rounded-md text-gray-400 hover:text-white transition-colors"
-          >
-            <Info size={28} />
-          </button>
           <div className="relative">
             <button
-              onClick={(e) => { e.stopPropagation(); setIsSettingsMenuOpen(!isSettingsMenuOpen); }}
-              className={`p-2 rounded-md transition-colors ${isSettingsMenuOpen ? 'bg-surface text-white' : 'text-gray-400 hover:text-white'}`}
+              onClick={(e) => { e.stopPropagation(); setIsInfoModalOpen(true); }}
+              className="p-2 rounded-md text-gray-400 hover:text-white transition-colors"
             >
-              <Settings size={28} />
+              <Info size={28} />
             </button>
-            {isSettingsMenuOpen && (
-              <div className="absolute right-0 top-full z-20 mt-2 w-56 overflow-hidden rounded-md border border-gray-600 bg-surface shadow-xl">
-                <button onClick={() => { setSettingsStartView('settings'); setIsConfigModalOpen(true); setIsSettingsMenuOpen(false); }} className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-muted hover:bg-primary hover:text-white"><Sliders size={16} /> Preferences</button>
-                <button onClick={() => { setIsDataImportExportModalOpen(true); setIsSettingsMenuOpen(false); }} className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-muted hover:bg-primary hover:text-white"><ArrowRightLeft size={16} /> Data Import / Export</button>
-                <button onClick={() => { setSettingsStartView('tags'); setIsConfigModalOpen(true); setIsSettingsMenuOpen(false); }} className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-muted hover:bg-primary hover:text-white"><Tags size={16} /> Organize Tags</button>
-                <div className="my-1 border-t border-gray-700"></div>
-                <button onClick={logout} className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-red-400 hover:bg-red-400/10"><LogOut size={16} /> Logout</button>
-              </div>
-            )}
           </div>
         </div>
       </header>
+
+      {/* Centered Search Bar Section */}
+      <div className="w-full max-w-2xl mx-auto my-6 flex flex-col items-center">
+        <form onSubmit={handleSearchSubmit} className="w-full relative">
+          <div className="relative flex items-center shadow-lg rounded-full overflow-hidden bg-surface border border-gray-700 hover:border-primary transition-all duration-300">
+            <div className="pl-5 text-primary">
+              <Search size={20} />
+            </div>
+            <input
+              ref={searchInputRef}
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onContextMenu={handleContextMenu}
+              placeholder={`Search ${defaultEngine} or filter favorites (Right-click to change engine)...`}
+              className="w-full py-3.5 pl-3 pr-4 bg-transparent outline-none text-text placeholder-gray-400"
+            />
+            <button
+              type="submit"
+              className="bg-primary text-white font-semibold px-6 py-3.5 hover:opacity-90 transition-opacity rounded-r-full"
+            >
+              Search
+            </button>
+          </div>
+          <div className="text-xs text-gray-400 mt-1.5 text-center flex items-center justify-center gap-1">
+            <span>Default engine: <strong className="text-primary">{defaultEngine}</strong></span>
+            <span>•</span>
+            <span className="italic">Right-click search bar to change</span>
+          </div>
+        </form>
+      </div>
+
+      {/* Context Menu for Choosing Search Engine */}
+      {isContextMenuOpen && (
+        <div
+          className="fixed z-50 bg-surface border border-gray-700 rounded-lg shadow-2xl w-48 p-2"
+          style={{ top: contextMenuPos.y, left: contextMenuPos.x }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="text-xs font-semibold px-2 py-1 text-gray-400">Select Search Engine</div>
+          {SEARCH_ENGINES.map(engine => (
+            <button
+              key={engine.name}
+              onClick={() => selectEngine(engine.name)}
+              className={`flex items-center justify-between w-full px-3 py-2 text-sm rounded-md hover:bg-primary hover:text-white transition-colors ${
+                defaultEngine === engine.name ? 'font-bold text-primary bg-background/50' : 'text-text'
+              }`}
+            >
+              <span>{engine.name}</span>
+              {defaultEngine === engine.name && <span className="text-xs">✓</span>}
+            </button>
+          ))}
+        </div>
+      )}
+
       {loading ? (
-        <div className="text-center text-text">Loading Favorites...</div>
+        <div className="text-center text-text py-12">Loading Favorites...</div>
+      ) : filteredFavorites.length === 0 ? (
+        <div className="text-center text-gray-400 py-12">
+          {favorites.length === 0
+            ? 'No favorite bookmarks found. Tag bookmarks as "Favorites" to display them here.'
+            : 'No favorites match your search filter.'}
+        </div>
       ) : (
         <div ref={gridRef}>
           <ResponsiveGridLayout
@@ -327,11 +406,11 @@ export const FavoritesDashboard = () => {
             rowHeight={120}
             width={gridWidth}
           >
-            {favorites.map(fav => {
+            {filteredFavorites.map(fav => {
               const currentLayout = layouts[breakpoint] || layouts.lg || [];
               const layoutItem = currentLayout.find(l => String(l.i) === String(fav.id));
               return (
-                <div key={String(fav.id)} >
+                <div key={String(fav.id)}>
                   <FavoriteBookmarkCard
                     bookmark={fav}
                     width={layoutItem?.w || 2}
@@ -346,21 +425,6 @@ export const FavoritesDashboard = () => {
         </div>
       )}
       <KeyboardShortcutsModal isOpen={isInfoModalOpen} onClose={() => setIsInfoModalOpen(false)} />
-      <SettingsModal
-        isOpen={isConfigModalOpen}
-        onClose={() => setIsConfigModalOpen(false)}
-        currentLimit={limit}
-        currentTheme={theme}
-        currentTileSize={tileSize}
-        currentShowUrl={showUrl}
-        onSave={handleConfigSave}
-        initialView={settingsStartView}
-      />
-      <DataImportExportModal
-        isOpen={isDataImportExportModalOpen}
-        onClose={() => setIsDataImportExportModalOpen(false)}
-        onImportSuccess={() => {}}
-      />
     </div>
   );
 };

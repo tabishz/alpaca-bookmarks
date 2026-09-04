@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/joho/godotenv"
 )
 
 // Read from Environment Variable
@@ -15,6 +16,14 @@ var JwtSecret = []byte(getSecret())
 
 func getSecret() string {
 	secret := os.Getenv("JWT_SECRET")
+	if secret == "" {
+		for _, path := range []string{".env", "../.env", "../../.env"} {
+			if err := godotenv.Load(path); err == nil {
+				break
+			}
+		}
+		secret = os.Getenv("JWT_SECRET")
+	}
 	if secret == "" {
 		// Stop the server if the secret is missing.
 		// This prevents the app from ever running in an insecure state.
