@@ -1,7 +1,7 @@
 # Alpaca Bookmarks
 
 ## Version
-0.3.6-beta
+0.3.8-beta
 
 ## Introduction
 Alpaca Bookmarks is a self-hosted, multi-user bookmarking application built for speed and simplicity. It allows users to save, organize, and search their links with a clean, responsive interface.
@@ -141,17 +141,19 @@ services:
       - alpaca_data:/data
     restart: unless-stopped
     environment:
-      - TZ=${TZ:-America/Edmonton}
-      # openssl rand -hex 32
-      - JWT_SECRET=${JWT_SECRET:=someSecret}
-      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
-      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-      - AWS_REGION=${AWS_REGION:=garage}
-      - S3_BUCKET_NAME=your-%{S3_BUCKET_NAME}
-      - S3_ENDPOINT_URL=${S3_ENDPOINT_URL}
-      - ICONS_ENDPOINT=https://pocketbase.url
-      - ICONS_COLLECTION=icons
-      - ICONS_LOCATION=https://web.url/png
+      TZ: America/Edmonton
+      JWT_SECRET: ${JWT_SECRET:=someSecret} # openssl rand -hex 32
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      AWS_REGION: ${AWS_REGION:-garage}
+      S3_BUCKET_NAME: ${S3_BUCKET_NAME}
+      S3_ENDPOINT_URL: ${S3_ENDPOINT_URL}
+      ICONS_ENDPOINT: ${ICONS_ENDPOINT} # pocketbase url
+      ICONS_COLLECTION: ${ICONS_COLLECTION} # pocketbase collection name
+      ICONS_LOCATION: ${ICONS_LOCATION} # url where icon files are
+      BACKUP_RETENTION_DAILY: 7
+      BACKUP_RETENTION_WEEKLY: 4
+      BACKUP_RETENTION_MONTHLY: 12
     healthcheck:
       # This healthcheck pings the Go backend directly on port 8081.
       test: ["CMD", "curl", "--fail", "http://localhost:8081/api/v1/ping"]

@@ -34,9 +34,8 @@ else
     sed -i "s/^ALPACA_VERSION=.*/ALPACA_VERSION=$NEW_VERSION/" "$SCRIPT_DIR/.env"
 fi
 
-# 4. Update Version in frontend/package.json and run npm install
+# 4. Update Version in frontend/package.json and package-lock.json
 cd "$SCRIPT_DIR/frontend" || exit
-npm version --no-git-tag-version "$NEW_VERSION"
-npm install
+npm version --allow-same-version --no-git-tag-version "$NEW_VERSION"
 
 echo "Successfully updated version to $NEW_VERSION in Go backend, Frontend, README, and .env."
