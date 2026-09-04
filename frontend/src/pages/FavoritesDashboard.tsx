@@ -3,13 +3,12 @@ import { Link, useNavigate } from 'react-router-dom';
 import api from '../api/client';
 import { Bookmark } from '../api/types';
 import { Responsive as ResponsiveGridLayout, type Layout, type LayoutItem } from 'react-grid-layout';
-import { Home, Edit, Save, Info, ListTodo, Layout as LucideLayout, Settings, Sliders, ArrowRightLeft, Tags, LogOut, Search } from 'lucide-react';
+import { Home, Edit, Save, Info, ListTodo, Layout as LucideLayout, Search } from 'lucide-react';
 import { FavoriteBookmarkCard } from '../components/FavoriteBookmarkCard';
-import { SettingsModal } from '../components/SettingsModal';
-import { DataImportExportModal } from '../components/DataImportExportModal';
-import { useTheme, Theme } from '../hooks/useTheme';
+import 'react-grid-layout/css/styles.css';
+import 'react-resizable/css/styles.css';
+import { useTheme } from '../hooks/useTheme';
 import { KeyboardShortcutsModal } from '../components/KeyboardShortcutsModal';
-import { useAuthStore } from '../store/authStore';
 
 type Layouts = Partial<Record<string, readonly LayoutItem[]>>;
 
@@ -52,8 +51,6 @@ const cols = { lg: 12, md: 10, sm: 6, xs: 4, xxs: 1 };
 export const FavoritesDashboard = () => {
   useTheme();
   const navigate = useNavigate();
-  const { theme, setTheme } = useTheme();
-  const { logout, user } = useAuthStore();
   const [favorites, setFavorites] = useState<Bookmark[]>([]);
   const [loading, setLoading] = useState(true);
   const [layouts, setLayouts] = useState<Layouts>({});
@@ -63,11 +60,7 @@ export const FavoritesDashboard = () => {
   const [gridWidth, setGridWidth] = useState(1200);
   const layoutChanges = useRef<Layouts | null>(null);
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
-  const [isSettingsMenuOpen, setIsSettingsMenuOpen] = useState(false);
-  const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
-  const [isDataImportExportModalOpen, setIsDataImportExportModalOpen] = useState(false);
-  const [settingsStartView, setSettingsStartView] = useState<'settings' | 'tags'>('settings');
-  
+
   // Search bar states & refs
   const [searchQuery, setSearchQuery] = useState('');
   const [defaultEngine, setDefaultEngine] = useState(() => {
@@ -77,76 +70,14 @@ export const FavoritesDashboard = () => {
   const [contextMenuPos, setContextMenuPos] = useState({ x: 0, y: 0 });
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  const [limit, setLimit] = useState(() => {
-    const saved = localStorage.getItem('bookmarks_limit');
-    return saved ? parseInt(saved) : 50;
-  });
-  const [tileSize, setTileSize] = useState(() => {
-    const saved = localStorage.getItem('tile_size');
-    return saved ? parseInt(saved) : 280;
-  });
-  const [showUrl, setShowUrl] = useState(() => {
-    const saved = localStorage.getItem('show_url');
-    return saved ? saved === 'true' : true;
-  });
-
-  // Focus search bar on mount
+  // Auto-focus search input on mount
   useEffect(() => {
     if (searchInputRef.current) {
       searchInputRef.current.focus();
     }
   }, []);
 
-  // Global keyboard shortcuts (e.g. / or Esc)
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // If user is typing in an input/textarea, ignore shortcut unless it is Escape
-      const target = e.target as HTMLElement;
-      const isInput = target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA');
-
-      if (e.key === '/' && !isInput) {
-        e.preventDefault();
-        if (searchInputRef.current) {
-          searchInputRef.current.focus();
-        }
-      } else if (e.key === 'Escape') {
-        setIsSettingsMenuOpen(false);
-        setIsContextMenuOpen(false);
-        setIsInfoModalOpen(false);
-        setIsConfigModalOpen(false);
-        setIsDataImportExportModalOpen(false);
-        if (document.activeElement instanceof HTMLElement) {
-          document.activeElement.blur();
-        }
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, []);
-
-  const handleSearchSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!searchQuery.trim()) return;
-    const engine = SEARCH_ENGINES.find(se => se.name === defaultEngine) || SEARCH_ENGINES[0];
-    window.location.href = engine.url + encodeURIComponent(searchQuery.trim());
-  };
-
-  const handleContextMenu = (e: React.MouseEvent) => {
-    e.preventDefault();
-    setContextMenuPos({ x: e.clientX, y: e.clientY });
-    setIsContextMenuOpen(true);
-  };
-
-  const selectEngine = (engineName: string) => {
-    setDefaultEngine(engineName);
-    localStorage.setItem('alpaca_default_search_engine', engineName);
-    setIsContextMenuOpen(false);
-  };
-
-  // Close context menu on click outside
+  // Close context menu on outside click
   useEffect(() => {
     const handleClickOutside = () => setIsContextMenuOpen(false);
     if (isContextMenuOpen) {
@@ -156,17 +87,6 @@ export const FavoritesDashboard = () => {
       window.removeEventListener('click', handleClickOutside);
     };
   }, [isContextMenuOpen]);
-
-  // Filter favorites based on search query
-  const filteredFavorites = favorites.filter(fav => {
-    if (!searchQuery.trim()) return true;
-    const q = searchQuery.toLowerCase();
-    return (
-      fav.title.toLowerCase().includes(q) ||
-      fav.url.toLowerCase().includes(q) ||
-      (fav.description && fav.description.toLowerCase().includes(q))
-    );
-  });
 
   useEffect(() => {
     const grid = gridRef.current;
@@ -227,7 +147,7 @@ export const FavoritesDashboard = () => {
         setLayouts(newLayouts);
 
       } catch (error) {
-        console.error('Failed to fetch favorites or layouts', error);
+        console.error("Failed to fetch favorites or layouts", error);
       } finally {
         setLoading(false);
       }
@@ -236,7 +156,54 @@ export const FavoritesDashboard = () => {
     fetchFavoritesAndLayouts();
   }, []);
 
-  const handleEnterEditMode = useCallback(() => {
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      const isTyping = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA';
+
+      if (['Backspace', 'f', 'h'].includes(e.key) && !isTyping) {
+        e.preventDefault();
+        navigate('/');
+      }
+      if (e.key === 'Escape') {
+        if (isInfoModalOpen) { setIsInfoModalOpen(false); }
+        if (isContextMenuOpen) { setIsContextMenuOpen(false); }
+        if (document.activeElement instanceof HTMLElement) {
+          document.activeElement.blur();
+        }
+      }
+      if (e.key === 'i' && !isTyping) {
+        if (isInfoModalOpen) { setIsInfoModalOpen(false); }
+        else { setIsInfoModalOpen(true); }
+      }
+      if (e.key === 'd' && !isTyping) {
+        e.preventDefault();
+        navigate('/todos');
+      }
+      if (e.key === 'k' && !isTyping) {
+        e.preventDefault();
+        navigate('/kanban');
+      }
+      if (e.key === '/' && !isTyping) {
+        e.preventDefault();
+        if (searchInputRef.current) {
+          searchInputRef.current.focus();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [navigate, isInfoModalOpen, isContextMenuOpen]);
+
+  const onLayoutChange = useCallback((_layout: Layout, allLayouts: Layouts) => {
+    layoutChanges.current = allLayouts;
+    setLayouts(allLayouts);
+  }, []);
+
+  const handleEnterEditMode = () => {
     layoutChanges.current = null;
     const editableLayout: Layouts = {};
     for (const bp of Object.keys(layouts)) {
@@ -249,228 +216,215 @@ export const FavoritesDashboard = () => {
     }
     setLayouts(editableLayout);
     setIsEditMode(true);
-  }, [layouts]);
+  };
 
-  const handleSaveLayouts = useCallback(async () => {
-    const targetLayouts = layoutChanges.current || layouts;
-    const staticLayouts: Layouts = {};
-    for (const bp of Object.keys(targetLayouts)) {
-        if (targetLayouts[bp]) {
-            staticLayouts[bp] = targetLayouts[bp]!.map(item => ({
+  const handleSave = async () => {
+    // Use the latest layout from the ref, or the state if no changes were made.
+    const finalLayout = layoutChanges.current || layouts;
+
+    const staticLayout: Layouts = {};
+    for (const bp of Object.keys(finalLayout)) {
+        if (finalLayout[bp]) {
+            staticLayout[bp] = finalLayout[bp]!.map(item => ({
                 ...item,
                 static: true,
             }));
         }
     }
-    setLayouts(staticLayouts);
-    setIsEditMode(false);
-    layoutChanges.current = null;
+
     try {
-        await saveLayoutsToServer(staticLayouts);
+      await saveLayoutsToServer(staticLayout);
+      setLayouts(staticLayout);
+      setIsEditMode(false);
+      layoutChanges.current = null;
     } catch (e) {
-        console.error('Failed to save layouts', e);
+        console.error("Failed to save", e);
     }
-  }, [layouts]);
-
-  const handleLayoutChange = (currentLayout: Layout, allLayouts: Layouts) => {
-    layoutChanges.current = allLayouts;
   };
 
-  const handleBreakpointChange = (newBreakpoint: keyof typeof cols) => {
-    setBreakpoint(newBreakpoint);
+  const handleRemoveFavorite = async (id: number) => {
+    const bookmark = favorites.find(f => f.id === id);
+    if (!bookmark) return;
+
+    const newTags = bookmark.tags.filter(t => t.name !== 'Favorites').map(t => t.name);
+
+    try {
+      await api.put(`/bookmarks/${id}`, {
+        ...bookmark,
+        tags: newTags
+      });
+      setFavorites(prev => prev.filter(f => f.id !== id));
+    } catch (error) {
+      console.error("Failed to remove from favorites", error);
+      alert("Failed to remove from favorites");
+    }
   };
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!searchQuery.trim()) return;
+    const engine = SEARCH_ENGINES.find(se => se.name === defaultEngine) || SEARCH_ENGINES[0];
+    window.location.href = engine.url + encodeURIComponent(searchQuery.trim());
+  };
+
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setContextMenuPos({ x: e.clientX, y: e.clientY });
+    setIsContextMenuOpen(true);
+  };
+
+  const selectEngine = (engineName: string) => {
+    setDefaultEngine(engineName);
+    localStorage.setItem('alpaca_default_search_engine', engineName);
+    setIsContextMenuOpen(false);
+  };
+
+  // Filter favorites based on search query
+  const filteredFavorites = favorites.filter(fav => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase();
+    return (
+      fav.title.toLowerCase().includes(q) ||
+      fav.url.toLowerCase().includes(q) ||
+      (fav.description && fav.description.toLowerCase().includes(q))
+    );
+  });
 
   return (
-    <div className="min-h-screen bg-base-200 text-base-content flex flex-col transition-colors duration-300">
-      {/* Top Navbar */}
-      <div className="navbar bg-base-100 shadow-md px-4 lg:px-8 flex items-center justify-between">
-        <div className="flex-1 flex items-center">
-          <Link to="/" className="btn btn-ghost text-xl font-bold flex items-center gap-2">
-            <Home className="w-5 h-5 text-primary" />
-            <span>Alpaca Bookmarks</span>
+    <div className="p-4 bg-background min-h-screen">
+      <header className="mb-4 flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-text">Alpaca Favorites</h1>
+        <div className="flex items-center gap-2">
+          <Link to="/" className="flex items-center gap-2 rounded-md bg-surface px-4 py-2 text-text hover:bg-primary hover:text-white transition-colors">
+            <Home size={20} />
+            <span>Dashboard</span>
           </Link>
-        </div>
-        <div className="flex-none flex items-center gap-2">
-          <Link to="/todos" className="btn btn-ghost btn-sm gap-2 hidden sm:flex items-center">
-            <ListTodo className="w-4 h-4" />
-            <span>Todos</span>
+
+          <Link to="/todos" className="flex items-center gap-2 rounded-md bg-surface px-4 py-2 text-text hover:bg-primary hover:text-white transition-colors">
+            <ListTodo size={20} />
+            <span>Todo List</span>
           </Link>
-          <Link to="/kanban" className="btn btn-ghost btn-sm gap-2 hidden sm:flex items-center">
-            <LucideLayout className="w-4 h-4" />
+
+          <Link to="/kanban" className="flex items-center gap-2 rounded-md bg-surface px-4 py-2 text-text hover:bg-primary hover:text-white transition-colors">
+            <LucideLayout size={20} />
             <span>Kanban</span>
           </Link>
-          <Link to="/dashboard" className="btn btn-ghost btn-sm gap-2 hidden sm:flex items-center">
-            <ArrowRightLeft className="w-4 h-4" />
-            <span>All Bookmarks</span>
-          </Link>
 
-          {/* Settings Dropdown */}
-          <div className="dropdown dropdown-end">
-            <div tabIndex={0} role="button" className="btn btn-ghost btn-circle">
-              <Settings className="w-5 h-5" />
-            </div>
-            <ul tabIndex={0} className="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-52 mt-2">
-              <li>
-                <button onClick={() => { setSettingsStartView('settings'); setIsConfigModalOpen(true); }}>
-                  <Sliders className="w-4 h-4" /> Settings
-                </button>
-              </li>
-              <li>
-                <button onClick={() => { setSettingsStartView('tags'); setIsConfigModalOpen(true); }}>
-                  <Tags className="w-4 h-4" /> Manage Tags
-                </button>
-              </li>
-              <li>
-                <button onClick={() => setIsDataImportExportModalOpen(true)}>
-                  <ArrowRightLeft className="w-4 h-4" /> Import / Export
-                </button>
-              </li>
-              <li>
-                <button onClick={() => setIsInfoModalOpen(true)}>
-                  <Info className="w-4 h-4" /> About
-                </button>
-              </li>
-              <div className="divider my-1"></div>
-              <li>
-                <button onClick={logout} className="text-error">
-                  <LogOut className="w-4 h-4" /> Logout
-                </button>
-              </li>
-            </ul>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Content Area */}
-      <div className="flex-1 p-4 lg:p-8 flex flex-col items-center">
-        {/* Centered Search Bar Section */}
-        <div className="w-full max-w-2xl my-8 flex flex-col items-center">
-          <form onSubmit={handleSearchSubmit} className="w-full relative">
-            <div className="relative flex items-center shadow-lg rounded-full overflow-hidden bg-base-100 border border-base-300 hover:border-primary transition-all duration-300">
-              <div className="pl-5 text-primary">
-                <Search className="w-5 h-5" />
-              </div>
-              <input
-                ref={searchInputRef}
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onContextMenu={handleContextMenu}
-                placeholder={`Search ${defaultEngine} or filter favorites (Right-click to change engine)...`}
-                className="w-full py-3.5 pl-3 pr-4 bg-transparent outline-none text-base-content placeholder-base-content/50"
-              />
-              <button type="submit" className="btn btn-primary rounded-r-full px-6 min-h-0 h-full">
-                Search
-              </button>
-            </div>
-            <div className="text-xs text-base-content/60 mt-1.5 text-center flex items-center justify-center gap-1">
-              <span>Default engine: <strong className="text-primary">{defaultEngine}</strong></span>
-              <span>•</span>
-              <span className="italic">Right-click search bar to change</span>
-            </div>
-          </form>
-        </div>
-
-        {/* Context Menu for Choosing Search Engine */}
-        {isContextMenuOpen && (
-          <div
-            className="fixed z-50 menu bg-base-100 rounded-box shadow-xl border border-base-300 w-48 p-2"
-            style={{ top: contextMenuPos.y, left: contextMenuPos.x }}
-          >
-            <div className="menu-title text-xs font-semibold px-2 py-1 text-base-content/60">Select Search Engine</div>
-            {SEARCH_ENGINES.map(engine => (
-              <button
-                key={engine.name}
-                onClick={() => selectEngine(engine.name)}
-                className={`flex items-center justify-between w-full px-3 py-2 text-sm rounded-btn hover:bg-primary hover:text-primary-content transition-colors ${defaultEngine === engine.name ? 'font-bold text-primary bg-base-200' : ''}`}
-              >
-                <span>{engine.name}</span>
-                {defaultEngine === engine.name && <span className="text-xs">✓</span>}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* Dashboard Header & Edit Mode Toggle */}
-        <div className="w-full max-w-7xl flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold">Favorite Bookmarks</h1>
-          <div className="flex items-center gap-3">
-            {!isEditMode ? (
-              <button onClick={handleEnterEditMode} className="btn btn-sm btn-outline gap-2">
-                <Edit className="w-4 h-4" /> Edit Layout
-              </button>
-            ) : (
-              <button onClick={handleSaveLayouts} className="btn btn-sm btn-primary gap-2">
-                <Save className="w-4 h-4" /> Save Layout
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Grid Area */}
-        <div ref={gridRef} className="w-full max-w-7xl">
-          {loading ? (
-            <div className="flex justify-center items-center py-20">
-              <span className="loading loading-spinner loading-lg text-primary"></span>
-            </div>
-          ) : filteredFavorites.length === 0 ? (
-            <div className="text-center py-20 bg-base-100 rounded-box shadow-sm border border-base-300">
-              <p className="text-base-content/70">
-                {favorites.length === 0 ? 'No favorite bookmarks found. Tag bookmarks as "Favorites" to display them here.' : 'No favorites match your search filter.'}
-              </p>
-            </div>
+          {isEditMode ? (
+            <button onClick={handleSave} className="flex items-center gap-2 rounded-md bg-green-500 px-4 py-2 text-white hover:bg-green-600 transition-colors">
+              <Save size={20} />
+              <span>Save</span>
+            </button>
           ) : (
-            <ResponsiveGridLayout
-              className="layout"
-              layouts={layouts}
-              breakpoints={breakpoints}
-              cols={cols}
-              rowHeight={tileSize}
-              width={gridWidth}
-              isDraggable={isEditMode}
-              isResizable={false}
-              onLayoutChange={handleLayoutChange}
-              onBreakpointChange={handleBreakpointChange}
-            >
-              {favorites.map((bookmark) => {
-                const isVisible = filteredFavorites.some(f => f.id === bookmark.id);
-                if (!isVisible && searchQuery.trim()) {
-                  // Hide non-matching items during filter
-                  return null;
-                }
-                return (
-                  <div key={bookmark.id} className="h-full">
-                    <FavoriteBookmarkCard bookmark={bookmark} showUrl={showUrl} />
-                  </div>
-                );
-              })}
-            </ResponsiveGridLayout>
+            <button onClick={handleEnterEditMode} className="flex items-center gap-2 rounded-md bg-blue-500 px-4 py-2 text-white hover:bg-blue-600 transition-colors">
+              <Edit size={20} />
+              <span>Edit</span>
+            </button>
           )}
+          <div className="relative">
+            <button
+              onClick={(e) => { e.stopPropagation(); setIsInfoModalOpen(true); }}
+              className="p-2 rounded-md text-gray-400 hover:text-white transition-colors"
+            >
+              <Info size={28} />
+            </button>
+          </div>
         </div>
+      </header>
+
+      {/* Centered Search Bar Section */}
+      <div className="w-full max-w-2xl mx-auto my-6 flex flex-col items-center">
+        <form onSubmit={handleSearchSubmit} className="w-full relative">
+          <div className="relative flex items-center shadow-lg rounded-full overflow-hidden bg-surface border border-gray-700 hover:border-primary transition-all duration-300">
+            <div className="pl-5 text-primary">
+              <Search size={20} />
+            </div>
+            <input
+              ref={searchInputRef}
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onContextMenu={handleContextMenu}
+              placeholder={`Search ${defaultEngine} or filter favorites (Right-click to change engine)...`}
+              className="w-full py-3.5 pl-3 pr-4 bg-transparent outline-none text-text placeholder-gray-400"
+            />
+            <button
+              type="submit"
+              className="bg-primary text-white font-semibold px-6 py-3.5 hover:opacity-90 transition-opacity rounded-r-full"
+            >
+              Search
+            </button>
+          </div>
+          <div className="text-xs text-gray-400 mt-1.5 text-center flex items-center justify-center gap-1">
+            <span>Default engine: <strong className="text-primary">{defaultEngine}</strong></span>
+            <span>•</span>
+            <span className="italic">Right-click search bar to change</span>
+          </div>
+        </form>
       </div>
 
-      {/* Modals */}
-      {isConfigModalOpen && (
-        <SettingsModal
-          isOpen={isConfigModalOpen}
-          onClose={() => setIsConfigModalOpen(false)}
-          initialView={settingsStartView}
-        />
+      {/* Context Menu for Choosing Search Engine */}
+      {isContextMenuOpen && (
+        <div
+          className="fixed z-50 bg-surface border border-gray-700 rounded-lg shadow-2xl w-48 p-2"
+          style={{ top: contextMenuPos.y, left: contextMenuPos.x }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="text-xs font-semibold px-2 py-1 text-gray-400">Select Search Engine</div>
+          {SEARCH_ENGINES.map(engine => (
+            <button
+              key={engine.name}
+              onClick={() => selectEngine(engine.name)}
+              className={`flex items-center justify-between w-full px-3 py-2 text-sm rounded-md hover:bg-primary hover:text-white transition-colors ${
+                defaultEngine === engine.name ? 'font-bold text-primary bg-background/50' : 'text-text'
+              }`}
+            >
+              <span>{engine.name}</span>
+              {defaultEngine === engine.name && <span className="text-xs">✓</span>}
+            </button>
+          ))}
+        </div>
       )}
 
-      {isDataImportExportModalOpen && (
-        <DataImportExportModal
-          isOpen={isDataImportExportModalOpen}
-          onClose={() => setIsDataImportExportModalOpen(false)}
-        />
+      {loading ? (
+        <div className="text-center text-text py-12">Loading Favorites...</div>
+      ) : filteredFavorites.length === 0 ? (
+        <div className="text-center text-gray-400 py-12">
+          {favorites.length === 0
+            ? 'No favorite bookmarks found. Tag bookmarks as "Favorites" to display them here.'
+            : 'No favorites match your search filter.'}
+        </div>
+      ) : (
+        <div ref={gridRef}>
+          <ResponsiveGridLayout
+            className="layout"
+            layouts={layouts}
+            onLayoutChange={onLayoutChange}
+            onBreakpointChange={(bp) => setBreakpoint(bp as keyof typeof cols)}
+            breakpoints={breakpoints}
+            cols={cols}
+            rowHeight={120}
+            width={gridWidth}
+          >
+            {filteredFavorites.map(fav => {
+              const currentLayout = layouts[breakpoint] || layouts.lg || [];
+              const layoutItem = currentLayout.find(l => String(l.i) === String(fav.id));
+              return (
+                <div key={String(fav.id)}>
+                  <FavoriteBookmarkCard
+                    bookmark={fav}
+                    width={layoutItem?.w || 2}
+                    height={layoutItem?.h || 1}
+                    isEditMode={isEditMode}
+                    onRemoveFavorite={handleRemoveFavorite}
+                  />
+                </div>
+              );
+            })}
+          </ResponsiveGridLayout>
+        </div>
       )}
-
-      {isInfoModalOpen && (
-        <KeyboardShortcutsModal
-          isOpen={isInfoModalOpen}
-          onClose={() => setIsInfoModalOpen(false)}
-        />
-      )}
+      <KeyboardShortcutsModal isOpen={isInfoModalOpen} onClose={() => setIsInfoModalOpen(false)} />
     </div>
   );
 };
