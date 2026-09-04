@@ -15,7 +15,7 @@ if [ -z "$VERSION" ]; then
     exit 1
 fi
 
-IMAGE_TAG="tabishz/alpaca-bookmarks:amd64-$VERSION"
+IMAGE_TAG="hq.truthful.men/tabishz/alpaca-bookmarks:amd64-$VERSION"
 
 echo "Detected Version: $VERSION"
 echo "Building Image: $IMAGE_TAG"
