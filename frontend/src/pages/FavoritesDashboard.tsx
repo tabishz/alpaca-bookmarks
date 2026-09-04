@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import api from '../api/client';
 import { Bookmark } from '../api/types';
 import { Responsive as ResponsiveGridLayout, type Layout, type LayoutItem } from 'react-grid-layout';
-import { Home, Edit, Save, Info, ListTodo, Layout as LucideLayout, Search } from 'lucide-react';
+import { Home, Edit, Save, Info, ListTodo, Layout as LucideLayout, Search, X } from 'lucide-react';
 import { FavoriteBookmarkCard } from '../components/FavoriteBookmarkCard';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
@@ -168,6 +168,7 @@ export const FavoritesDashboard = () => {
       if (e.key === 'Escape') {
         if (isInfoModalOpen) { setIsInfoModalOpen(false); }
         if (isContextMenuOpen) { setIsContextMenuOpen(false); }
+        if (searchQuery) { setSearchQuery(''); }
         if (document.activeElement instanceof HTMLElement) {
           document.activeElement.blur();
         }
@@ -196,14 +197,25 @@ export const FavoritesDashboard = () => {
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [navigate, isInfoModalOpen, isContextMenuOpen]);
+  }, [navigate, isInfoModalOpen, isContextMenuOpen, searchQuery]);
 
   const onLayoutChange = useCallback((_layout: Layout, allLayouts: Layouts) => {
+    // If filtering/searching, do NOT overwrite the full layouts!
+    if (searchQuery.trim()) {
+      return;
+    }
+    // Safeguard: do not overwrite with a partial layout having fewer items than favorites
+    const currentBpLayout = allLayouts[breakpoint] || allLayouts.lg;
+    if (favorites.length > 0 && currentBpLayout && currentBpLayout.length < favorites.length) {
+      return;
+    }
+
     layoutChanges.current = allLayouts;
     setLayouts(allLayouts);
-  }, []);
+  }, [searchQuery, breakpoint, favorites.length]);
 
   const handleEnterEditMode = () => {
+    setSearchQuery(''); // Ensure all tiles are visible when editing layout
     layoutChanges.current = null;
     const editableLayout: Layouts = {};
     for (const bp of Object.keys(layouts)) {
@@ -348,6 +360,19 @@ export const FavoritesDashboard = () => {
               placeholder={`Search ${defaultEngine} or filter favorites (Right-click to change engine)...`}
               className="w-full py-3.5 pl-3 pr-4 bg-transparent outline-none text-text placeholder-gray-400"
             />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchQuery('');
+                  if (searchInputRef.current) searchInputRef.current.focus();
+                }}
+                className="p-1 mr-2 text-gray-400 hover:text-text transition-colors"
+                title="Clear search"
+              >
+                <X size={18} />
+              </button>
+            )}
             <button
               type="submit"
               className="bg-primary text-white font-semibold px-6 py-3.5 hover:opacity-90 transition-opacity rounded-r-full"
@@ -397,6 +422,7 @@ export const FavoritesDashboard = () => {
       ) : (
         <div ref={gridRef}>
           <ResponsiveGridLayout
+            key={searchQuery.trim() ? `search-${searchQuery.trim()}` : 'all-favorites'}
             className="layout"
             layouts={layouts}
             onLayoutChange={onLayoutChange}
