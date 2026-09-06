@@ -3,12 +3,14 @@ import { Link, useNavigate } from 'react-router-dom';
 import api from '../api/client';
 import { Bookmark } from '../api/types';
 import { Responsive as ResponsiveGridLayout, type Layout, type LayoutItem } from 'react-grid-layout';
-import { Home, Edit, Save, Info, ListTodo, Layout as LucideLayout, Search, X } from 'lucide-react';
+import { Home, Edit, Save, Info, ListTodo, Layout as LucideLayout, Search, X, Settings } from 'lucide-react';
 import { FavoriteBookmarkCard } from '../components/FavoriteBookmarkCard';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
-import { useTheme } from '../hooks/useTheme';
+import { useTheme, Theme } from '../hooks/useTheme';
 import { KeyboardShortcutsModal } from '../components/KeyboardShortcutsModal';
+import { SettingsModal } from '../components/SettingsModal';
+import { useAuthStore } from '../store/authStore';
 import { formatAndValidateUrl } from '../utils/url';
 
 type Layouts = Partial<Record<string, readonly LayoutItem[]>>;
@@ -50,7 +52,8 @@ const breakpoints = { lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 };
 const cols = { lg: 12, md: 10, sm: 6, xs: 4, xxs: 1 };
 
 export const FavoritesDashboard = () => {
-  useTheme();
+  const { theme, setTheme } = useTheme();
+  const { user, updateUser } = useAuthStore();
   const navigate = useNavigate();
   const [favorites, setFavorites] = useState<Bookmark[]>([]);
   const [loading, setLoading] = useState(true);
@@ -61,10 +64,14 @@ export const FavoritesDashboard = () => {
   const [gridWidth, setGridWidth] = useState(1200);
   const layoutChanges = useRef<Layouts | null>(null);
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
+  const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
 
   // Search bar states & refs
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFavoriteIndex, setSelectedFavoriteIndex] = useState<number>(-1);
+  const [searchOpenNewTab, setSearchOpenNewTab] = useState(() => {
+    return localStorage.getItem('search_open_new_tab') === 'true';
+  });
   const [defaultEngine, setDefaultEngine] = useState(() => {
     return localStorage.getItem('alpaca_default_search_engine') || 'Google';
   });
@@ -75,6 +82,14 @@ export const FavoritesDashboard = () => {
   useEffect(() => {
     setSelectedFavoriteIndex(-1);
   }, [searchQuery]);
+
+  useEffect(() => {
+    const handleStorageChange = () => {
+      setSearchOpenNewTab(localStorage.getItem('search_open_new_tab') === 'true');
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
 
   // Auto-focus search input on mount
   useEffect(() => {
@@ -173,6 +188,7 @@ export const FavoritesDashboard = () => {
       }
       if (e.key === 'Escape') {
         if (isInfoModalOpen) { setIsInfoModalOpen(false); }
+        if (isConfigModalOpen) { setIsConfigModalOpen(false); }
         if (isContextMenuOpen) { setIsContextMenuOpen(false); }
         if (searchQuery) { setSearchQuery(''); }
         if (document.activeElement instanceof HTMLElement) {
@@ -203,7 +219,7 @@ export const FavoritesDashboard = () => {
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [navigate, isInfoModalOpen, isContextMenuOpen, searchQuery]);
+  }, [navigate, isInfoModalOpen, isConfigModalOpen, isContextMenuOpen, searchQuery]);
 
   const onLayoutChange = useCallback((_layout: Layout, allLayouts: Layouts) => {
     // If filtering/searching, do NOT overwrite the full layouts!
@@ -278,15 +294,47 @@ export const FavoritesDashboard = () => {
     }
   };
 
+  const handleConfigSave = async (
+    newLimit: number,
+    newTheme: Theme,
+    newTileSize: number,
+    newShowUrl: boolean,
+    newSearchOpenNewTab: boolean
+  ) => {
+    localStorage.setItem('bookmarks_limit', newLimit.toString());
+    localStorage.setItem('tile_size', newTileSize.toString());
+    localStorage.setItem('show_url', newShowUrl.toString());
+    localStorage.setItem('search_open_new_tab', newSearchOpenNewTab.toString());
+    setTheme(newTheme);
+    setSearchOpenNewTab(newSearchOpenNewTab);
+    try {
+      await api.patch('/user/preferences', { theme: newTheme });
+      if (user) {
+        updateUser({ ...user, theme: newTheme });
+      }
+    } catch {
+      console.error("Failed to save theme preference to server");
+    }
+  };
+
+  const openUrlFromSearch = (url: string) => {
+    if (searchOpenNewTab) {
+      window.open(url, '_blank', 'noopener,noreferrer');
+    } else {
+      window.location.href = url;
+    }
+  };
+
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (selectedFavoriteIndex >= 0 && selectedFavoriteIndex < filteredFavorites.length) {
-      window.open(filteredFavorites[selectedFavoriteIndex].url, '_blank', 'noopener,noreferrer');
+      openUrlFromSearch(filteredFavorites[selectedFavoriteIndex].url);
       return;
     }
     if (!searchQuery.trim()) return;
     const engine = SEARCH_ENGINES.find(se => se.name === defaultEngine) || SEARCH_ENGINES[0];
-    window.location.href = engine.url + encodeURIComponent(searchQuery.trim());
+    const searchUrl = engine.url + encodeURIComponent(searchQuery.trim());
+    openUrlFromSearch(searchUrl);
   };
 
   const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -296,9 +344,9 @@ export const FavoritesDashboard = () => {
       e.preventDefault();
       const validUrl = formatAndValidateUrl(searchQuery);
       if (validUrl) {
-        window.open(validUrl, '_blank', 'noopener,noreferrer');
+        openUrlFromSearch(validUrl);
       } else if (selectedFavoriteIndex >= 0 && selectedFavoriteIndex < filteredFavorites.length) {
-        window.open(filteredFavorites[selectedFavoriteIndex].url, '_blank', 'noopener,noreferrer');
+        openUrlFromSearch(filteredFavorites[selectedFavoriteIndex].url);
       }
       return;
     }
@@ -320,7 +368,7 @@ export const FavoritesDashboard = () => {
       } else if (e.key === 'Enter') {
         if (selectedFavoriteIndex >= 0 && selectedFavoriteIndex < filteredFavorites.length) {
           e.preventDefault();
-          window.open(filteredFavorites[selectedFavoriteIndex].url, '_blank', 'noopener,noreferrer');
+          openUrlFromSearch(filteredFavorites[selectedFavoriteIndex].url);
         }
       } else if (e.key === 'Escape') {
         setSelectedFavoriteIndex(-1);
@@ -384,8 +432,18 @@ export const FavoritesDashboard = () => {
           )}
           <div className="relative">
             <button
+              onClick={() => setIsConfigModalOpen(true)}
+              className="p-2 rounded-md text-gray-400 hover:text-white transition-colors"
+              title="Settings"
+            >
+              <Settings size={22} />
+            </button>
+          </div>
+          <div className="relative">
+            <button
               onClick={(e) => { e.stopPropagation(); setIsInfoModalOpen(true); }}
               className="p-2 rounded-md text-gray-400 hover:text-white transition-colors"
+              title="Keyboard Shortcuts"
             >
               <Info size={28} />
             </button>
@@ -502,6 +560,16 @@ export const FavoritesDashboard = () => {
         </div>
       )}
       <KeyboardShortcutsModal isOpen={isInfoModalOpen} onClose={() => setIsInfoModalOpen(false)} />
+      <SettingsModal
+        isOpen={isConfigModalOpen}
+        onClose={() => setIsConfigModalOpen(false)}
+        currentLimit={50}
+        currentTheme={theme}
+        currentTileSize={280}
+        currentShowUrl={true}
+        currentSearchOpenNewTab={searchOpenNewTab}
+        onSave={handleConfigSave}
+      />
     </div>
   );
 };

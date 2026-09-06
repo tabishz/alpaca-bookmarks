@@ -54,6 +54,9 @@ export const Dashboard = () => {
     const saved = localStorage.getItem('show_url');
     return saved ? saved === 'true' : true;
   });
+  const [searchOpenNewTab, setSearchOpenNewTab] = useState(() => {
+    return localStorage.getItem('search_open_new_tab') === 'true';
+  });
   const [settingsStartView, setSettingsStartView] = useState<'settings' | 'tags'>('settings');
   const [highlightedTagIndex, setHighlightedTagIndex] = useState(0);
   const [selectedBookmarkIndex, setSelectedBookmarkIndex] = useState<number>(-1);
@@ -211,14 +214,22 @@ export const Dashboard = () => {
     }
   };
 
-  const handleConfigSave = async (newLimit: number, newTheme: Theme, newTileSize: number, newShowUrl: boolean) => {
+  const handleConfigSave = async (
+    newLimit: number,
+    newTheme: Theme,
+    newTileSize: number,
+    newShowUrl: boolean,
+    newSearchOpenNewTab: boolean
+  ) => {
     localStorage.setItem('bookmarks_limit', newLimit.toString());
     localStorage.setItem('tile_size', newTileSize.toString());
     localStorage.setItem('show_url', newShowUrl.toString());
+    localStorage.setItem('search_open_new_tab', newSearchOpenNewTab.toString());
     setLimit(newLimit);
     setTheme(newTheme);
     setTileSize(newTileSize);
     setShowUrl(newShowUrl);
+    setSearchOpenNewTab(newSearchOpenNewTab);
     try {
       await api.patch('/user/preferences', { theme: newTheme });
       if (user) {
@@ -466,6 +477,7 @@ export const Dashboard = () => {
         currentTheme={theme}
         currentTileSize={tileSize}
         currentShowUrl={showUrl}
+        currentSearchOpenNewTab={searchOpenNewTab}
         onSave={handleConfigSave}
         onTagsUpdate={() => fetchBookmarks(1, true)}
         initialView={settingsStartView}
