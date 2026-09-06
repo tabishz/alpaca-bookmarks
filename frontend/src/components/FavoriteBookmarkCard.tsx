@@ -13,12 +13,21 @@ interface Props {
   height: number;
   isEditMode: boolean;
   onRemoveFavorite?: (id: number) => void;
+  isSelected?: boolean;
 }
 
-export const FavoriteBookmarkCard: React.FC<Props> = ({ bookmark, width, height, isEditMode, onRemoveFavorite }) => {
+export const FavoriteBookmarkCard: React.FC<Props> = ({ bookmark, width, height, isEditMode, onRemoveFavorite, isSelected = false }) => {
   const isSmall = width === 1 && height === 1;
   const [iconSrc, setIconSrc] = useState<string | null>(() => bookmark.icon || iconCache.get(bookmark.id) || null);
   const [iconError, setIconError] = useState(failedIconCache.has(bookmark.id));
+
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (isSelected && cardRef.current) {
+      cardRef.current.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+  }, [isSelected]);
 
   // Context Menu & Custom Icon State
   const [showMenu, setShowMenu] = useState(false);
@@ -292,7 +301,10 @@ export const FavoriteBookmarkCard: React.FC<Props> = ({ bookmark, width, height,
 
   return (
     <div 
-      className="w-full h-full relative" 
+      ref={cardRef}
+      className={`w-full h-full relative rounded-lg transition-all ${
+        isSelected ? 'ring-2 ring-primary ring-offset-2 ring-offset-background shadow-2xl scale-[1.02] z-20' : ''
+      }`} 
       onContextMenu={handleContextMenu} 
       onTouchStart={handleTouchStart} 
       onTouchEnd={handleTouchEnd}
@@ -303,7 +315,9 @@ export const FavoriteBookmarkCard: React.FC<Props> = ({ bookmark, width, height,
         rel="noopener noreferrer"
         onClick={handleClick}
         onDragStart={(e) => e.preventDefault()}
-        className="group relative w-full h-full bg-surface rounded-lg shadow-md hover:shadow-xl transition-shadow flex flex-grow flex-col items-center justify-center p-2 overflow-hidden"
+        className={`group relative w-full h-full bg-surface rounded-lg shadow-md hover:shadow-xl transition-all flex flex-grow flex-col items-center justify-center p-2 overflow-hidden ${
+          isSelected ? 'border border-primary' : ''
+        }`}
       >
         {isSmall ? (
           renderIcon()

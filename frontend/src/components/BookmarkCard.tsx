@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Bookmark } from '../api/types';
 import { ExternalLink, Trash2, Tag as TagIcon, Pencil, Globe, Heart } from 'lucide-react';
 import api from '../api/client';
@@ -11,6 +11,7 @@ interface Props {
   onTagClick: (tagName: string) => void;
   onToggleFavorite: (bookmark: Bookmark, isFavorite: boolean) => void;
   showUrl?: boolean;
+  isSelected?: boolean;
 }
 
 const Icon: React.FC<{ bookmark: Bookmark; className: string }> = ({ bookmark, className }) => {
@@ -63,7 +64,14 @@ const Icon: React.FC<{ bookmark: Bookmark; className: string }> = ({ bookmark, c
   );
 }
 
-export const BookmarkCard: React.FC<Props> = ({ bookmark, viewMode, onDelete, onEdit, onTagClick, onToggleFavorite, showUrl = true }) => {
+export const BookmarkCard: React.FC<Props> = ({ bookmark, viewMode, onDelete, onEdit, onTagClick, onToggleFavorite, showUrl = true, isSelected = false }) => {
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (isSelected && cardRef.current) {
+      cardRef.current.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+  }, [isSelected]);
 
   const handleTagClick = (e: React.MouseEvent, tagName: string) => {
     e.preventDefault(); e.stopPropagation();
@@ -88,7 +96,12 @@ export const BookmarkCard: React.FC<Props> = ({ bookmark, viewMode, onDelete, on
 
   if (viewMode === 'list') {
     return (
-      <div className="group mb-2 flex items-center justify-between rounded-md bg-surface p-3 shadow-sm transition-colors hover:bg-opacity-80">
+      <div
+        ref={cardRef}
+        className={`group mb-2 flex items-center justify-between rounded-md bg-surface p-3 shadow-sm transition-all hover:bg-opacity-80 ${
+          isSelected ? 'ring-2 ring-primary border border-primary shadow-xl bg-surface/90' : ''
+        }`}
+      >
         <div className="flex items-center gap-4 overflow-hidden">
           <Icon bookmark={bookmark} className="h-6 w-6 rounded-sm shrink-0" />
 
@@ -120,7 +133,12 @@ export const BookmarkCard: React.FC<Props> = ({ bookmark, viewMode, onDelete, on
 
   // Grid Mode
   return (
-    <div className="group relative flex flex-col rounded-lg bg-surface p-5 shadow-md transition-all hover:shadow-xl">
+    <div
+      ref={cardRef}
+      className={`group relative flex flex-col rounded-lg bg-surface p-5 shadow-md transition-all hover:shadow-xl ${
+        isSelected ? 'ring-2 ring-primary border border-primary shadow-xl scale-[1.02]' : ''
+      }`}
+    >
       <div className="mb-4 flex items-start justify-between">
         <Icon bookmark={bookmark} className="h-10 w-10 rounded-md" />
 

@@ -56,6 +56,7 @@ export const Dashboard = () => {
   });
   const [settingsStartView, setSettingsStartView] = useState<'settings' | 'tags'>('settings');
   const [highlightedTagIndex, setHighlightedTagIndex] = useState(0);
+  const [selectedBookmarkIndex, setSelectedBookmarkIndex] = useState<number>(-1);
 
   const [undoToasts, setUndoToasts] = useState<UndoToastData[]>([]);
   const undoTimersRef = useRef<{ [key: string]: number }>({});
@@ -63,6 +64,10 @@ export const Dashboard = () => {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const observerTarget = useRef<HTMLDivElement>(null);
   const highlightedTagRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    setSelectedBookmarkIndex(-1);
+  }, [search, selectedTag]);
 
   // Custom Hooks
   const {
@@ -344,6 +349,32 @@ export const Dashboard = () => {
     setDroppedData(null);
   };
 
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (search.trim() && bookmarks.length > 0) {
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        if (e.shiftKey) {
+          setSelectedBookmarkIndex(prev => (prev <= 0 ? bookmarks.length - 1 : prev - 1));
+        } else {
+          setSelectedBookmarkIndex(prev => (prev + 1) % bookmarks.length);
+        }
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setSelectedBookmarkIndex(prev => (prev + 1) % bookmarks.length);
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setSelectedBookmarkIndex(prev => (prev <= 0 ? bookmarks.length - 1 : prev - 1));
+      } else if (e.key === 'Enter') {
+        if (selectedBookmarkIndex >= 0 && selectedBookmarkIndex < bookmarks.length) {
+          e.preventDefault();
+          window.open(bookmarks[selectedBookmarkIndex].url, '_blank', 'noopener,noreferrer');
+        }
+      } else if (e.key === 'Escape') {
+        setSelectedBookmarkIndex(-1);
+      }
+    }
+  };
+
   return (
     <div className="min-h-screen p-6 md:p-10 w-full flex flex-col" onClick={() => { setIsTagMenuOpen(false); setIsSettingsMenuOpen(false); }} onDragOver={handleDragOver} onDrop={handleDrop}>
       <DashboardHeader
@@ -374,6 +405,7 @@ export const Dashboard = () => {
         logout={logout}
         user={user}
         searchInputRef={searchInputRef}
+        onSearchKeyDown={handleSearchKeyDown}
       />
 
       <div className="flex-1">
@@ -390,7 +422,7 @@ export const Dashboard = () => {
               }
             </div>
           ) : (
-            bookmarks.map(b => (
+            bookmarks.map((b, index) => (
               <BookmarkCard
                 key={b.id}
                 bookmark={b}
@@ -400,6 +432,7 @@ export const Dashboard = () => {
                 onTagClick={handleTagSelect}
                 onToggleFavorite={handleToggleFavorite}
                 showUrl={showUrl}
+                isSelected={index === selectedBookmarkIndex}
               />
             ))
           )}

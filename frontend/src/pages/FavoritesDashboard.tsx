@@ -63,12 +63,17 @@ export const FavoritesDashboard = () => {
 
   // Search bar states & refs
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedFavoriteIndex, setSelectedFavoriteIndex] = useState<number>(-1);
   const [defaultEngine, setDefaultEngine] = useState(() => {
     return localStorage.getItem('alpaca_default_search_engine') || 'Google';
   });
   const [isContextMenuOpen, setIsContextMenuOpen] = useState(false);
   const [contextMenuPos, setContextMenuPos] = useState({ x: 0, y: 0 });
   const searchInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setSelectedFavoriteIndex(-1);
+  }, [searchQuery]);
 
   // Auto-focus search input on mount
   useEffect(() => {
@@ -274,9 +279,39 @@ export const FavoritesDashboard = () => {
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (selectedFavoriteIndex >= 0 && selectedFavoriteIndex < filteredFavorites.length) {
+      window.open(filteredFavorites[selectedFavoriteIndex].url, '_blank', 'noopener,noreferrer');
+      return;
+    }
     if (!searchQuery.trim()) return;
     const engine = SEARCH_ENGINES.find(se => se.name === defaultEngine) || SEARCH_ENGINES[0];
     window.location.href = engine.url + encodeURIComponent(searchQuery.trim());
+  };
+
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (searchQuery.trim() && filteredFavorites.length > 0) {
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        if (e.shiftKey) {
+          setSelectedFavoriteIndex(prev => (prev <= 0 ? filteredFavorites.length - 1 : prev - 1));
+        } else {
+          setSelectedFavoriteIndex(prev => (prev + 1) % filteredFavorites.length);
+        }
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setSelectedFavoriteIndex(prev => (prev + 1) % filteredFavorites.length);
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setSelectedFavoriteIndex(prev => (prev <= 0 ? filteredFavorites.length - 1 : prev - 1));
+      } else if (e.key === 'Enter') {
+        if (selectedFavoriteIndex >= 0 && selectedFavoriteIndex < filteredFavorites.length) {
+          e.preventDefault();
+          window.open(filteredFavorites[selectedFavoriteIndex].url, '_blank', 'noopener,noreferrer');
+        }
+      } else if (e.key === 'Escape') {
+        setSelectedFavoriteIndex(-1);
+      }
+    }
   };
 
   const handleContextMenu = (e: React.MouseEvent) => {
@@ -356,6 +391,7 @@ export const FavoritesDashboard = () => {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={handleSearchKeyDown}
               onContextMenu={handleContextMenu}
               placeholder={`Search ${defaultEngine} or filter favorites (Right-click to change engine)...`}
               className="w-full py-3.5 pl-3 pr-4 bg-transparent outline-none text-text placeholder-gray-400"
@@ -432,7 +468,7 @@ export const FavoritesDashboard = () => {
             rowHeight={120}
             width={gridWidth}
           >
-            {filteredFavorites.map(fav => {
+            {filteredFavorites.map((fav, index) => {
               const currentLayout = layouts[breakpoint] || layouts.lg || [];
               const layoutItem = currentLayout.find(l => String(l.i) === String(fav.id));
               return (
@@ -443,6 +479,7 @@ export const FavoritesDashboard = () => {
                     height={layoutItem?.h || 1}
                     isEditMode={isEditMode}
                     onRemoveFavorite={handleRemoveFavorite}
+                    isSelected={index === selectedFavoriteIndex}
                   />
                 </div>
               );

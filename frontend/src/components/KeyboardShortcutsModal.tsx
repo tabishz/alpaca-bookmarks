@@ -13,6 +13,7 @@ interface Shortcut {
 }
 
 const favoritesShortcuts: Shortcut[] = [
+  { key: 'tab / enter', description: 'Cycle through & open filtered results' },
   { key: 'h', description: 'Go to Dashboard'},
   { key: 'd', description: 'Go to Todo Lists'},
   { key: 'k', description: 'Go to Kanban Boards'},
@@ -40,6 +41,7 @@ const kanbanShortcuts: Shortcut[] = [
 
 const mainShortcuts: Shortcut[] = [
   { key: '/', description: 'Focus the search bar'},
+  { key: 'tab / enter', description: 'Cycle through & open filtered results' },
   { key: 't', description: 'Open the tags menu'},
   { key: 'backspace', description: 'Clear selected tag'},
   { key: 'f', description: 'Go to Favorites'},

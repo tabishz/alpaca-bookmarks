@@ -36,6 +36,7 @@ interface DashboardHeaderProps {
   user: User | null;
 
   searchInputRef: React.RefObject<HTMLInputElement | null>;
+  onSearchKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
 }
 
 export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
@@ -65,7 +66,8 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
   setSettingsStartView,
   logout,
   user,
-  searchInputRef
+  searchInputRef,
+  onSearchKeyDown
 }) => {
   return (
     <header className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between" onClick={e => e.stopPropagation()}>
@@ -110,6 +112,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
                 if (e.key === 'Escape') {
                   searchInputRef.current?.blur();
                 }
+                onSearchKeyDown?.(e);
               }}
             />
           </div>
