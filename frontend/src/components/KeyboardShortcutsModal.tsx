@@ -14,6 +14,7 @@ interface Shortcut {
 
 const favoritesShortcuts: Shortcut[] = [
   { key: 'tab / enter', description: 'Cycle through & open filtered results' },
+  { key: 'cmd+enter / alt+enter', description: 'Open typed URL in new tab' },
   { key: 'h', description: 'Go to Dashboard'},
   { key: 'd', description: 'Go to Todo Lists'},
   { key: 'k', description: 'Go to Kanban Boards'},

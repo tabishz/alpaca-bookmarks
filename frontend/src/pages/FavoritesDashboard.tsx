@@ -9,6 +9,7 @@ import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 import { useTheme } from '../hooks/useTheme';
 import { KeyboardShortcutsModal } from '../components/KeyboardShortcutsModal';
+import { formatAndValidateUrl } from '../utils/url';
 
 type Layouts = Partial<Record<string, readonly LayoutItem[]>>;
 
@@ -289,6 +290,19 @@ export const FavoritesDashboard = () => {
   };
 
   const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // Alt-Enter (Win/Linux) or Cmd-Enter (Mac) opens the typed URL if valid
+    const isCmdOrAlt = e.metaKey || e.altKey;
+    if (isCmdOrAlt && e.key === 'Enter') {
+      e.preventDefault();
+      const validUrl = formatAndValidateUrl(searchQuery);
+      if (validUrl) {
+        window.open(validUrl, '_blank', 'noopener,noreferrer');
+      } else if (selectedFavoriteIndex >= 0 && selectedFavoriteIndex < filteredFavorites.length) {
+        window.open(filteredFavorites[selectedFavoriteIndex].url, '_blank', 'noopener,noreferrer');
+      }
+      return;
+    }
+
     if (searchQuery.trim() && filteredFavorites.length > 0) {
       if (e.key === 'Tab') {
         e.preventDefault();
