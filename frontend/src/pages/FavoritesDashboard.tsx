@@ -181,6 +181,63 @@ export const FavoritesDashboard = () => {
     fetchFavoritesAndLayouts();
   }, []);
 
+  const onLayoutChange = useCallback((_layout: Layout, allLayouts: Layouts) => {
+    // If filtering/searching, do NOT overwrite the full layouts!
+    if (searchQuery.trim()) {
+      return;
+    }
+    // Safeguard: do not overwrite with a partial layout having fewer items than favorites
+    const currentBpLayout = allLayouts[breakpoint] || allLayouts.lg;
+    if (favorites.length > 0 && currentBpLayout && currentBpLayout.length < favorites.length) {
+      return;
+    }
+
+    layoutChanges.current = allLayouts;
+    setLayouts(allLayouts);
+  }, [searchQuery, breakpoint, favorites.length]);
+
+  const handleEnterEditMode = useCallback(() => {
+    setSearchQuery(''); // Ensure all tiles are visible when editing layout
+    layoutChanges.current = null;
+    setLayouts(prev => {
+      const editableLayout: Layouts = {};
+      for (const bp of Object.keys(prev)) {
+        if (prev[bp]) {
+          editableLayout[bp] = prev[bp]!.map(item => ({
+            ...item,
+            static: false,
+          }));
+        }
+      }
+      return editableLayout;
+    });
+    setIsEditMode(true);
+  }, []);
+
+  const handleSave = useCallback(async () => {
+    // Use the latest layout from the ref, or the state if no changes were made.
+    const finalLayout = layoutChanges.current || layouts;
+
+    const staticLayout: Layouts = {};
+    for (const bp of Object.keys(finalLayout)) {
+      if (finalLayout[bp]) {
+        staticLayout[bp] = finalLayout[bp]!.map(item => ({
+          ...item,
+          static: true,
+        }));
+      }
+    }
+
+    try {
+      await saveLayoutsToServer(staticLayout);
+      setLayouts(staticLayout);
+      setIsEditMode(false);
+      layoutChanges.current = null;
+    } catch (e) {
+      console.error("Failed to save", e);
+    }
+  }, [layouts]);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
@@ -198,6 +255,14 @@ export const FavoritesDashboard = () => {
         if (searchQuery) { setSearchQuery(''); }
         if (document.activeElement instanceof HTMLElement) {
           document.activeElement.blur();
+        }
+      }
+      if (e.key.toLowerCase() === 'e' && !isTyping && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        e.preventDefault();
+        if (isEditMode) {
+          handleSave();
+        } else {
+          handleEnterEditMode();
         }
       }
       if (e.key === 'i' && !isTyping) {
@@ -224,62 +289,7 @@ export const FavoritesDashboard = () => {
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [navigate, isInfoModalOpen, isConfigModalOpen, editingBookmark, isContextMenuOpen, searchQuery]);
-
-  const onLayoutChange = useCallback((_layout: Layout, allLayouts: Layouts) => {
-    // If filtering/searching, do NOT overwrite the full layouts!
-    if (searchQuery.trim()) {
-      return;
-    }
-    // Safeguard: do not overwrite with a partial layout having fewer items than favorites
-    const currentBpLayout = allLayouts[breakpoint] || allLayouts.lg;
-    if (favorites.length > 0 && currentBpLayout && currentBpLayout.length < favorites.length) {
-      return;
-    }
-
-    layoutChanges.current = allLayouts;
-    setLayouts(allLayouts);
-  }, [searchQuery, breakpoint, favorites.length]);
-
-  const handleEnterEditMode = () => {
-    setSearchQuery(''); // Ensure all tiles are visible when editing layout
-    layoutChanges.current = null;
-    const editableLayout: Layouts = {};
-    for (const bp of Object.keys(layouts)) {
-        if (layouts[bp]) {
-            editableLayout[bp] = layouts[bp]!.map(item => ({
-                ...item,
-                static: false,
-            }));
-        }
-    }
-    setLayouts(editableLayout);
-    setIsEditMode(true);
-  };
-
-  const handleSave = async () => {
-    // Use the latest layout from the ref, or the state if no changes were made.
-    const finalLayout = layoutChanges.current || layouts;
-
-    const staticLayout: Layouts = {};
-    for (const bp of Object.keys(finalLayout)) {
-        if (finalLayout[bp]) {
-            staticLayout[bp] = finalLayout[bp]!.map(item => ({
-                ...item,
-                static: true,
-            }));
-        }
-    }
-
-    try {
-      await saveLayoutsToServer(staticLayout);
-      setLayouts(staticLayout);
-      setIsEditMode(false);
-      layoutChanges.current = null;
-    } catch (e) {
-        console.error("Failed to save", e);
-    }
-  };
+  }, [navigate, isInfoModalOpen, isConfigModalOpen, editingBookmark, isContextMenuOpen, searchQuery, isEditMode, handleSave, handleEnterEditMode]);
 
   const handleRemoveFavorite = async (id: number) => {
     const bookmark = favorites.find(f => f.id === id);
@@ -366,6 +376,13 @@ export const FavoritesDashboard = () => {
       return;
     }
 
+    if (e.key === 'Escape') {
+      setSelectedFavoriteIndex(-1);
+      setSearchQuery('');
+      searchInputRef.current?.blur();
+      return;
+    }
+
     if (searchQuery.trim() && filteredFavorites.length > 0) {
       if (e.key === 'Tab') {
         e.preventDefault();
@@ -385,8 +402,6 @@ export const FavoritesDashboard = () => {
           e.preventDefault();
           openUrlFromSearch(filteredFavorites[selectedFavoriteIndex].url);
         }
-      } else if (e.key === 'Escape') {
-        setSelectedFavoriteIndex(-1);
       }
     }
   };
