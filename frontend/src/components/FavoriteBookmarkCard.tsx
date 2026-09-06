@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Bookmark } from '../api/types';
-import { Globe, Image as ImageIcon, Check, X, Trash2, Search } from 'lucide-react';
+import { Globe, Image as ImageIcon, Check, X, Trash2, Search, Pencil } from 'lucide-react';
 import api from '../api/client';
 import { failedIconCache, iconCache, inFlightRequests } from '../utils/cache';
 import { IconSelectionModal } from './IconSelectionModal';
@@ -13,10 +13,11 @@ interface Props {
   height: number;
   isEditMode: boolean;
   onRemoveFavorite?: (id: number) => void;
+  onEdit?: (bookmark: Bookmark) => void;
   isSelected?: boolean;
 }
 
-export const FavoriteBookmarkCard: React.FC<Props> = ({ bookmark, width, height, isEditMode, onRemoveFavorite, isSelected = false }) => {
+export const FavoriteBookmarkCard: React.FC<Props> = ({ bookmark, width, height, isEditMode, onRemoveFavorite, onEdit, isSelected = false }) => {
   const isSmall = width === 1 && height === 1;
   const [iconSrc, setIconSrc] = useState<string | null>(() => bookmark.icon || iconCache.get(bookmark.id) || null);
   const [iconError, setIconError] = useState(failedIconCache.has(bookmark.id));
@@ -202,6 +203,16 @@ export const FavoriteBookmarkCard: React.FC<Props> = ({ bookmark, width, height,
       onMouseDown={(e) => e.stopPropagation()}
       onPointerDown={(e) => e.stopPropagation()}
     >
+      <button
+        onClick={() => {
+          setShowMenu(false);
+          if (onEdit) onEdit(bookmark);
+        }}
+        className="w-full text-left px-4 py-2 text-sm text-text hover:bg-primary hover:text-white flex items-center gap-3 transition-colors"
+      >
+        <Pencil size={16} />
+        Edit bookmark
+      </button>
       <button
         onClick={() => {
           setShowMenu(false);

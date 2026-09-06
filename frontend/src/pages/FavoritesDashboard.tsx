@@ -10,7 +10,9 @@ import 'react-resizable/css/styles.css';
 import { useTheme, Theme } from '../hooks/useTheme';
 import { KeyboardShortcutsModal } from '../components/KeyboardShortcutsModal';
 import { SettingsModal } from '../components/SettingsModal';
+import { EditBookmarkModal } from '../components/EditBookmarkModal';
 import { useAuthStore } from '../store/authStore';
+import { useTags } from '../hooks/useTags';
 import { formatAndValidateUrl } from '../utils/url';
 
 type Layouts = Partial<Record<string, readonly LayoutItem[]>>;
@@ -65,6 +67,8 @@ export const FavoritesDashboard = () => {
   const layoutChanges = useRef<Layouts | null>(null);
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
   const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
+  const [editingBookmark, setEditingBookmark] = useState<Bookmark | null>(null);
+  const { allTags, fetchTags } = useTags();
 
   // Search bar states & refs
   const [searchQuery, setSearchQuery] = useState('');
@@ -189,6 +193,7 @@ export const FavoritesDashboard = () => {
       if (e.key === 'Escape') {
         if (isInfoModalOpen) { setIsInfoModalOpen(false); }
         if (isConfigModalOpen) { setIsConfigModalOpen(false); }
+        if (editingBookmark) { setEditingBookmark(null); }
         if (isContextMenuOpen) { setIsContextMenuOpen(false); }
         if (searchQuery) { setSearchQuery(''); }
         if (document.activeElement instanceof HTMLElement) {
@@ -219,7 +224,7 @@ export const FavoritesDashboard = () => {
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [navigate, isInfoModalOpen, isConfigModalOpen, isContextMenuOpen, searchQuery]);
+  }, [navigate, isInfoModalOpen, isConfigModalOpen, editingBookmark, isContextMenuOpen, searchQuery]);
 
   const onLayoutChange = useCallback((_layout: Layout, allLayouts: Layouts) => {
     // If filtering/searching, do NOT overwrite the full layouts!
@@ -292,6 +297,16 @@ export const FavoritesDashboard = () => {
       console.error("Failed to remove from favorites", error);
       alert("Failed to remove from favorites");
     }
+  };
+
+  const handleEditSuccess = (updatedBookmark: Bookmark) => {
+    const isStillFavorite = updatedBookmark.tags?.some(t => t.name.toLowerCase() === 'favorites');
+    if (isStillFavorite) {
+      setFavorites(prev => prev.map(b => b.id === updatedBookmark.id ? updatedBookmark : b));
+    } else {
+      setFavorites(prev => prev.filter(b => b.id !== updatedBookmark.id));
+    }
+    fetchTags();
   };
 
   const handleConfigSave = async (
@@ -551,6 +566,7 @@ export const FavoritesDashboard = () => {
                     height={layoutItem?.h || 1}
                     isEditMode={isEditMode}
                     onRemoveFavorite={handleRemoveFavorite}
+                    onEdit={setEditingBookmark}
                     isSelected={index === selectedFavoriteIndex}
                   />
                 </div>
@@ -569,6 +585,12 @@ export const FavoritesDashboard = () => {
         currentShowUrl={true}
         currentSearchOpenNewTab={searchOpenNewTab}
         onSave={handleConfigSave}
+      />
+      <EditBookmarkModal
+        bookmark={editingBookmark}
+        onClose={() => setEditingBookmark(null)}
+        onSuccess={handleEditSuccess}
+        existingTags={allTags}
       />
     </div>
   );
