@@ -326,7 +326,7 @@ export const FavoriteBookmarkCard: React.FC<Props> = ({ bookmark, width, height,
         rel="noopener noreferrer"
         onClick={handleClick}
         onDragStart={(e) => e.preventDefault()}
-        className={`group relative w-full h-full bg-surface rounded-lg shadow-md hover:shadow-xl transition-all flex flex-grow flex-col items-center justify-center p-2 overflow-hidden ${
+        className={`group relative w-full h-full bookmark-tile rounded-lg shadow-md hover:shadow-xl transition-all flex flex-grow flex-col items-center justify-center p-2 overflow-hidden ${
           isSelected ? 'border border-primary' : ''
         }`}
       >

@@ -76,6 +76,12 @@ export const FavoritesDashboard = () => {
   const [searchOpenNewTab, setSearchOpenNewTab] = useState(() => {
     return localStorage.getItem('search_open_new_tab') === 'true';
   });
+  const [tileOpacity, setTileOpacity] = useState(() => {
+    const saved = localStorage.getItem('tile_opacity');
+    if (!saved) return 100;
+    const parsed = parseFloat(saved);
+    return !isNaN(parsed) ? (parsed <= 1 ? Math.round(parsed * 100) : Math.round(parsed)) : 100;
+  });
   const [defaultEngine, setDefaultEngine] = useState(() => {
     return localStorage.getItem('alpaca_default_search_engine') || 'Google';
   });
@@ -84,12 +90,23 @@ export const FavoritesDashboard = () => {
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    document.documentElement.style.setProperty('--tile-opacity', `${tileOpacity}%`);
+  }, [tileOpacity]);
+
+  useEffect(() => {
     setSelectedFavoriteIndex(-1);
   }, [searchQuery]);
 
   useEffect(() => {
     const handleStorageChange = () => {
       setSearchOpenNewTab(localStorage.getItem('search_open_new_tab') === 'true');
+      const savedOpacity = localStorage.getItem('tile_opacity');
+      if (savedOpacity) {
+        const parsed = parseFloat(savedOpacity);
+        const val = !isNaN(parsed) ? (parsed <= 1 ? Math.round(parsed * 100) : Math.round(parsed)) : 100;
+        setTileOpacity(val);
+        document.documentElement.style.setProperty('--tile-opacity', `${val}%`);
+      }
     };
     window.addEventListener('storage', handleStorageChange);
     return () => window.removeEventListener('storage', handleStorageChange);
@@ -324,14 +341,18 @@ export const FavoritesDashboard = () => {
     newTheme: Theme,
     newTileSize: number,
     newShowUrl: boolean,
-    newSearchOpenNewTab: boolean
+    newSearchOpenNewTab: boolean,
+    newTileOpacity: number = 100
   ) => {
     localStorage.setItem('bookmarks_limit', newLimit.toString());
     localStorage.setItem('tile_size', newTileSize.toString());
     localStorage.setItem('show_url', newShowUrl.toString());
     localStorage.setItem('search_open_new_tab', newSearchOpenNewTab.toString());
+    localStorage.setItem('tile_opacity', newTileOpacity.toString());
     setTheme(newTheme);
     setSearchOpenNewTab(newSearchOpenNewTab);
+    setTileOpacity(newTileOpacity);
+    document.documentElement.style.setProperty('--tile-opacity', `${newTileOpacity}%`);
     try {
       await api.patch('/user/preferences', { theme: newTheme });
       if (user) {
@@ -599,6 +620,7 @@ export const FavoritesDashboard = () => {
         currentTileSize={280}
         currentShowUrl={true}
         currentSearchOpenNewTab={searchOpenNewTab}
+        currentTileOpacity={tileOpacity}
         onSave={handleConfigSave}
       />
       <EditBookmarkModal

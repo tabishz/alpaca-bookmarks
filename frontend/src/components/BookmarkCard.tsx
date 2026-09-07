@@ -98,8 +98,8 @@ export const BookmarkCard: React.FC<Props> = ({ bookmark, viewMode, onDelete, on
     return (
       <div
         ref={cardRef}
-        className={`group mb-2 flex items-center justify-between rounded-md bg-surface p-3 shadow-sm transition-all hover:bg-opacity-80 ${
-          isSelected ? 'ring-2 ring-primary border border-primary shadow-xl bg-surface/90' : ''
+        className={`group mb-2 flex items-center justify-between rounded-md bookmark-tile p-3 shadow-sm transition-all hover:shadow-md ${
+          isSelected ? 'ring-2 ring-primary border border-primary shadow-xl' : ''
         }`}
       >
         <div className="flex items-center gap-4 overflow-hidden">
@@ -135,7 +135,7 @@ export const BookmarkCard: React.FC<Props> = ({ bookmark, viewMode, onDelete, on
   return (
     <div
       ref={cardRef}
-      className={`group relative flex flex-col rounded-lg bg-surface p-5 shadow-md transition-all hover:shadow-xl ${
+      className={`group relative flex flex-col rounded-lg bookmark-tile p-5 shadow-md transition-all hover:shadow-xl ${
         isSelected ? 'ring-2 ring-primary border border-primary shadow-xl scale-[1.02]' : ''
       }`}
     >

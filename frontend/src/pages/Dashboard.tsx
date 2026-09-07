@@ -57,9 +57,34 @@ export const Dashboard = () => {
   const [searchOpenNewTab, setSearchOpenNewTab] = useState(() => {
     return localStorage.getItem('search_open_new_tab') === 'true';
   });
+  const [tileOpacity, setTileOpacity] = useState(() => {
+    const saved = localStorage.getItem('tile_opacity');
+    if (!saved) return 100;
+    const parsed = parseFloat(saved);
+    return !isNaN(parsed) ? (parsed <= 1 ? Math.round(parsed * 100) : Math.round(parsed)) : 100;
+  });
   const [settingsStartView, setSettingsStartView] = useState<'settings' | 'tags'>('settings');
   const [highlightedTagIndex, setHighlightedTagIndex] = useState(0);
   const [selectedBookmarkIndex, setSelectedBookmarkIndex] = useState<number>(-1);
+
+  useEffect(() => {
+    document.documentElement.style.setProperty('--tile-opacity', `${tileOpacity}%`);
+  }, [tileOpacity]);
+
+  useEffect(() => {
+    const handleStorageChange = () => {
+      setSearchOpenNewTab(localStorage.getItem('search_open_new_tab') === 'true');
+      const savedOpacity = localStorage.getItem('tile_opacity');
+      if (savedOpacity) {
+        const parsed = parseFloat(savedOpacity);
+        const val = !isNaN(parsed) ? (parsed <= 1 ? Math.round(parsed * 100) : Math.round(parsed)) : 100;
+        setTileOpacity(val);
+        document.documentElement.style.setProperty('--tile-opacity', `${val}%`);
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
 
   const [undoToasts, setUndoToasts] = useState<UndoToastData[]>([]);
   const undoTimersRef = useRef<{ [key: string]: number }>({});
@@ -219,17 +244,21 @@ export const Dashboard = () => {
     newTheme: Theme,
     newTileSize: number,
     newShowUrl: boolean,
-    newSearchOpenNewTab: boolean
+    newSearchOpenNewTab: boolean,
+    newTileOpacity: number = 100
   ) => {
     localStorage.setItem('bookmarks_limit', newLimit.toString());
     localStorage.setItem('tile_size', newTileSize.toString());
     localStorage.setItem('show_url', newShowUrl.toString());
     localStorage.setItem('search_open_new_tab', newSearchOpenNewTab.toString());
+    localStorage.setItem('tile_opacity', newTileOpacity.toString());
     setLimit(newLimit);
     setTheme(newTheme);
     setTileSize(newTileSize);
     setShowUrl(newShowUrl);
     setSearchOpenNewTab(newSearchOpenNewTab);
+    setTileOpacity(newTileOpacity);
+    document.documentElement.style.setProperty('--tile-opacity', `${newTileOpacity}%`);
     try {
       await api.patch('/user/preferences', { theme: newTheme });
       if (user) {
@@ -478,6 +507,7 @@ export const Dashboard = () => {
         currentTileSize={tileSize}
         currentShowUrl={showUrl}
         currentSearchOpenNewTab={searchOpenNewTab}
+        currentTileOpacity={tileOpacity}
         onSave={handleConfigSave}
         onTagsUpdate={() => fetchBookmarks(1, true)}
         initialView={settingsStartView}
