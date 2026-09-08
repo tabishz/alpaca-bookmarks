@@ -16,6 +16,7 @@ interface Props {
   onSave: (newLimit: number, newTheme: Theme, newTileSize: number, newShowUrl: boolean, newSearchOpenNewTab: boolean, newTileOpacity: number) => void;
   onTagsUpdate?: () => void;
   initialView?: 'settings' | 'tags';
+  onOpenPageBgModal?: () => void;
 }
 
 interface TagObj { id: number; name: string }
@@ -31,7 +32,8 @@ export const SettingsModal: React.FC<Props> = ({
   currentTileOpacity = 100,
   onSave,
   onTagsUpdate,
-  initialView = 'settings'
+  initialView = 'settings',
+  onOpenPageBgModal
 }) => {
   const [limit, setLimit] = useState(50);
   const [selectedTheme, setSelectedTheme] = useState<Theme>('dracula');
@@ -243,6 +245,24 @@ export const SettingsModal: React.FC<Props> = ({
             </form>
 
             <div className="border-t border-gray-600/30 my-6"></div>
+
+            {/* Page Background Button (if provided) */}
+            {onOpenPageBgModal && (
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onOpenPageBgModal();
+                }}
+                className="w-full flex items-center justify-between bg-gray-700/30 hover:bg-gray-700/50 p-3 rounded-lg text-left transition-colors mb-3 group"
+              >
+                <span className="flex items-center gap-2 font-medium">
+                  <Palette size={18} className="text-primary" />
+                  Customize Page Background
+                </span>
+                <span className="text-xs text-gray-400 group-hover:text-text">Radial Gradient & Image</span>
+              </button>
+            )}
 
             {/* Manage Tags Button */}
             <button

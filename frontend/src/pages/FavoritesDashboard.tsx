@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import api from '../api/client';
 import { Bookmark } from '../api/types';
 import { Responsive as ResponsiveGridLayout, type Layout, type LayoutItem } from 'react-grid-layout';
-import { Home, Edit, Save, Info, ListTodo, Layout as LucideLayout, Search, X, Settings } from 'lucide-react';
+import { Home, Edit, Save, Info, ListTodo, Kanban, Search, X, Settings, Palette, Sliders } from 'lucide-react';
 import { FavoriteBookmarkCard } from '../components/FavoriteBookmarkCard';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
@@ -11,6 +11,9 @@ import { useTheme, Theme } from '../hooks/useTheme';
 import { KeyboardShortcutsModal } from '../components/KeyboardShortcutsModal';
 import { SettingsModal } from '../components/SettingsModal';
 import { EditBookmarkModal } from '../components/EditBookmarkModal';
+import { PageBackgroundModal } from '../components/PageBackgroundModal';
+import { PageBackground } from '../components/PageBackground';
+import { usePageBackground } from '../hooks/usePageBackground';
 import { useAuthStore } from '../store/authStore';
 import { useTags } from '../hooks/useTags';
 import { formatAndValidateUrl } from '../utils/url';
@@ -67,6 +70,9 @@ export const FavoritesDashboard = () => {
   const layoutChanges = useRef<Layouts | null>(null);
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
   const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
+  const [isPageBgModalOpen, setIsPageBgModalOpen] = useState(false);
+  const [isSettingsMenuOpen, setIsSettingsMenuOpen] = useState(false);
+  const { bgConfig, saveBgConfig } = usePageBackground('favorites');
   const [editingBookmark, setEditingBookmark] = useState<Bookmark | null>(null);
   const { allTags, fetchTags } = useTags();
 
@@ -265,6 +271,8 @@ export const FavoritesDashboard = () => {
         navigate('/');
       }
       if (e.key === 'Escape') {
+        if (isPageBgModalOpen) { setIsPageBgModalOpen(false); }
+        if (isSettingsMenuOpen) { setIsSettingsMenuOpen(false); }
         if (isInfoModalOpen) { setIsInfoModalOpen(false); }
         if (isConfigModalOpen) { setIsConfigModalOpen(false); }
         if (editingBookmark) { setEditingBookmark(null); }
@@ -451,52 +459,117 @@ export const FavoritesDashboard = () => {
   });
 
   return (
-    <div className="p-4 bg-background min-h-screen">
-      <header className="mb-4 flex items-center justify-between">
+    <div
+      className={`p-4 min-h-screen relative z-10 transition-colors ${
+        bgConfig.type === 'none' ? 'bg-background' : 'bg-transparent'
+      }`}
+      onClick={() => setIsSettingsMenuOpen(false)}
+    >
+      <PageBackground bgConfig={bgConfig} />
+      <header className="mb-4 flex flex-wrap items-center justify-between gap-4">
         <h1 className="text-2xl font-bold text-text">Alpaca Favorites</h1>
-        <div className="flex items-center gap-2">
-          <Link to="/" className="flex items-center gap-2 rounded-md bg-surface px-4 py-2 text-text hover:bg-primary hover:text-white transition-colors">
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            to="/"
+            className="flex items-center gap-2 rounded-md bg-surface px-3 sm:px-4 py-2 text-text border border-gray-700/50 hover:border-primary hover:bg-primary hover:text-white transition-colors shadow-sm"
+            title="Dashboard"
+          >
             <Home size={20} />
-            <span>Dashboard</span>
+            <span className="hidden sm:inline">Dashboard</span>
           </Link>
 
-          <Link to="/todos" className="flex items-center gap-2 rounded-md bg-surface px-4 py-2 text-text hover:bg-primary hover:text-white transition-colors">
+          <Link
+            to="/todos"
+            className="flex items-center gap-2 rounded-md bg-surface px-3 sm:px-4 py-2 text-text border border-gray-700/50 hover:border-primary hover:bg-primary hover:text-white transition-colors shadow-sm"
+            title="Todo List"
+          >
             <ListTodo size={20} />
-            <span>Todo List</span>
+            <span className="hidden sm:inline">Todo List</span>
           </Link>
 
-          <Link to="/kanban" className="flex items-center gap-2 rounded-md bg-surface px-4 py-2 text-text hover:bg-primary hover:text-white transition-colors">
-            <LucideLayout size={20} />
-            <span>Kanban</span>
+          <Link
+            to="/kanban"
+            className="flex items-center gap-2 rounded-md bg-surface px-3 sm:px-4 py-2 text-text border border-gray-700/50 hover:border-primary hover:bg-primary hover:text-white transition-colors shadow-sm"
+            title="Kanban"
+          >
+            <Kanban size={20} />
+            <span className="hidden sm:inline">Kanban</span>
           </Link>
 
           {isEditMode ? (
-            <button onClick={handleSave} className="flex items-center gap-2 rounded-md bg-green-500 px-4 py-2 text-white hover:bg-green-600 transition-colors">
+            <button
+              onClick={handleSave}
+              className="flex items-center gap-2 rounded-md bg-green-500 px-3 sm:px-4 py-2 text-white hover:bg-green-600 transition-colors shadow-sm"
+              title="Save Changes"
+            >
               <Save size={20} />
-              <span>Save</span>
+              <span className="hidden sm:inline">Save</span>
             </button>
           ) : (
-            <button onClick={handleEnterEditMode} className="flex items-center gap-2 rounded-md bg-blue-500 px-4 py-2 text-white hover:bg-blue-600 transition-colors">
+            <button
+              onClick={handleEnterEditMode}
+              className="flex items-center gap-2 rounded-md bg-blue-500 px-3 sm:px-4 py-2 text-white hover:bg-blue-600 transition-colors shadow-sm"
+              title="Edit Mode"
+            >
               <Edit size={20} />
-              <span>Edit</span>
+              <span className="hidden sm:inline">Edit</span>
             </button>
           )}
           <div className="relative">
             <button
-              onClick={() => setIsConfigModalOpen(true)}
-              className="p-2 rounded-md text-gray-400 hover:text-white transition-colors"
-              title="Settings"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsSettingsMenuOpen(!isSettingsMenuOpen);
+              }}
+              className={`p-2 rounded-md border border-gray-700/50 transition-colors shadow-sm ${
+                isSettingsMenuOpen ? 'bg-surface text-white' : 'bg-surface text-gray-400 hover:text-white'
+              }`}
+              title="Page & Global Settings"
             >
-              <Settings size={22} />
+              <Settings size={20} />
             </button>
+            {isSettingsMenuOpen && (
+              <div
+                className="absolute right-0 top-full z-50 mt-2 w-56 rounded-lg border border-gray-700 bg-surface shadow-2xl py-1 animate-in fade-in zoom-in duration-150"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <button
+                  onClick={() => {
+                    setIsPageBgModalOpen(true);
+                    setIsSettingsMenuOpen(false);
+                  }}
+                  className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-text hover:bg-primary hover:text-white transition-colors"
+                >
+                  <Palette size={16} className="text-primary" />
+                  <div>
+                    <div className="font-medium">Page Background</div>
+                    <div className="text-xs text-gray-400">Radial gradient & image</div>
+                  </div>
+                </button>
+                <div className="border-t border-gray-700/50 my-1"></div>
+                <button
+                  onClick={() => {
+                    setIsConfigModalOpen(true);
+                    setIsSettingsMenuOpen(false);
+                  }}
+                  className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-text hover:bg-primary hover:text-white transition-colors"
+                >
+                  <Sliders size={16} className="text-gray-400" />
+                  <div>
+                    <div className="font-medium">Global Preferences</div>
+                    <div className="text-xs text-gray-400">Theme, tiles, search</div>
+                  </div>
+                </button>
+              </div>
+            )}
           </div>
           <div className="relative">
             <button
               onClick={(e) => { e.stopPropagation(); setIsInfoModalOpen(true); }}
-              className="p-2 rounded-md text-gray-400 hover:text-white transition-colors"
+              className="p-2 rounded-md border border-gray-700/50 bg-surface text-gray-400 hover:text-white transition-colors shadow-sm"
               title="Keyboard Shortcuts"
             >
-              <Info size={28} />
+              <Info size={20} />
             </button>
           </div>
         </div>
@@ -622,6 +695,14 @@ export const FavoritesDashboard = () => {
         currentSearchOpenNewTab={searchOpenNewTab}
         currentTileOpacity={tileOpacity}
         onSave={handleConfigSave}
+        onOpenPageBgModal={() => setIsPageBgModalOpen(true)}
+      />
+      <PageBackgroundModal
+        isOpen={isPageBgModalOpen}
+        onClose={() => setIsPageBgModalOpen(false)}
+        pageName="Favorites Dashboard"
+        currentConfig={bgConfig}
+        onSave={saveBgConfig}
       />
       <EditBookmarkModal
         bookmark={editingBookmark}

@@ -10,6 +10,9 @@ import { DataImportExportModal } from '../components/DataImportExportModal';
 import { KeyboardShortcutsModal } from '../components/KeyboardShortcutsModal';
 import { UndoToast } from '../components/UndoToast';
 import { DashboardHeader } from '../components/DashboardHeader';
+import { PageBackground } from '../components/PageBackground';
+import { PageBackgroundModal } from '../components/PageBackgroundModal';
+import { usePageBackground } from '../hooks/usePageBackground';
 import { Plus } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { useTheme, Theme } from '../hooks/useTheme';
@@ -66,6 +69,8 @@ export const Dashboard = () => {
   const [settingsStartView, setSettingsStartView] = useState<'settings' | 'tags'>('settings');
   const [highlightedTagIndex, setHighlightedTagIndex] = useState(0);
   const [selectedBookmarkIndex, setSelectedBookmarkIndex] = useState<number>(-1);
+  const [isPageBgModalOpen, setIsPageBgModalOpen] = useState(false);
+  const { bgConfig, saveBgConfig } = usePageBackground('dashboard');
 
   useEffect(() => {
     document.documentElement.style.setProperty('--tile-opacity', `${tileOpacity}%`);
@@ -203,6 +208,7 @@ export const Dashboard = () => {
           if (isTagMenuOpen) { e.preventDefault(); setIsTagMenuOpen(false); }
           else if (isSettingsMenuOpen) { e.preventDefault(); setIsSettingsMenuOpen(false); }
           else if (isInfoModalOpen) { setIsInfoModalOpen(false); }
+          else if (isPageBgModalOpen) { setIsPageBgModalOpen(false); }
           break;
         case 'Backspace':
           if (!isTyping && selectedTag) {
@@ -416,12 +422,21 @@ export const Dashboard = () => {
   };
 
   return (
-    <div className="min-h-screen p-6 md:p-10 w-full flex flex-col" onClick={() => { setIsTagMenuOpen(false); setIsSettingsMenuOpen(false); }} onDragOver={handleDragOver} onDrop={handleDrop}>
+    <div
+      className={`min-h-screen p-6 md:p-10 w-full flex flex-col relative z-10 transition-colors ${
+        bgConfig.type === 'none' ? 'bg-background' : 'bg-transparent'
+      }`}
+      onClick={() => { setIsTagMenuOpen(false); setIsSettingsMenuOpen(false); }}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
+    >
+      <PageBackground bgConfig={bgConfig} />
       <DashboardHeader
         bookmarksCount={bookmarks.length}
         totalCount={totalCount}
         search={search}
         setSearch={setSearch}
+        onOpenPageBgModal={() => setIsPageBgModalOpen(true)}
         selectedTag={selectedTag}
         setSelectedTag={setSelectedTag}
         setTagSearch={setTagSearch}
@@ -511,6 +526,14 @@ export const Dashboard = () => {
         onSave={handleConfigSave}
         onTagsUpdate={() => fetchBookmarks(1, true)}
         initialView={settingsStartView}
+        onOpenPageBgModal={() => setIsPageBgModalOpen(true)}
+      />
+      <PageBackgroundModal
+        isOpen={isPageBgModalOpen}
+        onClose={() => setIsPageBgModalOpen(false)}
+        pageName="Main Dashboard"
+        currentConfig={bgConfig}
+        onSave={saveBgConfig}
       />
       <KeyboardShortcutsModal isOpen={isInfoModalOpen} onClose={() => setIsInfoModalOpen(false)} />
       <DataImportExportModal
