@@ -72,7 +72,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
   onOpenPageBgModal
 }) => {
   return (
-    <header className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between" onClick={e => e.stopPropagation()}>
+    <header className="relative z-20 mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between" onClick={e => e.stopPropagation()}>
         <div>
           <h1 className="text-3xl font-bold flex items-center">
             <img src="/alpaca-bookmarks.png" alt="Alpaca Bookmarks" className="inline-block h-8 w-8 mr-2" />

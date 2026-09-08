@@ -466,7 +466,7 @@ export const FavoritesDashboard = () => {
       onClick={() => setIsSettingsMenuOpen(false)}
     >
       <PageBackground bgConfig={bgConfig} />
-      <header className="mb-4 flex flex-wrap items-center justify-between gap-4">
+      <header className="relative z-20 mb-4 flex flex-wrap items-center justify-between gap-4">
         <h1 className="text-2xl font-bold text-text">Alpaca Favorites</h1>
         <div className="flex flex-wrap items-center gap-2">
           <Link

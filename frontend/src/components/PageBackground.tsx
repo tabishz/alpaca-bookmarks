@@ -11,7 +11,7 @@ export const PageBackground: React.FC<Props> = ({ bgConfig }) => {
   if (bgConfig.type === 'gradient') {
     return (
       <div
-        className="fixed inset-0 pointer-events-none z-0 transition-all duration-300"
+        className="fixed inset-0 pointer-events-none -z-10 transition-all duration-300"
         style={{
           background: `radial-gradient(circle at center, ${bgConfig.gradientColor1} 0%, ${bgConfig.gradientColor2} 100%)`,
           backgroundAttachment: 'fixed',
@@ -26,7 +26,7 @@ export const PageBackground: React.FC<Props> = ({ bgConfig }) => {
 
     return (
       <div
-        className="fixed inset-0 pointer-events-none z-0 transition-all duration-300"
+        className="fixed inset-0 pointer-events-none -z-10 transition-all duration-300"
         style={{
           backgroundImage: `url(${bgConfig.imageUrl})`,
           backgroundSize: 'cover',
