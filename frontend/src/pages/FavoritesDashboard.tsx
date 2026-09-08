@@ -467,7 +467,10 @@ export const FavoritesDashboard = () => {
     >
       <PageBackground bgConfig={bgConfig} />
       <header className="relative z-20 mb-4 flex flex-wrap items-center justify-between gap-4">
-        <h1 className="text-2xl font-bold text-text">Alpaca Favorites</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold text-text flex items-center">
+          <img src="/alpaca-bookmarks.png" alt="Alpaca Bookmarks" className="inline-block h-8 w-8 mr-2" />
+          Alpaca Favorites
+        </h1>
         <div className="flex flex-wrap items-center gap-2">
           <Link
             to="/"

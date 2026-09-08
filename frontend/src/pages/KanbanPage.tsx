@@ -871,8 +871,11 @@ export const KanbanPage: React.FC = () => {
 
   return (
     <div className="min-h-screen p-6 md:p-10 w-full" onClick={() => setIsSettingsMenuOpen(false)}>
-      <header className="mb-8 flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Alpaca Kanban</h1>
+      <header className="relative z-20 mb-8 flex items-center justify-between">
+        <h1 className="text-3xl font-bold text-text flex items-center">
+          <img src="/alpaca-bookmarks.png" alt="Alpaca Bookmarks" className="inline-block h-8 w-8 mr-2" />
+          Alpaca Kanban
+        </h1>
         <div className="flex items-center gap-2">
           <Link to="/" className="flex items-center gap-2 rounded-md bg-surface px-4 py-2 text-text hover:bg-primary hover:text-white transition-colors">
             <Home size={20} />
