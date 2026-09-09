@@ -120,6 +120,7 @@ interface SearchMatchProps {
   onToggleFavorite: (bm: Bookmark, isFav: boolean) => void;
   onEdit: (bm: Bookmark) => void;
   onOpen: (url: string) => void;
+  tileHeight?: number;
 }
 
 const SearchMatchCard: React.FC<SearchMatchProps> = ({
@@ -129,6 +130,7 @@ const SearchMatchCard: React.FC<SearchMatchProps> = ({
   onToggleFavorite,
   onEdit,
   onOpen,
+  tileHeight = 0,
 }) => {
   const cardRef = useRef<HTMLDivElement>(null);
 
@@ -142,15 +144,16 @@ const SearchMatchCard: React.FC<SearchMatchProps> = ({
     <div
       ref={cardRef}
       onClick={() => onOpen(bookmark.url)}
-      className={`bookmark-tile group relative flex flex-col justify-between rounded-xl border p-4 cursor-pointer transition-all duration-200 shadow-sm hover:shadow-xl ${
+      style={tileHeight && tileHeight > 0 ? { height: `${tileHeight}px` } : undefined}
+      className={`bookmark-tile group relative flex flex-col justify-between overflow-hidden rounded-xl border p-4 cursor-pointer transition-all duration-200 shadow-sm hover:shadow-xl ${
         isSelected
           ? 'ring-2 ring-primary border-primary shadow-2xl scale-[1.02] bg-surface'
           : 'border-gray-700/60 hover:border-primary/80'
       }`}
     >
-      <div>
-        <div className="flex items-start justify-between gap-2 mb-3">
-          <SearchBookmarkIcon bookmark={bookmark} className="h-9 w-9" />
+      <div className="overflow-hidden flex-1 flex flex-col min-h-0">
+        <div className="flex items-start justify-between gap-2 mb-2 shrink-0">
+          <SearchBookmarkIcon bookmark={bookmark} className={tileHeight && tileHeight < 200 ? "h-7 w-7" : "h-9 w-9"} />
           <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
             <button
               onClick={() => onToggleFavorite(bookmark, isFavorite)}
@@ -175,7 +178,13 @@ const SearchMatchCard: React.FC<SearchMatchProps> = ({
         </div>
 
         <h3
-          className="text-sm font-bold text-text line-clamp-2 group-hover:text-primary transition-colors mb-1"
+          className={`font-bold text-text group-hover:text-primary transition-colors mb-1 ${
+            tileHeight && tileHeight < 190
+              ? 'text-xs line-clamp-1'
+              : tileHeight && tileHeight < 240
+              ? 'text-sm line-clamp-1'
+              : 'text-sm line-clamp-2'
+          }`}
           title={bookmark.title}
         >
           {bookmark.title || 'Untitled'}
@@ -185,12 +194,12 @@ const SearchMatchCard: React.FC<SearchMatchProps> = ({
         </p>
       </div>
 
-      <div className="mt-2 pt-2 border-t border-gray-700/40 flex items-center justify-between">
-        <div className="flex flex-wrap gap-1 max-w-[80%] overflow-hidden">
+      <div className="mt-2 pt-2 border-t border-gray-700/40 flex items-center justify-between shrink-0">
+        <div className="flex flex-wrap gap-1 max-w-[80%] overflow-hidden max-h-[22px]">
           {bookmark.tags?.slice(0, 3).map(t => (
             <span
               key={t.id}
-              className="text-[10px] px-1.5 py-0.5 rounded bg-background/80 text-gray-400 border border-gray-700/40"
+              className="text-[10px] px-1.5 py-0.5 rounded bg-background/80 text-gray-400 border border-gray-700/40 truncate"
             >
               #{t.name}
             </span>
@@ -325,6 +334,10 @@ export const FavoritesDashboard = () => {
     const parsed = parseFloat(saved);
     return !isNaN(parsed) ? (parsed <= 1 ? Math.round(parsed * 100) : Math.round(parsed)) : 100;
   });
+  const [tileHeight, setTileHeight] = useState(() => {
+    const saved = localStorage.getItem('tile_height');
+    return saved ? parseInt(saved) : 0;
+  });
   const [defaultEngine, setDefaultEngine] = useState(() => {
     return localStorage.getItem('alpaca_default_search_engine') || 'Google';
   });
@@ -343,6 +356,8 @@ export const FavoritesDashboard = () => {
   useEffect(() => {
     const handleStorageChange = () => {
       setSearchOpenNewTab(localStorage.getItem('search_open_new_tab') === 'true');
+      const savedHeight = localStorage.getItem('tile_height');
+      if (savedHeight) setTileHeight(parseInt(savedHeight));
       const savedOpacity = localStorage.getItem('tile_opacity');
       if (savedOpacity) {
         const parsed = parseFloat(savedOpacity);
@@ -627,16 +642,19 @@ export const FavoritesDashboard = () => {
     newTileSize: number,
     newShowUrl: boolean,
     newSearchOpenNewTab: boolean,
-    newTileOpacity: number = 100
+    newTileOpacity: number = 100,
+    newTileHeight: number = 0
   ) => {
     localStorage.setItem('bookmarks_limit', newLimit.toString());
     localStorage.setItem('tile_size', newTileSize.toString());
     localStorage.setItem('show_url', newShowUrl.toString());
     localStorage.setItem('search_open_new_tab', newSearchOpenNewTab.toString());
     localStorage.setItem('tile_opacity', newTileOpacity.toString());
+    localStorage.setItem('tile_height', newTileHeight.toString());
     setTheme(newTheme);
     setSearchOpenNewTab(newSearchOpenNewTab);
     setTileOpacity(newTileOpacity);
+    setTileHeight(newTileHeight);
     document.documentElement.style.setProperty('--tile-opacity', `${newTileOpacity}%`);
     try {
       await api.patch('/user/preferences', { theme: newTheme });
@@ -1050,6 +1068,7 @@ export const FavoritesDashboard = () => {
                         onToggleFavorite={handleToggleFavorite}
                         onEdit={setEditingBookmark}
                         onOpen={openUrlFromSearch}
+                        tileHeight={tileHeight}
                       />
                     ))}
                   </div>
@@ -1070,6 +1089,7 @@ export const FavoritesDashboard = () => {
                         onToggleFavorite={handleToggleFavorite}
                         onEdit={setEditingBookmark}
                         onOpen={openUrlFromSearch}
+                        tileHeight={tileHeight}
                       />
                     ))}
                   </div>
@@ -1086,6 +1106,7 @@ export const FavoritesDashboard = () => {
                     onToggleFavorite={handleToggleFavorite}
                     onEdit={setEditingBookmark}
                     onOpen={openUrlFromSearch}
+                    tileHeight={tileHeight}
                   />
                 ))}
               </div>
@@ -1194,6 +1215,7 @@ export const FavoritesDashboard = () => {
         currentLimit={50}
         currentTheme={theme}
         currentTileSize={280}
+        currentTileHeight={tileHeight}
         currentShowUrl={true}
         currentSearchOpenNewTab={searchOpenNewTab}
         currentTileOpacity={tileOpacity}

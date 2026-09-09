@@ -749,10 +749,22 @@ export const KanbanPage: React.FC = () => {
     setIsAddingColumn(false);
   };
 
-  const handleConfigSave = async (newLimit: number, newTheme: Theme, newTileSize: number, newShowUrl: boolean) => {
+  const handleConfigSave = async (
+    newLimit: number,
+    newTheme: Theme,
+    newTileSize: number,
+    newShowUrl: boolean,
+    newSearchOpenNewTab?: boolean,
+    newTileOpacity: number = 100,
+    newTileHeight: number = 0
+  ) => {
     localStorage.setItem('bookmarks_limit', newLimit.toString());
     localStorage.setItem('tile_size', newTileSize.toString());
     localStorage.setItem('show_url', newShowUrl.toString());
+    if (newSearchOpenNewTab !== undefined) localStorage.setItem('search_open_new_tab', newSearchOpenNewTab.toString());
+    localStorage.setItem('tile_opacity', newTileOpacity.toString());
+    localStorage.setItem('tile_height', newTileHeight.toString());
+    document.documentElement.style.setProperty('--tile-opacity', `${newTileOpacity}%`);
     setLimit(newLimit);
     setTheme(newTheme);
     setTileSize(newTileSize);

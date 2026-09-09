@@ -53,6 +53,10 @@ export const Dashboard = () => {
     const saved = localStorage.getItem('tile_size');
     return saved ? parseInt(saved) : 280;
   });
+  const [tileHeight, setTileHeight] = useState(() => {
+    const saved = localStorage.getItem('tile_height');
+    return saved ? parseInt(saved) : 0;
+  });
   const [showUrl, setShowUrl] = useState(() => {
     const saved = localStorage.getItem('show_url');
     return saved ? saved === 'true' : true;
@@ -79,6 +83,8 @@ export const Dashboard = () => {
   useEffect(() => {
     const handleStorageChange = () => {
       setSearchOpenNewTab(localStorage.getItem('search_open_new_tab') === 'true');
+      const savedHeight = localStorage.getItem('tile_height');
+      if (savedHeight) setTileHeight(parseInt(savedHeight));
       const savedOpacity = localStorage.getItem('tile_opacity');
       if (savedOpacity) {
         const parsed = parseFloat(savedOpacity);
@@ -251,19 +257,22 @@ export const Dashboard = () => {
     newTileSize: number,
     newShowUrl: boolean,
     newSearchOpenNewTab: boolean,
-    newTileOpacity: number = 100
+    newTileOpacity: number = 100,
+    newTileHeight: number = 0
   ) => {
     localStorage.setItem('bookmarks_limit', newLimit.toString());
     localStorage.setItem('tile_size', newTileSize.toString());
     localStorage.setItem('show_url', newShowUrl.toString());
     localStorage.setItem('search_open_new_tab', newSearchOpenNewTab.toString());
     localStorage.setItem('tile_opacity', newTileOpacity.toString());
+    localStorage.setItem('tile_height', newTileHeight.toString());
     setLimit(newLimit);
     setTheme(newTheme);
     setTileSize(newTileSize);
     setShowUrl(newShowUrl);
     setSearchOpenNewTab(newSearchOpenNewTab);
     setTileOpacity(newTileOpacity);
+    setTileHeight(newTileHeight);
     document.documentElement.style.setProperty('--tile-opacity', `${newTileOpacity}%`);
     try {
       await api.patch('/user/preferences', { theme: newTheme });
@@ -488,6 +497,7 @@ export const Dashboard = () => {
                 onToggleFavorite={handleToggleFavorite}
                 showUrl={showUrl}
                 isSelected={index === selectedBookmarkIndex}
+                tileHeight={tileHeight}
               />
             ))
           )}
@@ -520,6 +530,7 @@ export const Dashboard = () => {
         currentLimit={limit}
         currentTheme={theme}
         currentTileSize={tileSize}
+        currentTileHeight={tileHeight}
         currentShowUrl={showUrl}
         currentSearchOpenNewTab={searchOpenNewTab}
         currentTileOpacity={tileOpacity}
