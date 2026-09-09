@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Bookmark } from '../api/types';
 import { ExternalLink, Trash2, Tag as TagIcon, Pencil, Globe, Heart } from 'lucide-react';
 import api from '../api/client';
@@ -11,6 +11,8 @@ interface Props {
   onTagClick: (tagName: string) => void;
   onToggleFavorite: (bookmark: Bookmark, isFavorite: boolean) => void;
   showUrl?: boolean;
+  isSelected?: boolean;
+  tileHeight?: number;
 }
 
 const Icon: React.FC<{ bookmark: Bookmark; className: string }> = ({ bookmark, className }) => {
@@ -63,7 +65,24 @@ const Icon: React.FC<{ bookmark: Bookmark; className: string }> = ({ bookmark, c
   );
 }
 
-export const BookmarkCard: React.FC<Props> = ({ bookmark, viewMode, onDelete, onEdit, onTagClick, onToggleFavorite, showUrl = true }) => {
+export const BookmarkCard: React.FC<Props> = ({
+  bookmark,
+  viewMode,
+  onDelete,
+  onEdit,
+  onTagClick,
+  onToggleFavorite,
+  showUrl = true,
+  isSelected = false,
+  tileHeight = 0
+}) => {
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (isSelected && cardRef.current) {
+      cardRef.current.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+  }, [isSelected]);
 
   const handleTagClick = (e: React.MouseEvent, tagName: string) => {
     e.preventDefault(); e.stopPropagation();
@@ -88,7 +107,12 @@ export const BookmarkCard: React.FC<Props> = ({ bookmark, viewMode, onDelete, on
 
   if (viewMode === 'list') {
     return (
-      <div className="group mb-2 flex items-center justify-between rounded-md bg-surface p-3 shadow-sm transition-colors hover:bg-opacity-80">
+      <div
+        ref={cardRef}
+        className={`group mb-2 flex items-center justify-between rounded-md bookmark-tile p-3 shadow-sm transition-all hover:shadow-md ${
+          isSelected ? 'ring-2 ring-primary border border-primary shadow-xl' : ''
+        }`}
+      >
         <div className="flex items-center gap-4 overflow-hidden">
           <Icon bookmark={bookmark} className="h-6 w-6 rounded-sm shrink-0" />
 
@@ -120,37 +144,81 @@ export const BookmarkCard: React.FC<Props> = ({ bookmark, viewMode, onDelete, on
 
   // Grid Mode
   return (
-    <div className="group relative flex flex-col rounded-lg bg-surface p-5 shadow-md transition-all hover:shadow-xl">
-      <div className="mb-4 flex items-start justify-between">
-        <Icon bookmark={bookmark} className="h-10 w-10 rounded-md" />
+    <div
+      ref={cardRef}
+      style={tileHeight && tileHeight > 0 ? { height: `${tileHeight}px` } : undefined}
+      className={`group relative flex flex-col justify-between overflow-hidden rounded-lg bookmark-tile p-4 sm:p-5 shadow-md transition-all hover:shadow-xl ${
+        isSelected ? 'ring-2 ring-primary border border-primary shadow-xl scale-[1.02]' : ''
+      }`}
+    >
+      <div className="overflow-hidden flex-1 flex flex-col min-h-0">
+        <div className="mb-2 flex items-start justify-between shrink-0">
+          <Icon bookmark={bookmark} className={tileHeight && tileHeight < 200 ? "h-8 w-8 rounded-md" : "h-10 w-10 rounded-md"} />
 
-        <div className="flex gap-2 opacity-0 transition-opacity group-hover:opacity-100">
-          <button onClick={() => onToggleFavorite(bookmark, isFavorite)} className={`text-gray-500 hover:text-red-400 ${isFavorite ? 'text-red-400' : ''}`} title="Favorite">
-            <Heart size={18} fill={isFavorite ? 'currentColor' : 'none'} />
-          </button>
-          <button onClick={() => onEdit(bookmark)} className="text-gray-500 hover:text-primary" title="Edit"><Pencil size={18} /></button>
-          <button onClick={() => onDelete(bookmark)} className="text-gray-500 hover:text-red-400" title="Delete"><Trash2 size={18} /></button>
+          <div className="flex gap-2 opacity-0 transition-opacity group-hover:opacity-100 shrink-0">
+            <button onClick={() => onToggleFavorite(bookmark, isFavorite)} className={`text-gray-500 hover:text-red-400 ${isFavorite ? 'text-red-400' : ''}`} title="Favorite">
+              <Heart size={18} fill={isFavorite ? 'currentColor' : 'none'} />
+            </button>
+            <button onClick={() => onEdit(bookmark)} className="text-gray-500 hover:text-primary" title="Edit"><Pencil size={18} /></button>
+            <button onClick={() => onDelete(bookmark)} className="text-gray-500 hover:text-red-400" title="Delete"><Trash2 size={18} /></button>
+          </div>
         </div>
+
+        <h3
+          className={`font-bold text-text break-words mb-1 ${
+            tileHeight && tileHeight < 190
+              ? 'text-sm line-clamp-1'
+              : tileHeight && tileHeight < 250
+              ? 'text-base line-clamp-1'
+              : 'text-lg line-clamp-2'
+          }`}
+          title={bookmark.title}
+        >
+          {bookmark.title || 'Untitled'}
+        </h3>
+
+        {displayDescription && (
+          <p
+            className={`text-sm text-gray-400 break-words mb-2 ${
+              tileHeight && tileHeight < 190
+                ? 'hidden'
+                : tileHeight && tileHeight < 240
+                ? 'line-clamp-1 text-xs'
+                : tileHeight && tileHeight < 300
+                ? 'line-clamp-2 text-xs'
+                : 'line-clamp-3'
+            }`}
+            title={displayDescription}
+          >
+            {displayDescription}
+          </p>
+        )}
+
+        <div className="flex-1"></div>
+
+        {tags.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 overflow-hidden max-h-[28px] shrink-0 mb-1">
+            {tags.map((tag) => (
+              <button
+                key={tag.id}
+                onClick={(e) => handleTagClick(e, tag.name)}
+                className="flex items-center rounded bg-background px-2 py-0.5 text-xs text-primary hover:bg-primary hover:text-white transition-colors cursor-pointer truncate max-w-[120px]"
+                title={tag.name}
+              >
+                <TagIcon size={10} className="mr-1 shrink-0" /> <span className="truncate">{tag.name}</span>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
-      <h3 className="mb-2 text-lg font-bold text-text break-words" title={bookmark.title}>{bookmark.title || 'Untitled'}</h3>
-      {displayDescription && (
-        <p className="mb-4 text-sm text-gray-400 break-words">{displayDescription}</p>
-      )}
-
-      <div className="flex-1"></div>
-
-      <div className="flex flex-wrap gap-2">
-        {/* SAFE MAP */}
-        {tags.map((tag) => (
-          <button key={tag.id} onClick={(e) => handleTagClick(e, tag.name)} className="flex items-center rounded bg-background px-2 py-1 text-xs text-primary hover:bg-primary hover:text-white transition-colors cursor-pointer">
-            <TagIcon size={10} className="mr-1" /> {tag.name}
-          </button>
-        ))}
-      </div>
-
-      <a href={bookmark.url} target="_blank" rel="noopener noreferrer" className="mt-3 flex items-center justify-center rounded bg-background py-2 text-sm font-semibold text-primary hover:bg-opacity-80">
-        Visit <ExternalLink size={14} className="ml-2" />
+      <a
+        href={bookmark.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="mt-2 flex items-center justify-center rounded bg-background py-1.5 text-xs sm:text-sm font-semibold text-primary hover:bg-opacity-80 shrink-0"
+      >
+        Visit <ExternalLink size={13} className="ml-1.5" />
       </a>
     </div>
   );

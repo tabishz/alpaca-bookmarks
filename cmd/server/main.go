@@ -12,11 +12,12 @@ import (
 	"os"
 
 	"github.com/gin-gonic/gin"
+	_ "github.com/joho/godotenv/autoload"
 	"github.com/robfig/cron/v3"
 	"golang.org/x/crypto/bcrypt"
 )
 
-const Version = "0.3.6-beta"
+const Version = "0.4.1-beta"
 
 // Helper function to create initial admin
 func createDefaultAdmin() {

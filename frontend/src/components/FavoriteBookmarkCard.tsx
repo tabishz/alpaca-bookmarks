@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Bookmark } from '../api/types';
-import { Globe, Image as ImageIcon, Check, X, Trash2, Search } from 'lucide-react';
+import { Globe, Image as ImageIcon, Check, X, Trash2, Search, Pencil } from 'lucide-react';
 import api from '../api/client';
 import { failedIconCache, iconCache, inFlightRequests } from '../utils/cache';
 import { IconSelectionModal } from './IconSelectionModal';
@@ -13,12 +13,22 @@ interface Props {
   height: number;
   isEditMode: boolean;
   onRemoveFavorite?: (id: number) => void;
+  onEdit?: (bookmark: Bookmark) => void;
+  isSelected?: boolean;
 }
 
-export const FavoriteBookmarkCard: React.FC<Props> = ({ bookmark, width, height, isEditMode, onRemoveFavorite }) => {
+export const FavoriteBookmarkCard: React.FC<Props> = ({ bookmark, width, height, isEditMode, onRemoveFavorite, onEdit, isSelected = false }) => {
   const isSmall = width === 1 && height === 1;
   const [iconSrc, setIconSrc] = useState<string | null>(() => bookmark.icon || iconCache.get(bookmark.id) || null);
   const [iconError, setIconError] = useState(failedIconCache.has(bookmark.id));
+
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (isSelected && cardRef.current) {
+      cardRef.current.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+  }, [isSelected]);
 
   // Context Menu & Custom Icon State
   const [showMenu, setShowMenu] = useState(false);
@@ -196,6 +206,16 @@ export const FavoriteBookmarkCard: React.FC<Props> = ({ bookmark, width, height,
       <button
         onClick={() => {
           setShowMenu(false);
+          if (onEdit) onEdit(bookmark);
+        }}
+        className="w-full text-left px-4 py-2 text-sm text-text hover:bg-primary hover:text-white flex items-center gap-3 transition-colors"
+      >
+        <Pencil size={16} />
+        Edit bookmark
+      </button>
+      <button
+        onClick={() => {
+          setShowMenu(false);
           setIsInputMode(true);
         }}
         className="w-full text-left px-4 py-2 text-sm text-text hover:bg-primary hover:text-white flex items-center gap-3 transition-colors"
@@ -292,7 +312,10 @@ export const FavoriteBookmarkCard: React.FC<Props> = ({ bookmark, width, height,
 
   return (
     <div 
-      className="w-full h-full relative" 
+      ref={cardRef}
+      className={`w-full h-full relative rounded-lg transition-all ${
+        isSelected ? 'ring-2 ring-primary ring-offset-2 ring-offset-background shadow-2xl scale-[1.02] z-20' : ''
+      }`} 
       onContextMenu={handleContextMenu} 
       onTouchStart={handleTouchStart} 
       onTouchEnd={handleTouchEnd}
@@ -303,7 +326,9 @@ export const FavoriteBookmarkCard: React.FC<Props> = ({ bookmark, width, height,
         rel="noopener noreferrer"
         onClick={handleClick}
         onDragStart={(e) => e.preventDefault()}
-        className="group relative w-full h-full bg-surface rounded-lg shadow-md hover:shadow-xl transition-shadow flex flex-grow flex-col items-center justify-center p-2 overflow-hidden"
+        className={`group relative w-full h-full bookmark-tile rounded-lg shadow-md hover:shadow-xl transition-all flex flex-grow flex-col items-center justify-center p-2 overflow-hidden ${
+          isSelected ? 'border border-primary' : ''
+        }`}
       >
         {isSmall ? (
           renderIcon()

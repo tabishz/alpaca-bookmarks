@@ -16,10 +16,16 @@ html, body, #root {
   --text-primary: #f8f8f2;
   --text-muted: #d1d5db;
   --accent-primary: #bd93f9;
+  --tile-opacity: 100%;
 
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
+}
+
+.bookmark-tile {
+  background-color: var(--bg-secondary);
+  background-color: color-mix(in srgb, var(--bg-secondary) var(--tile-opacity, 100%), transparent);
 }
 
 /* Andromeda (Dark Teal/Purple) */

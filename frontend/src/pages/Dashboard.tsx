@@ -10,6 +10,9 @@ import { DataImportExportModal } from '../components/DataImportExportModal';
 import { KeyboardShortcutsModal } from '../components/KeyboardShortcutsModal';
 import { UndoToast } from '../components/UndoToast';
 import { DashboardHeader } from '../components/DashboardHeader';
+import { PageBackground } from '../components/PageBackground';
+import { PageBackgroundModal } from '../components/PageBackgroundModal';
+import { usePageBackground } from '../hooks/usePageBackground';
 import { Plus } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { useTheme, Theme } from '../hooks/useTheme';
@@ -50,12 +53,49 @@ export const Dashboard = () => {
     const saved = localStorage.getItem('tile_size');
     return saved ? parseInt(saved) : 280;
   });
+  const [tileHeight, setTileHeight] = useState(() => {
+    const saved = localStorage.getItem('tile_height');
+    return saved ? parseInt(saved) : 0;
+  });
   const [showUrl, setShowUrl] = useState(() => {
     const saved = localStorage.getItem('show_url');
     return saved ? saved === 'true' : true;
   });
+  const [searchOpenNewTab, setSearchOpenNewTab] = useState(() => {
+    return localStorage.getItem('search_open_new_tab') === 'true';
+  });
+  const [tileOpacity, setTileOpacity] = useState(() => {
+    const saved = localStorage.getItem('tile_opacity');
+    if (!saved) return 100;
+    const parsed = parseFloat(saved);
+    return !isNaN(parsed) ? (parsed <= 1 ? Math.round(parsed * 100) : Math.round(parsed)) : 100;
+  });
   const [settingsStartView, setSettingsStartView] = useState<'settings' | 'tags'>('settings');
   const [highlightedTagIndex, setHighlightedTagIndex] = useState(0);
+  const [selectedBookmarkIndex, setSelectedBookmarkIndex] = useState<number>(-1);
+  const [isPageBgModalOpen, setIsPageBgModalOpen] = useState(false);
+  const { bgConfig, saveBgConfig } = usePageBackground('dashboard');
+
+  useEffect(() => {
+    document.documentElement.style.setProperty('--tile-opacity', `${tileOpacity}%`);
+  }, [tileOpacity]);
+
+  useEffect(() => {
+    const handleStorageChange = () => {
+      setSearchOpenNewTab(localStorage.getItem('search_open_new_tab') === 'true');
+      const savedHeight = localStorage.getItem('tile_height');
+      if (savedHeight) setTileHeight(parseInt(savedHeight));
+      const savedOpacity = localStorage.getItem('tile_opacity');
+      if (savedOpacity) {
+        const parsed = parseFloat(savedOpacity);
+        const val = !isNaN(parsed) ? (parsed <= 1 ? Math.round(parsed * 100) : Math.round(parsed)) : 100;
+        setTileOpacity(val);
+        document.documentElement.style.setProperty('--tile-opacity', `${val}%`);
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
 
   const [undoToasts, setUndoToasts] = useState<UndoToastData[]>([]);
   const undoTimersRef = useRef<{ [key: string]: number }>({});
@@ -63,6 +103,10 @@ export const Dashboard = () => {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const observerTarget = useRef<HTMLDivElement>(null);
   const highlightedTagRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    setSelectedBookmarkIndex(-1);
+  }, [search, selectedTag]);
 
   // Custom Hooks
   const {
@@ -170,6 +214,7 @@ export const Dashboard = () => {
           if (isTagMenuOpen) { e.preventDefault(); setIsTagMenuOpen(false); }
           else if (isSettingsMenuOpen) { e.preventDefault(); setIsSettingsMenuOpen(false); }
           else if (isInfoModalOpen) { setIsInfoModalOpen(false); }
+          else if (isPageBgModalOpen) { setIsPageBgModalOpen(false); }
           break;
         case 'Backspace':
           if (!isTyping && selectedTag) {
@@ -206,14 +251,29 @@ export const Dashboard = () => {
     }
   };
 
-  const handleConfigSave = async (newLimit: number, newTheme: Theme, newTileSize: number, newShowUrl: boolean) => {
+  const handleConfigSave = async (
+    newLimit: number,
+    newTheme: Theme,
+    newTileSize: number,
+    newShowUrl: boolean,
+    newSearchOpenNewTab: boolean,
+    newTileOpacity: number = 100,
+    newTileHeight: number = 0
+  ) => {
     localStorage.setItem('bookmarks_limit', newLimit.toString());
     localStorage.setItem('tile_size', newTileSize.toString());
     localStorage.setItem('show_url', newShowUrl.toString());
+    localStorage.setItem('search_open_new_tab', newSearchOpenNewTab.toString());
+    localStorage.setItem('tile_opacity', newTileOpacity.toString());
+    localStorage.setItem('tile_height', newTileHeight.toString());
     setLimit(newLimit);
     setTheme(newTheme);
     setTileSize(newTileSize);
     setShowUrl(newShowUrl);
+    setSearchOpenNewTab(newSearchOpenNewTab);
+    setTileOpacity(newTileOpacity);
+    setTileHeight(newTileHeight);
+    document.documentElement.style.setProperty('--tile-opacity', `${newTileOpacity}%`);
     try {
       await api.patch('/user/preferences', { theme: newTheme });
       if (user) {
@@ -344,13 +404,48 @@ export const Dashboard = () => {
     setDroppedData(null);
   };
 
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (search.trim() && bookmarks.length > 0) {
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        if (e.shiftKey) {
+          setSelectedBookmarkIndex(prev => (prev <= 0 ? bookmarks.length - 1 : prev - 1));
+        } else {
+          setSelectedBookmarkIndex(prev => (prev + 1) % bookmarks.length);
+        }
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setSelectedBookmarkIndex(prev => (prev + 1) % bookmarks.length);
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setSelectedBookmarkIndex(prev => (prev <= 0 ? bookmarks.length - 1 : prev - 1));
+      } else if (e.key === 'Enter') {
+        if (selectedBookmarkIndex >= 0 && selectedBookmarkIndex < bookmarks.length) {
+          e.preventDefault();
+          window.open(bookmarks[selectedBookmarkIndex].url, '_blank', 'noopener,noreferrer');
+        }
+      } else if (e.key === 'Escape') {
+        setSelectedBookmarkIndex(-1);
+      }
+    }
+  };
+
   return (
-    <div className="min-h-screen p-6 md:p-10 w-full flex flex-col" onClick={() => { setIsTagMenuOpen(false); setIsSettingsMenuOpen(false); }} onDragOver={handleDragOver} onDrop={handleDrop}>
+    <div
+      className={`min-h-screen p-6 md:p-10 w-full flex flex-col relative z-10 transition-colors ${
+        bgConfig.type === 'none' ? 'bg-background' : 'bg-transparent'
+      }`}
+      onClick={() => { setIsTagMenuOpen(false); setIsSettingsMenuOpen(false); }}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
+    >
+      <PageBackground bgConfig={bgConfig} />
       <DashboardHeader
         bookmarksCount={bookmarks.length}
         totalCount={totalCount}
         search={search}
         setSearch={setSearch}
+        onOpenPageBgModal={() => setIsPageBgModalOpen(true)}
         selectedTag={selectedTag}
         setSelectedTag={setSelectedTag}
         setTagSearch={setTagSearch}
@@ -374,6 +469,7 @@ export const Dashboard = () => {
         logout={logout}
         user={user}
         searchInputRef={searchInputRef}
+        onSearchKeyDown={handleSearchKeyDown}
       />
 
       <div className="flex-1">
@@ -390,7 +486,7 @@ export const Dashboard = () => {
               }
             </div>
           ) : (
-            bookmarks.map(b => (
+            bookmarks.map((b, index) => (
               <BookmarkCard
                 key={b.id}
                 bookmark={b}
@@ -400,6 +496,8 @@ export const Dashboard = () => {
                 onTagClick={handleTagSelect}
                 onToggleFavorite={handleToggleFavorite}
                 showUrl={showUrl}
+                isSelected={index === selectedBookmarkIndex}
+                tileHeight={tileHeight}
               />
             ))
           )}
@@ -432,10 +530,21 @@ export const Dashboard = () => {
         currentLimit={limit}
         currentTheme={theme}
         currentTileSize={tileSize}
+        currentTileHeight={tileHeight}
         currentShowUrl={showUrl}
+        currentSearchOpenNewTab={searchOpenNewTab}
+        currentTileOpacity={tileOpacity}
         onSave={handleConfigSave}
         onTagsUpdate={() => fetchBookmarks(1, true)}
         initialView={settingsStartView}
+        onOpenPageBgModal={() => setIsPageBgModalOpen(true)}
+      />
+      <PageBackgroundModal
+        isOpen={isPageBgModalOpen}
+        onClose={() => setIsPageBgModalOpen(false)}
+        pageName="Main Dashboard"
+        currentConfig={bgConfig}
+        onSave={saveBgConfig}
       />
       <KeyboardShortcutsModal isOpen={isInfoModalOpen} onClose={() => setIsInfoModalOpen(false)} />
       <DataImportExportModal

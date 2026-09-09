@@ -22,6 +22,14 @@ function App() {
     if (isAuthenticated) {
       fetchConfig();
     }
+    const savedOpacity = localStorage.getItem('tile_opacity');
+    if (savedOpacity) {
+      const parsed = parseFloat(savedOpacity);
+      const pct = !isNaN(parsed) ? (parsed <= 1 ? `${Math.round(parsed * 100)}%` : `${Math.round(parsed)}%`) : '100%';
+      document.documentElement.style.setProperty('--tile-opacity', pct);
+    } else {
+      document.documentElement.style.setProperty('--tile-opacity', '100%');
+    }
   }, [isAuthenticated, fetchConfig]);
 
   return (

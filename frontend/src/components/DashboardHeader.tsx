@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { LayoutGrid, List, Search, LogOut, Tags, Settings, ArrowRightLeft, Sliders, Shield, X, Heart, Info, ListTodo, Kanban } from 'lucide-react';
+import { LayoutGrid, List, Search, LogOut, Tags, Settings, ArrowRightLeft, Sliders, Shield, X, Heart, Info, ListTodo, Kanban, Palette } from 'lucide-react';
 import { User } from '../api/types';
 
 interface DashboardHeaderProps {
@@ -36,6 +36,8 @@ interface DashboardHeaderProps {
   user: User | null;
 
   searchInputRef: React.RefObject<HTMLInputElement | null>;
+  onSearchKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
+  onOpenPageBgModal?: () => void;
 }
 
 export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
@@ -65,10 +67,12 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
   setSettingsStartView,
   logout,
   user,
-  searchInputRef
+  searchInputRef,
+  onSearchKeyDown,
+  onOpenPageBgModal
 }) => {
   return (
-    <header className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between" onClick={e => e.stopPropagation()}>
+    <header className="relative z-20 mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between" onClick={e => e.stopPropagation()}>
         <div>
           <h1 className="text-3xl font-bold flex items-center">
             <img src="/alpaca-bookmarks.png" alt="Alpaca Bookmarks" className="inline-block h-8 w-8 mr-2" />
@@ -110,6 +114,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
                 if (e.key === 'Escape') {
                   searchInputRef.current?.blur();
                 }
+                onSearchKeyDown?.(e);
               }}
             />
           </div>
@@ -236,15 +241,24 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
               </button>
               {isSettingsMenuOpen && (
                 <div className="absolute right-0 top-full z-20 mt-2 w-56 overflow-hidden rounded-md border border-gray-600 bg-surface shadow-xl">
-                  <button onClick={() => { setSettingsStartView('settings'); setIsConfigModalOpen(true); setIsSettingsMenuOpen(false); }} className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-muted hover:bg-primary hover:text-white"><Sliders size={16} /> Preferences</button>
-                  <button onClick={() => { setIsDataImportExportModalOpen(true); setIsSettingsMenuOpen(false); }} className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-muted hover:bg-primary hover:text-white"><ArrowRightLeft size={16} /> Data Import / Export</button>
+                  <button
+                    onClick={() => {
+                      if (onOpenPageBgModal) onOpenPageBgModal();
+                      setIsSettingsMenuOpen(false);
+                    }}
+                    className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-text hover:bg-primary hover:text-white"
+                  >
+                    <Palette size={16} /> Page Background
+                  </button>
+                  <button onClick={() => { setSettingsStartView('settings'); setIsConfigModalOpen(true); setIsSettingsMenuOpen(false); }} className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-text hover:bg-primary hover:text-white"><Sliders size={16} /> Preferences</button>
+                  <button onClick={() => { setIsDataImportExportModalOpen(true); setIsSettingsMenuOpen(false); }} className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-text hover:bg-primary hover:text-white"><ArrowRightLeft size={16} /> Data Import / Export</button>
                   <button
                     onClick={() => {
                       setSettingsStartView('tags');
                       setIsConfigModalOpen(true);
                       setIsSettingsMenuOpen(false);
                     }}
-                    className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-muted hover:bg-primary hover:text-white"
+                    className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-text hover:bg-primary hover:text-white"
                   >
                     <Tags size={16} /> Organize Tags
                   </button>

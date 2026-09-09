@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Home, Plus, Trash2, CheckCircle, Circle, ChevronRight, ChevronDown, ListTodo, Edit2, X, Save, Heart, Layout, Info, Settings, Sliders, ArrowRightLeft, Tags, LogOut, Shield } from 'lucide-react';
+import { Home, Plus, Trash2, CheckCircle, Circle, ChevronRight, ChevronDown, Edit2, X, Save, Heart, Layout, Info, Settings, Sliders, ArrowRightLeft, Tags, LogOut, Shield } from 'lucide-react';
 import api from '../api/client';
 import { TodoList, TodoItem } from '../api/types';
 import { useTheme, Theme } from '../hooks/useTheme';
@@ -199,10 +199,22 @@ export const TodoListPage: React.FC = () => {
     }
   };
 
-  const handleConfigSave = async (newLimit: number, newTheme: Theme, newTileSize: number, newShowUrl: boolean) => {
+  const handleConfigSave = async (
+    newLimit: number,
+    newTheme: Theme,
+    newTileSize: number,
+    newShowUrl: boolean,
+    newSearchOpenNewTab?: boolean,
+    newTileOpacity: number = 100,
+    newTileHeight: number = 0
+  ) => {
     localStorage.setItem('bookmarks_limit', newLimit.toString());
     localStorage.setItem('tile_size', newTileSize.toString());
     localStorage.setItem('show_url', newShowUrl.toString());
+    if (newSearchOpenNewTab !== undefined) localStorage.setItem('search_open_new_tab', newSearchOpenNewTab.toString());
+    localStorage.setItem('tile_opacity', newTileOpacity.toString());
+    localStorage.setItem('tile_height', newTileHeight.toString());
+    document.documentElement.style.setProperty('--tile-opacity', `${newTileOpacity}%`);
     setLimit(newLimit);
     setTheme(newTheme);
     setTileSize(newTileSize);
@@ -211,10 +223,12 @@ export const TodoListPage: React.FC = () => {
 
   return (
     <div className="min-h-screen p-4 md:p-10 w-full max-w-4xl mx-auto" onClick={() => setIsSettingsMenuOpen(false)}>
-      <header className="mb-8 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <ListTodo size={32} className="text-primary" />
-          <h1 className="text-3xl font-bold text-text">Alpaca Todo Lists</h1>
+      <header className="relative z-20 mb-8 flex items-center justify-between">
+        <div className="flex items-center">
+          <h1 className="text-3xl font-bold text-text flex items-center">
+            <img src="/alpaca-bookmarks.png" alt="Alpaca Bookmarks" className="inline-block h-8 w-8 mr-2" />
+            Alpaca Todo Lists
+          </h1>
         </div>
         <div className="flex items-center gap-2">
           <Link to="/" className="flex items-center gap-2 rounded-md bg-surface px-4 py-2 text-text hover:bg-primary hover:text-white transition-colors">
